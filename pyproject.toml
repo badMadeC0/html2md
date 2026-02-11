@@ -1,0 +1,42 @@
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "html2md-cli"
+version = "0.11.6"
+description = "Full HTML→Markdown/PDF/TXT converter with --url, multi-format export, ReportLab PDF rendering, Markdown conversion, per-domain rate policy, robots/meta controls, retries/backoff, JSONL logs + CSV export, title-fetch dedupe, validation tool, Windows bootstrap & GUI prompt."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Your Name", email = "you@example.com" }]
+keywords = ["html", "markdown", "pdf", "txt", "cli", "windows", "bootstrap", "rate limit", "regex", "logging", "reportlab", "markdownify"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Environment :: Console",
+  "Topic :: Text Processing :: Markup",
+]
+
+dependencies = [
+  "markdownify>=0.11.6",
+  "beautifulsoup4>=4.10.0",
+  "requests>=2.25.0",
+  "reportlab>=3.6.0",
+  "pillow>=9.0.0",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+html2md = "html2md.cli:main"
+html2md-log-export = "html2md.log_export:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
