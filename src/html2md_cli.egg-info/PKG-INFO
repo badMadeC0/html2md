@@ -4,19 +4,21 @@ Version: 0.11.6
 Summary: Full HTML→Markdown/PDF/TXT converter with --url, multi-format export, ReportLab PDF rendering, Markdown conversion, per-domain rate policy, robots/meta controls, retries/backoff, JSONL logs + CSV export, title-fetch dedupe, validation tool, Windows bootstrap & GUI prompt.
 Author-email: Your Name <you@example.com>
 License: MIT
-Keywords: html,markdown,pdf,txt,cli,windows,bootstrap,rate limit,regex,logging,reportlab,markdownify
-Classifier: Programming Language :: Python :: 3
-Classifier: License :: OSI Approved :: MIT License
-Classifier: Environment :: Console
-Classifier: Topic :: Text Processing :: Markup
-Requires-Python: >=3.8
+Keywords: html, markdown, pdf, txt, cli, windows, bootstrap, rate limit, regex, logging, reportlab, markdownify
+Classifier:
+  - "Programming Language :: Python :: 3"
+  - "License :: OSI Approved :: MIT License"
+  - "Environment :: Console"
+  - "Topic :: Text Processing :: Markup"
+Requires-Python: ">=3.8"
 Description-Content-Type: text/markdown
-Requires-Dist: markdownify>=0.11.6
-Requires-Dist: beautifulsoup4>=4.10.0
-Requires-Dist: requests>=2.25.0
-Requires-Dist: reportlab>=3.6.0
-Requires-Dist: pillow>=9.0.0
-Requires-Dist: pyyaml>=6.0
+Requires-Dist:
+  - markdownify>=0.11.6
+  - beautifulsoup4>=4.10.0
+  - requests>=2.25.0
+  - reportlab>=3.6.0
+  - pillow>=9.0.0
+  - pyyaml>=6.0
 
 
 # html2md-cli (0.11.6) — Complete Package
