@@ -90,7 +90,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Trigger:** push and pull_request
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
-- **Steps:** install dependencies → `pip install -e .` → `pytest -q`
+- **Steps:** `pip install pytest` → `pip install -e .` → `pytest -q`
 
 ## Code Conventions
 
