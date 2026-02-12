@@ -12,7 +12,7 @@
 html2md/
 ├── src/
 │   └── html2md/
-│       ├── __init__.py        # Package version (0.11.6)
+│       ├── __init__.py        # Package version
 │       ├── __main__.py        # `python -m html2md` entry point
 │       ├── cli.py             # Main CLI entry point (placeholder)
 │       └── log_export.py      # JSONL-to-CSV log export utility
