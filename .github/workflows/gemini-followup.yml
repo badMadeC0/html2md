@@ -16,6 +16,7 @@ jobs:
        contains(github.event.review.body, 'Code Review') &&
        contains(github.event.review.body, 'Gemini Code Assist')) ||
       (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
        github.event.comment.user.login == 'gemini-code-assist[bot]' &&
        contains(github.event.comment.body, 'Code Review') &&
        contains(github.event.comment.body, 'Gemini Code Assist'))
