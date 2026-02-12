@@ -6,6 +6,7 @@ html2md is a Python CLI tool that converts HTML to Markdown, PDF, and TXT format
 ## Build & Test
 ```bash
 pip install -e .
+pip install pytest
 pytest -q
 ```
 
