@@ -48,8 +48,7 @@ html2md/
 
 ### Install (editable/dev mode)
 ```bash
-pip install -e .
-pip install pytest
+pip install -e . pytest build
 ```
 
 ### Dependencies
