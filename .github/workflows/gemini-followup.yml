@@ -1,0 +1,68 @@
+name: Gemini Code Assist Follow-up
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+jobs:
+  follow-up:
+    runs-on: ubuntu-latest
+    # Only run if the comment/review is from gemini-code-assist[bot]
+    if: >
+      (github.event_name == 'pull_request_review' &&
+       github.event.review.user.login == 'gemini-code-assist[bot]' &&
+       contains(github.event.review.body, 'Code Review') &&
+       contains(github.event.review.body, 'Gemini Code Assist')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       github.event.comment.user.login == 'gemini-code-assist[bot]' &&
+       contains(github.event.comment.body, 'Code Review') &&
+       contains(github.event.comment.body, 'Gemini Code Assist'))
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Post follow-up comment on PR review
+        if: github.event_name == 'pull_request_review'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const followUpBody = '@gemini-code-assist, what are the steps, file, and line numbers to make this fix?';
+
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                body: followUpBody,
+                event: 'COMMENT'
+              });
+            } catch (error) {
+              console.error('Failed to create pull request review comment in Gemini follow-up workflow:', error);
+              // Fall back to a regular issue comment if review comment creation fails
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: followUpBody
+                });
+              } catch (fallbackError) {
+                console.error('Failed to create fallback issue comment in Gemini follow-up workflow:', fallbackError);
+                throw fallbackError;
+              }
+            }
+
+      - name: Post follow-up comment on issue comment
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: '@gemini-code-assist, what are the steps, file, and line numbers to make this fix?'
+            });
