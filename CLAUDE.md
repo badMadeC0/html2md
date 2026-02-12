@@ -10,13 +10,15 @@ pytest -q
 ```
 
 ## Project Structure
+- `pyproject.toml` - Project metadata, dependencies, and build configuration
 - `src/html2md/` - Main Python package
   - `cli.py` - CLI entry point
   - `log_export.py` - JSONL-to-CSV log export utility
 - `tests/` - Test suite
 - `gui-url-convert.ps1` - Windows WPF GUI
 - `setup-html2md.ps1` - Windows bootstrap/setup script
-- `run-gui.bat` / `run-html2md.bat` - Windows batch launchers
+- `run-gui.bat` - Windows batch launcher for the GUI
+- `run-html2md.bat` - Windows batch launcher for the CLI
 
 ## Code Review Guidelines
 - This project targets Python 3.8+
