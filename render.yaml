@@ -3,7 +3,12 @@ services:
     name: html2md
     runtime: python
     buildCommand: pip install -e .
-    startCommand: python app.py
+services:
+  - type: web
+    name: html2md
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: gunicorn --workers 4 --bind 0.0.0.0:$PORT app:app
     envVars:
       - key: PORT
         value: "10000"
