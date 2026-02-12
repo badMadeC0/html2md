@@ -17,4 +17,5 @@ if __name__ == '__main__':
     except ValueError:
         print(f"Warning: Invalid PORT environment variable value {port_str!r}; falling back to default {default_port}.")
         port = default_port
-    app.run(host='0.0.0.0', port=port)
+    host = os.environ.get('HOST', '127.0.0.1')
+    app.run(host=host, port=port)
