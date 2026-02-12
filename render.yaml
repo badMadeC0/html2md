@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: html2md
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: "10000"
+    healthCheckPath: /health
