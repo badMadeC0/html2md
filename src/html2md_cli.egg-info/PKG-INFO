@@ -17,7 +17,6 @@ Requires-Dist: requests>=2.25.0
 Requires-Dist: reportlab>=3.6.0
 Requires-Dist: pillow>=9.0.0
 Requires-Dist: pyyaml>=6.0
-Requires-Dist: flask>=2.0.0
 
 
 # html2md-cli (0.11.6) — Complete Package
