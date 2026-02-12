@@ -30,9 +30,10 @@ dependencies = [
   "pillow>=9.0.0",
   "pyyaml>=6.0",
   "flask>=2.0.0",
-  "gunicorn",
 ]
 
+[project.optional-dependencies]
+web = ["flask>=2.0.0"]
 [project.scripts]
 html2md = "html2md.cli:main"
 html2md-log-export = "html2md.log_export:main"
