@@ -1,7 +1,7 @@
 # CLAUDE.md - Claude Code Review Configuration
 
 ## Project Overview
-html2md is a Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. It includes a Windows WPF GUI, rate limiting, robots/meta controls, retries with backoff, JSONL logging with CSV export, and a Windows bootstrap script.
+html2md is a Python CLI project. The current codebase contains a placeholder CLI stub (`cli.py`), a JSONL-to-CSV log export utility (`log_export.py`), a Windows WPF GUI launcher (`gui-url-convert.ps1`), and a Windows bootstrap script (`setup-html2md.ps1`). The full HTML-to-Markdown conversion runtime is not yet implemented in this repository.
 
 ## Build & Test
 ```bash
@@ -13,7 +13,7 @@ pytest -q
 ## Project Structure
 - `pyproject.toml` - Project metadata, dependencies, and build configuration
 - `src/html2md/` - Main Python package
-  - `cli.py` - CLI entry point
+  - `cli.py` - CLI entry point (placeholder stub)
   - `log_export.py` - JSONL-to-CSV log export utility
 - `tests/` - Test suite
 - `gui-url-convert.ps1` - Windows WPF GUI
