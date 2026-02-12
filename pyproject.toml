@@ -26,6 +26,10 @@ dependencies = [
   "reportlab>=3.6.0",
   "pillow>=9.0.0",
   "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+deploy = [
   "flask>=2.0.0",
   "gunicorn>=20.1.0",
 ]
