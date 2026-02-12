@@ -27,7 +27,7 @@ Dev dependencies: `pytest`, `setuptools`, `wheel`, `build`.
 
 ## Project Layout
 
-- Source lives under `src/html2md/` (PEP 517 src-layout).
+- Source lives under `src/html2md/` (following the `src` layout convention).
 - Tests live under `tests/` and run with `pytest -q`.
 - Build config is entirely in `pyproject.toml` — there is no `setup.py` or `setup.cfg`.
 - Windows integration scripts (`*.bat`, `*.ps1`) are not part of the Python package.
