@@ -1,30 +1,3 @@
-# CLAUDE.md - Claude Code Review Configuration
-
-## Project Overview
-html2md is a Python CLI project. The current codebase contains a placeholder CLI stub (`cli.py`), a JSONL-to-CSV log export utility (`log_export.py`), a Windows WPF GUI launcher (`gui-url-convert.ps1`), and a Windows bootstrap script (`setup-html2md.ps1`). The full HTML-to-Markdown conversion runtime is not yet implemented in this repository.
-
-## Build & Test
-```bash
-pip install -e .
-pip install pytest
-pytest -q
-```
-
-## Project Structure
-- `pyproject.toml` - Project metadata, dependencies, and build configuration
-- `src/html2md/` - Main Python package
-  - `cli.py` - CLI entry point (placeholder stub)
-  - `log_export.py` - JSONL-to-CSV log export utility
-- `tests/` - Test suite
-- `gui-url-convert.ps1` - Windows WPF GUI
-- `setup-html2md.ps1` - Windows bootstrap/setup script
-- `run-gui.bat` - Windows batch launcher for the GUI
-- `run-html2md.bat` - Windows batch launcher for the CLI
-
-## Code Review Guidelines
-- This project targets Python 3.8+
-- CI runs on `windows-latest` via GitHub Actions
-- Tests use pytest
 # CLAUDE.md
 
 ## Project Overview
