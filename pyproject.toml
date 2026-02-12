@@ -28,6 +28,12 @@ dependencies = [
   "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+deploy = [
+  "flask>=2.0.0",
+  "gunicorn>=20.1.0",
+]
+
 [project.scripts]
 html2md = "html2md.cli:main"
 html2md-log-export = "html2md.log_export:main"
