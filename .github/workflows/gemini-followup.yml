@@ -29,13 +29,31 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              body: '@gemini-code-assist, what are the steps, file, and line numbers to make this fix?',
-              event: 'COMMENT'
-            });
+            const followUpBody = '@gemini-code-assist, what are the steps, file, and line numbers to make this fix?';
+
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                body: followUpBody,
+                event: 'COMMENT'
+              });
+            } catch (error) {
+              console.error('Failed to create pull request review comment in Gemini follow-up workflow:', error);
+              // Fall back to a regular issue comment if review comment creation fails
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: followUpBody
+                });
+              } catch (fallbackError) {
+                console.error('Failed to create fallback issue comment in Gemini follow-up workflow:', fallbackError);
+                throw fallbackError;
+              }
+            }
 
       - name: Post follow-up comment on issue comment
         if: github.event_name == 'issue_comment'
