@@ -48,7 +48,8 @@ html2md/
 
 ### Install (editable/dev mode)
 ```bash
-pip install -e . pytest build
+pip install -e .
+pip install pytest build
 ```
 
 ### Dependencies
@@ -82,7 +83,7 @@ pytest -q
 - Framework: **pytest**
 - Config: `pyproject.toml` → `[tool.pytest.ini_options]` with `addopts = "-q"`
 - Tests live in `tests/`
-- Current suite: smoke test verifying `html2md --help` exits with code 0
+- Current suite: smoke test verifying `html2md --help` command executes successfully
 
 ## CI/CD
 
@@ -90,7 +91,11 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Trigger:** push and pull_request
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
-- **Steps:** `pip install pytest` → `pip install -e .` → `pytest -q`
+- **Steps:** 
+  1. Upgrade pip, wheel, setuptools
+  2. `pip install -e .` (install package in editable mode)
+  3. `pip install pytest` (install test framework)
+  4. `pytest -q` (run tests in quiet mode)
 
 ## Code Conventions
 
@@ -106,7 +111,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 | Task | Command |
 |------|---------|
-| Install for development | `pip install -e . pytest build` |
+| Install for development | `pip install -e .` then `pip install pytest build` |
 | Run tests | `pytest -q` |
 | Run the CLI | `html2md --help` |
 | Export logs | `html2md-log-export --in logs.jsonl --out logs.csv` |
