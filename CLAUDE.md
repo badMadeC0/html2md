@@ -106,7 +106,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 | Task | Command |
 |------|---------|
-| Install for development | `pip install -e .` |
+| Install for development | `pip install -e . pytest build` |
 | Run tests | `pytest -q` |
 | Run the CLI | `html2md --help` |
 | Export logs | `html2md-log-export --in logs.jsonl --out logs.csv` |
