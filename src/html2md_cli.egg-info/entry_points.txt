@@ -1,3 +1,0 @@
-[console_scripts]
-html2md = html2md.cli:main
-html2md-log-export = html2md.log_export:main
