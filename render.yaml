@@ -2,7 +2,7 @@ services:
   - type: web
     name: html2md
     runtime: python
-    buildCommand: pip install -e .
+    buildCommand: pip install gunicorn && pip install -e .
     startCommand: gunicorn html2md.app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PORT
