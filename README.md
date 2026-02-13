@@ -20,9 +20,9 @@ A Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. It suppo
 
 | Entry Point | Target | Description |
 |---|---|---|
-| `html2md` | `src/html2md/cli.py:main` | Primary CLI |
-| `html2md-log-export` | `src/html2md/log_export.py:main` | JSONL-to-CSV log export utility |
-| `python -m html2md` | `src/html2md/__main__.py` | Module execution, delegates to `cli.main()` |
+| `html2md` | [`src/html2md/cli.py:main`](src/html2md/cli.py) | Primary CLI |
+| `html2md-log-export` | [`src/html2md/log_export.py:main`](src/html2md/log_export.py) | JSONL-to-CSV log export utility |
+| `python -m html2md` | [`src/html2md/__main__.py`](src/html2md/__main__.py) | Module execution, delegates to `cli.main()` |
 
 ## Key Files
 
