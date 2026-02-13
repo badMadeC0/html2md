@@ -12,7 +12,10 @@ def test_health_endpoint():
     response = client.get('/health')
 
     assert response.status_code == 200
-    assert response.get_json() == {'status': 'ok'}
+    result = response.get_json()
+    assert result['status'] == 'ok'
+    assert result['service'] == 'html2md'
+    assert result['version'] == '0.11.6'
 
 
 def test_get_host_port_defaults(monkeypatch):
@@ -22,7 +25,7 @@ def test_get_host_port_defaults(monkeypatch):
     flask_app_module = importlib.import_module('html2md.app')
     host, port = flask_app_module.get_host_port()
 
-    assert host == '127.0.0.1'
+    assert host == '0.0.0.0'
     assert port == 10000
 
 
