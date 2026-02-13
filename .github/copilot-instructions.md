@@ -7,7 +7,7 @@ html2md-cli is a Python CLI tool that converts HTML to Markdown, PDF, and TXT fo
 ## Language & Runtime
 
 - Python **>= 3.8** — do not use syntax or stdlib features added after 3.8 (e.g., `match` statements, `str.removeprefix`, `tomllib`).
-- Always include `from __future__ import annotations` at the top of every module.
+- For **new or modified Python modules**, include `from __future__ import annotations` at the top of the file.
 
 ## Code Style
 
@@ -15,8 +15,8 @@ html2md-cli is a Python CLI tool that converts HTML to Markdown, PDF, and TXT fo
 - Use `argparse.ArgumentParser` for CLI argument parsing — no click, typer, or other frameworks.
 - Use `pathlib.Path` for all filesystem operations — never raw `os.path` calls.
 - Use `encoding='utf-8'` explicitly on all `open()` / `Path.open()` calls.
-- Keep imports grouped: stdlib, third-party, local — one blank line between groups.
-- Prefer concise code, but avoid packing unrelated statements on one line.
+- Prefer grouped imports (stdlib, third-party, local) with one blank line between groups for **new or modified files**.
+- Prefer concise code, but avoid packing unrelated statements on one line in **new or modified code**.
 
 ## Dependencies
 
