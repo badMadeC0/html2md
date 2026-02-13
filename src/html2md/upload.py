@@ -36,7 +36,7 @@ def main(argv=None):
 
     try:
         result = upload_file(args.file)
-        print(f"Uploaded successfully: {result}")
+        print(f"File uploaded successfully. ID: {result.id}")
     except FileNotFoundError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
