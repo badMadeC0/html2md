@@ -19,9 +19,10 @@ def upload_file(file_path: str) -> dict:
         mime_type = "application/octet-stream"
 
     client = anthropic.Anthropic()
-    result = client.beta.files.upload(
-        file=(path.name, open(path, "rb"), mime_type),
-    )
+    with path.open("rb") as file_data:
+        result = client.beta.files.upload(
+            file=(path.name, file_data, mime_type),
+        )
     return result
 
 
