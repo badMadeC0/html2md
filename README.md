@@ -11,7 +11,7 @@ A Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. It suppo
 
 - **Language:** Python 3.8+
 - **Build:** setuptools + wheel via `pyproject.toml` (PEP 517/518)
-- **Core dependencies:** `markdownify`, `beautifulsoup4`, `requests`, `reportlab`, `pillow`, `pyyaml`
+- **Core dependencies:** [`markdownify`](https://pypi.org/project/markdownify/), [`beautifulsoup4`](https://pypi.org/project/beautifulsoup4/), [`requests`](https://pypi.org/project/requests/), [`reportlab`](https://pypi.org/project/reportlab/), [`pillow`](https://pypi.org/project/Pillow/), [`pyyaml`](https://pypi.org/project/PyYAML/)
 - **Testing:** pytest
 - **CI:** GitHub Actions (Windows-latest)
 - **Platform extras:** PowerShell setup scripts + WPF GUI for Windows
