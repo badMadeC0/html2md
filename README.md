@@ -28,14 +28,14 @@ A Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. It suppo
 
 | File | Description |
 |---|---|
-| `src/html2md/cli.py` | Main CLI module |
-| `src/html2md/log_export.py` | Reads JSONL logs and exports selected fields to CSV |
-| `src/html2md/__init__.py` | Package init, exposes `__version__` |
-| `tests/test_cli_smoke.py` | Smoke test verifying `--help` exits cleanly |
-| `setup-html2md.ps1` | Windows PowerShell setup (venv, deps, PATH) |
-| `gui-url-convert.ps1` | Windows WPF GUI for URL conversion |
-| `run-html2md.bat` | Windows batch launcher |
-| `run-gui.bat` | Windows GUI launcher |
+| [`src/html2md/cli.py`](src/html2md/cli.py) | Main CLI module |
+| [`src/html2md/log_export.py`](src/html2md/log_export.py) | Reads JSONL logs and exports selected fields to CSV |
+| [`src/html2md/__init__.py`](src/html2md/__init__.py) | Package init, exposes `__version__` |
+| [`tests/test_cli_smoke.py`](tests/test_cli_smoke.py) | Smoke test verifying `--help` exits cleanly |
+| [`setup-html2md.ps1`](setup-html2md.ps1) | Windows PowerShell setup (venv, deps, PATH) |
+| [`gui-url-convert.ps1`](gui-url-convert.ps1) | Windows WPF GUI for URL conversion |
+| [`run-html2md.bat`](run-html2md.bat) | Windows batch launcher |
+| [`run-gui.bat`](run-gui.bat) | Windows GUI launcher |
 
 ## Features
 
