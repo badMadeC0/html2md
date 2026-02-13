@@ -1,11 +1,16 @@
 
-# html2md-cli (0.11.6) — Complete Package
+# html2md-cli (0.11.6) — Repository Snapshot
 
-This archive contains the **complete product**: runtime CLI, Windows setup+launcher, GUI, tests, and ML documentation.
+This repository contains the current source snapshot: a placeholder `html2md` CLI entry point, a working JSONL→CSV log export utility, Windows helper scripts, tests, and documentation.
 
 ## Purpose
 
-A Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. It supports fetching pages by URL with features like per-domain rate limiting, robots.txt compliance, retry/backoff, and JSONL logging with CSV export.
+This repo currently provides:
+
+- A placeholder `html2md` CLI command that exposes parser/help behavior (`--help`/`--help-only`) and prints a runtime availability message.
+- A functional `html2md-log-export` utility for exporting JSONL logs to CSV.
+
+The full runtime conversion workflow described in earlier packaging notes is **not embedded in this source tree**.
 
 ## Tech Stack
 
@@ -37,15 +42,9 @@ A Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. It suppo
 | [`run-html2md.bat`](run-html2md.bat) | Windows batch launcher |
 | [`run-gui.bat`](run-gui.bat) | Windows GUI launcher |
 
-## Features
+## Features in this repository
 
-- HTML to Markdown/PDF/TXT conversion with `--url` support
-- Multi-format export
-- ReportLab PDF rendering
-- Per-domain rate limiting policies
-- Robots.txt and meta tag controls
-- Retries with backoff
-- JSONL-based logging with CSV export
-- Title-fetch deduplication
-- Validation tool
-- Windows bootstrap and GUI prompt support
+- `html2md` CLI placeholder command (`--help` and `--help-only` parsing)
+- JSONL-based log export to CSV via `html2md-log-export`
+- Package/module entry points and smoke tests
+- Windows bootstrap and launcher scripts (PowerShell + batch)
