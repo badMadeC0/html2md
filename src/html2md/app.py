@@ -1,13 +1,21 @@
+from __future__ import annotations
+
 import os
 
 from flask import Flask, jsonify
+
+from html2md import __version__
 
 app = Flask(__name__)
 
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok'})
+    return jsonify({
+        'status': 'ok',
+        'version': __version__,
+        'service': 'html2md',
+    })
 
 
 def get_host_port():
@@ -22,7 +30,7 @@ def get_host_port():
         )
         port = default_port
 
-    host = os.environ.get('HOST', '127.0.0.1')
+    host = os.environ.get('HOST', '0.0.0.0')
     return host, port
 
 

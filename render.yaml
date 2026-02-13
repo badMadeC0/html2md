@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: html2md
+    runtime: python
+    buildCommand: pip install -e .
+    startCommand: gunicorn html2md.app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PORT
+        value: "10000"
+    healthCheckPath: /health
