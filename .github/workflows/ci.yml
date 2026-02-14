@@ -16,3 +16,5 @@ jobs:
           pip install pytest
       - name: Test
         run: pytest -q
+      - name: Jules Invoke
+        uses: BeksOmega/jules-action@v1.0.0
