@@ -50,7 +50,7 @@ $xaml = @"
                      AutomationProperties.Name="Output Directory"
                      ToolTip="The directory where output files will be saved"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0"
-                    Content="_Browse..." ToolTip="Browse for output directory"/>
+                    Content="_Browse…" ToolTip="Browse for output directory"/>
         </StackPanel>
 
         <Button Name="ConvertBtn" Grid.Row="4" Content="_Convert (All Formats)"
