@@ -22,7 +22,6 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Xaml
-Add-Type -AssemblyName System.Windows.Forms
 
 # --- Define XAML UI ---
 $xaml = @"
@@ -74,9 +73,10 @@ $ConvertBtn= $window.FindName("ConvertBtn")
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
-    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    if ($dlg.ShowDialog() -eq "OK") {
-        $OutBox.Text = $dlg.SelectedPath
+    $shell = New-Object -ComObject Shell.Application
+    $folder = $shell.BrowseForFolder(0, "Select output directory", 0, 0)
+    if ($folder) {
+        $OutBox.Text = $folder.Self.Path
     }
 })
 
