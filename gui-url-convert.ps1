@@ -78,6 +78,8 @@ $BrowseBtn.Add_Click({
     if ($folder) {
         $OutBox.Text = $folder.Self.Path
     }
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
+    $shell = $null
 })
 
 # --- Convert button logic ---
