@@ -76,8 +76,10 @@ $BrowseBtn.Add_Click({
     $shell = $null
     try {
         $shell = New-Object -ComObject Shell.Application
-        # BrowseForFolder: hwnd=0, title, options=0, rootFolder=0 (Desktop)
-        $folder = $shell.BrowseForFolder(0, "Select output directory", 0, 0)
+        # BrowseForFolder: hwnd=window handle, title, options=0, rootFolder=0 (Desktop)
+        $interopHelper = New-Object System.Windows.Interop.WindowInteropHelper($window)
+        $hwnd = $interopHelper.Handle
+        $folder = $shell.BrowseForFolder($hwnd, "Select output directory", 0, 0)
         if ($folder) {
             $OutBox.Text = $folder.Self.Path
         }
