@@ -27,7 +27,7 @@ Add-Type -AssemblyName System.Xaml
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="html2md - Convert URL"
-        Height="200" Width="580"
+        Height="250" Width="580"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
@@ -35,19 +35,27 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Paste URL:" FontSize="14"/>
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10"/>
+        <Label Target="{Binding ElementName=UrlBox}" FontSize="14" Content="_Paste URL:"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10"
+                 AutomationProperties.Name="Paste URL"
+                 ToolTip="Enter the URL you want to convert"/>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="440" FontSize="14" Text="./out"/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0">Browse…</Button>
+        <Label Grid.Row="2" Target="{Binding ElementName=OutBox}" FontSize="14" Content="_Output Directory:"/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,10">
+            <TextBox Name="OutBox" Width="440" FontSize="14" Text="./out"
+                     AutomationProperties.Name="Output Directory"
+                     ToolTip="The directory where output files will be saved"/>
+            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0"
+                    Content="_Browse..." ToolTip="Browse for output directory"/>
         </StackPanel>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
+        <Button Name="ConvertBtn" Grid.Row="4" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
+                ToolTip="Start conversion for all supported formats"
                 />
     </Grid>
 </Window>
