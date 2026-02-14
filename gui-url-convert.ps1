@@ -73,9 +73,32 @@ $ConvertBtn= $window.FindName("ConvertBtn")
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
-    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    if ($dlg.ShowDialog() -eq "OK") {
-        $OutBox.Text = $dlg.SelectedPath
+    $shell = $null
+    $folder = $null
+    $folderItem = $null
+    try {
+        $shell = New-Object -ComObject Shell.Application
+        # BrowseForFolder: hwnd=window handle, title, options=0, rootFolder=0 (Desktop)
+        $interopHelper = New-Object System.Windows.Interop.WindowInteropHelper($window)
+        $hwnd = $interopHelper.Handle
+        $folder = $shell.BrowseForFolder($hwnd, "Select output directory", 0, 0)
+        if ($folder) {
+            $folderItem = $folder.Self
+            $OutBox.Text = $folderItem.Path
+        }
+    } finally {
+        if ($folderItem) {
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($folderItem) | Out-Null
+            $folderItem = $null
+        }
+        if ($folder) {
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($folder) | Out-Null
+            $folder = $null
+        }
+        if ($shell) {
+            [System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null
+            $shell = $null
+        }
     }
 })
 
