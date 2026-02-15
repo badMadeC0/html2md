@@ -27,7 +27,7 @@ Add-Type -AssemblyName System.Xaml
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="html2md - Convert URL"
-        Height="250" Width="580"
+        Height="280" Width="580"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
@@ -37,6 +37,7 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Label Target="{Binding ElementName=UrlBox}" FontSize="14" Content="_Paste URL:"/>
@@ -57,6 +58,10 @@ $xaml = @"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion for all supported formats"
                 />
+
+        <StatusBar Grid.Row="5" Margin="0,10,0,0">
+            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+        </StatusBar>
     </Grid>
 </Window>
 "@
@@ -70,6 +75,7 @@ $UrlBox    = $window.FindName("UrlBox")
 $OutBox    = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $ConvertBtn= $window.FindName("ConvertBtn")
+$StatusText= $window.FindName("StatusText")
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
@@ -108,7 +114,8 @@ $ConvertBtn.Add_Click({
     $outdir = $OutBox.Text.Trim()
 
     if ([string]::IsNullOrWhiteSpace($url)) {
-        [System.Windows.MessageBox]::Show("Please enter a URL.","Missing URL","OK","Warning") | Out-Null
+        $StatusText.Text = "Please enter a URL."
+        $StatusText.Foreground = "Red"
         return
     }
 
@@ -121,7 +128,8 @@ $ConvertBtn.Add_Click({
     $bat = Join-Path $scriptDir "run-html2md.bat"
 
     if (-not (Test-Path $bat)) {
-        [System.Windows.MessageBox]::Show("run-html2md.bat not found.","Error","OK","Error") | Out-Null
+        $StatusText.Text = "Error: run-html2md.bat not found."
+        $StatusText.Foreground = "Red"
         return
     }
 
@@ -132,7 +140,8 @@ $ConvertBtn.Add_Click({
     $psi.UseShellExecute = $true
     [Diagnostics.Process]::Start($psi) | Out-Null
 
-    [System.Windows.MessageBox]::Show("Conversion started in a new console.","Launched") | Out-Null
+    $StatusText.Text = "Conversion launched in external console."
+    $StatusText.Foreground = "Black"
 })
 
 # --- Show window ---
