@@ -8,7 +8,7 @@
 
 ## Repository Structure
 
-```
+```plaintext
 html2md/
 ├── src/
 │   └── html2md/
@@ -37,6 +37,7 @@ html2md/
 
 | Command | Module | Description |
 |---------|--------|-------------|
+
 | `html2md` | `html2md.cli:main` | Main converter CLI |
 | `html2md-log-export` | `html2md.log_export:main` | JSONL log to CSV exporter |
 | `python -m html2md` | `html2md.__main__` | Module invocation |
@@ -44,16 +45,20 @@ html2md/
 ## Development Setup
 
 ### Prerequisites
+
 - Python >= 3.8
 
 ### Install (editable/dev mode)
+
 ```bash
 pip install -e .
 pip install pytest build
 ```
 
 ### Dependencies
+
 **Runtime:**
+
 - `markdownify>=0.11.6` — HTML to Markdown conversion
 - `beautifulsoup4>=4.10.0` — HTML parsing
 - `requests>=2.25.0` — HTTP fetching
@@ -62,6 +67,7 @@ pip install pytest build
 - `pyyaml>=6.0` — YAML config parsing
 
 **Dev:**
+
 - `pytest` — Test framework
 - `setuptools>=61`, `wheel` — Build tools
 
@@ -75,11 +81,13 @@ Uses **PEP 517/518** with setuptools. Configuration is entirely in `pyproject.to
 ## Testing
 
 ### Run tests
+
 ```bash
 pytest -q
 ```
 
 ### Test details
+
 - Framework: **pytest**
 - Config: `pyproject.toml` → `[tool.pytest.ini_options]` with `addopts = "-q"`
 - Tests live in `tests/`
@@ -88,10 +96,11 @@ pytest -q
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci.yml`):
+
 - **Trigger:** push and pull_request
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
-- **Steps:** 
+- **Steps:**
   1. Upgrade pip, wheel, setuptools
   2. `pip install -e .` (install package in editable mode)
   3. `pip install pytest` (install test framework)
@@ -110,6 +119,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 ## Common Tasks
 
 | Task | Command |
+
 |------|---------|
 | Install for development | `pip install -e .` then `pip install pytest build` |
 | Run tests | `pytest -q` |
