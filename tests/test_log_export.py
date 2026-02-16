@@ -1,3 +1,4 @@
+"""Tests for the log export functionality."""
 import json
 import csv
 from pathlib import Path
@@ -11,7 +12,8 @@ def test_log_export_success(tmp_path: Path):
 
     records = [
         {"ts": 1.1, "input": "http://a.com", "output": "a.md", "status": "ok", "reason": ""},
-        {"ts": 1.2, "input": "http://b.com", "output": "b.md", "status": "fail", "reason": "404", "extra": "ignored"}
+        {"ts": 1.2, "input": "http://b.com",
+         "output": "b.md", "status": "fail", "reason": "404", "extra": "ignored"}
     ]
 
     with open(inp, "w", encoding="utf-8") as f:
@@ -57,4 +59,5 @@ def test_log_export_missing_fields(tmp_path: Path):
         rows = list(reader)
 
     assert len(rows) == 1
+    
     assert rows[0]["status"] == "" # Default empty string for missing fields
