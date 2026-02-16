@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 def health():
     """Return the health status of the application."""
-    return jsonify({'status': 'ok'})
+    return jsonify({'status': 'ok', 'service': 'html2md', 'version': __version__})
 
 
 def get_host_port():
