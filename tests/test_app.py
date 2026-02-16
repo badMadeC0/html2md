@@ -15,7 +15,7 @@ def test_health_endpoint():
     assert response.get_json() == {'status': 'ok'}
 
 
-def test_get_host_port_defaults(monkeypatch):
+def test_get_host_port_defaults(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv('HOST', raising=False)
     monkeypatch.delenv('PORT', raising=False)
 
@@ -26,7 +26,7 @@ def test_get_host_port_defaults(monkeypatch):
     assert port == 10000
 
 
-def test_get_host_port_invalid_port(monkeypatch, capsys):
+def test_get_host_port_invalid_port(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     monkeypatch.setenv('HOST', '0.0.0.0')
     monkeypatch.setenv('PORT', 'invalid')
 
