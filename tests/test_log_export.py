@@ -59,5 +59,5 @@ def test_log_export_missing_fields(tmp_path: Path):
         rows = list(reader)
 
     assert len(rows) == 1
-    
+
     assert rows[0]["status"] == "" # Default empty string for missing fields
