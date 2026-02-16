@@ -3,6 +3,8 @@ import os
 
 from flask import Flask, jsonify
 
+from html2md import __version__
+
 app = Flask(__name__)
 
 
