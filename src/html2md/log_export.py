@@ -13,7 +13,8 @@ def main(argv=None):
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         # Optimized: Use extrasaction='ignore' to let C-level DictWriter handle filtering
         # and avoid creating a new dictionary for each row in Python.
-        w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval=''); w.writeheader()
+        w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval='')
+        w.writeheader()
         for line in fi:
             # Optimized: Avoid string allocation from strip() for empty check
             if line.isspace(): continue
