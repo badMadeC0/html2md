@@ -15,7 +15,13 @@ def test_health_endpoint():
     result = response.get_json()
     assert result['status'] == 'ok'
     assert result['service'] == 'html2md'
-    assert result['version'] == '0.11.6'
+    response = client.get('/health')
+
+    assert response.status_code == 200
+    result = response.get_json()
+    assert result['status'] == 'ok'
+    assert result['service'] == 'html2md'
+    assert result['version'] == __version__
 
 
 def test_get_host_port_defaults(monkeypatch):
