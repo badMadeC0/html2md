@@ -1,8 +1,10 @@
 import json
 import csv
+from pathlib import Path
 from html2md.log_export import main
 
-def test_log_export_success(tmp_path):
+def test_log_export_success(tmp_path: Path):
+    """Verify log export succeeds and writes expected CSV rows/headers."""
     # Setup test input
     inp = tmp_path / "input.jsonl"
     out = tmp_path / "output.csv"
@@ -35,7 +37,8 @@ def test_log_export_success(tmp_path):
     assert rows[1]["input"] == "http://b.com"
     assert "extra" not in rows[0] # Verify header only contains requested fields
 
-def test_log_export_missing_fields(tmp_path):
+def test_log_export_missing_fields(tmp_path: Path):
+    """Verify missing fields are exported as empty strings."""
     inp = tmp_path / "input_missing.jsonl"
     out = tmp_path / "output_missing.csv"
 
