@@ -3,7 +3,6 @@ services:
     plan: free
     name: html2md
     runtime: python
-    repo: https://github.com/badMadeC0/html2md.git
     buildCommand: "pip install -e .[deploy]"
     startCommand: "gunicorn --bind 0.0.0.0:$PORT html2md.app:app"
     healthCheckPath: /health
