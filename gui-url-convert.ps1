@@ -82,9 +82,13 @@ $ConvertBtn.Add_Click({
     }
 
     # --- Security Validation Start ---
-    if ($outdir.Contains('"')) {
-        [System.Windows.MessageBox]::Show("Output directory path cannot contain double quotes.", "Invalid Path", "OK", "Error") | Out-Null
-        return
+    if (-not [string]::IsNullOrWhiteSpace($outdir)) {
+        # Allow only safe path characters to avoid cmd.exe injection:
+        # alphanumerics, hyphen, underscore, colon, backslash, forward slash, period, and space.
+        if ($outdir -notmatch '^[a-zA-Z0-9_\-:\\/\. ]+$') {
+            [System.Windows.MessageBox]::Show("Output directory path contains invalid or unsafe characters.", "Invalid Path", "OK", "Error") | Out-Null
+            return
+        }
     }
 
     try {
