@@ -112,6 +112,23 @@ $ConvertBtn.Add_Click({
         return
     }
 
+    # --- Security Validation ---
+    if ($outdir.Contains('"')) {
+        [System.Windows.MessageBox]::Show("Output directory cannot contain double quotes.","Security Error","OK","Error") | Out-Null
+        return
+    }
+
+    try {
+        $uri = New-Object System.Uri($url)
+        if ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') {
+             throw "Only HTTP and HTTPS URLs are allowed."
+        }
+        $url = $uri.AbsoluteUri # Canonicalize
+    } catch {
+        [System.Windows.MessageBox]::Show("Invalid URL: $($_.Exception.Message)","Validation Error","OK","Error") | Out-Null
+        return
+    }
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
