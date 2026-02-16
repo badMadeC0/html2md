@@ -1,6 +1,5 @@
 import json
 import csv
-from pathlib import Path
 from html2md.log_export import main
 
 def test_log_export_success(tmp_path):
