@@ -75,7 +75,12 @@ $UrlBox    = $window.FindName("UrlBox")
 $OutBox    = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $ConvertBtn= $window.FindName("ConvertBtn")
-$StatusText= $window.FindName("StatusText")
+$resetStatusAction = {
+    $StatusText.Text = "Ready"
+    $StatusText.Foreground = "Gray"
+}
+$UrlBox.Add_TextChanged($resetStatusAction)
+$OutBox.Add_TextChanged($resetStatusAction)
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
