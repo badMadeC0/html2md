@@ -1,5 +1,6 @@
 """Tests for the Flask app endpoints and configuration helpers."""
 import importlib
+import sys
 
 import pytest
 
@@ -7,6 +8,10 @@ pytest.importorskip('flask')
 
 def test_health_endpoint():
     """Verify the /health endpoint returns a JSON OK response."""
+    # Remove cached module to ensure fresh import
+    if 'html2md.app' in sys.modules:
+        del sys.modules['html2md.app']
+    
     flask_app_module = importlib.import_module('html2md.app')
     client = flask_app_module.app.test_client()
 
@@ -20,6 +25,10 @@ def test_get_host_port_defaults(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv('HOST', raising=False)
     monkeypatch.delenv('PORT', raising=False)
 
+    # Remove cached module to ensure fresh import
+    if 'html2md.app' in sys.modules:
+        del sys.modules['html2md.app']
+
     flask_app_module = importlib.import_module('html2md.app')
     host, port = flask_app_module.get_host_port()
 
@@ -31,6 +40,10 @@ def test_get_host_port_invalid_port(
     """Ensure invalid PORT falls back to default and logs a warning."""
     monkeypatch.setenv('HOST', '127.0.0.1')
     monkeypatch.setenv('PORT', 'invalid')
+
+    # Remove cached module to ensure fresh import
+    if 'html2md.app' in sys.modules:
+        del sys.modules['html2md.app']
 
     flask_app_module = importlib.import_module('html2md.app')
     host, port = flask_app_module.get_host_port()
