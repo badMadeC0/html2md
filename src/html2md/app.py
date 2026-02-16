@@ -9,7 +9,6 @@ app = Flask(__name__)
 
 @app.route('/health')
 def health():
-    """Return the health status of the application."""
     return jsonify({'status': 'ok', 'service': 'html2md', 'version': __version__})
 
 

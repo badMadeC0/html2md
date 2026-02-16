@@ -16,7 +16,7 @@ def main(argv=None):
             line=line.strip();
             if not line: continue
             try: rec=json.loads(line)
-            except ValueError: continue
+            except: continue
             w.writerow({k:rec.get(k,'') for k in fields})
     return 0
 
