@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok'})
+    return jsonify({'status': 'ok', 'service': 'html2md'})
 
 
 def get_host_port():
