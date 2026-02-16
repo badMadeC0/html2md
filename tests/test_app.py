@@ -38,6 +38,6 @@ def test_get_host_port_invalid_port(
     flask_app_module = importlib.import_module('html2md.app')
     host, port = flask_app_module.get_host_port()
 
-    assert host == '0.0.0.0'
+    assert host == '127.0.0.1'
     assert port == 10000
     assert 'Invalid PORT environment variable value' in capsys.readouterr().out
