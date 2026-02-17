@@ -1,9 +1,26 @@
-code_review:
-  disable: false
-  comment_severity_threshold: MEDIUM
-  max_review_comments: -1
-  pull_request_opened:
-    help: true
-    summary: true
-    code_review: true
-    include_drafts: false
+# Gemini Code Assist Configuration
+# https://cloud.google.com/gemini/docs/code-assist/configure-code-repository
+
+platform:
+  github:
+    code_review:
+      # Enable automatic code review on pull requests
+      enabled: true
+
+      # Comment style: "diff" for inline diff comments, "summary" for PR-level summary
+      comment_style: diff
+
+      # Maximum number of review comments per pull request
+      max_comments: 25
+
+      # Filter paths for code review
+      pull_request_scope:
+        include:
+          - "src/**"
+          - "tests/**"
+          - ".github/**"
+          - "pyproject.toml"
+        exclude:
+          - "*.bat"
+          - "*.ps1"
+          - "docs/**"

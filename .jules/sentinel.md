@@ -1,4 +1,4 @@
-## 2024-05-23 - Command Injection in PowerShell GUI
-**Vulnerability:** `gui-url-convert.ps1` constructed `cmd.exe` command strings by interpolating user inputs (`$url` and `$outdir`) directly into arguments. This allowed command injection if inputs contained double quotes.
-**Learning:** PowerShell's string interpolation does not automatically escape characters for `cmd.exe`. When invoking external processes, especially `cmd.exe /c`, inputs must be strictly validated or properly escaped.
-**Prevention:** Use `Start-Process` with an argument list array where possible, or strictly validate/sanitize inputs to forbid dangerous characters like quotes before constructing command strings.
+## 2025-02-17 - Command Injection in PowerShell GUI
+**Vulnerability:** `gui-url-convert.ps1` constructed `cmd.exe` arguments by concatenating user input without validation. Specifically, it interpolated `$url` and `$outdir` directly into `/c "$bat" --url "$url" ...`.
+**Learning:** PowerShell's `ProcessStartInfo` arguments string is passed to the executable. When the executable is `cmd.exe`, the `/c` switch interprets the rest of the line as a command. If user input contains quotes or shell metacharacters, it can break out of the quoting and execute arbitrary commands.
+**Prevention:** Always validate user input before passing it to external processes, especially shells. Use strict allow-lists (like `System.Uri`) and reject dangerous characters (like quotes) if they cannot be safely escaped.
