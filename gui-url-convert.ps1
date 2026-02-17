@@ -125,7 +125,7 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    if ($outdir -match '"') {
+    if ($outdir.Contains('"')) {
         [System.Windows.MessageBox]::Show("Output directory path cannot contain double quotes.","Invalid Path","OK","Error") | Out-Null
         return
     }
