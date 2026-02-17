@@ -67,6 +67,12 @@ $UrlBox    = $window.FindName("UrlBox")
 $OutBox    = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $ConvertBtn= $window.FindName("ConvertBtn")
+$StatusText= $window.FindName("StatusText")
+
+if ($null -eq $StatusText) {
+    throw "UI element 'StatusText' was not found in XAML."
+}
+
 $resetStatusAction = {
     $StatusText.Text = "Ready"
     $StatusText.Foreground = "Gray"
