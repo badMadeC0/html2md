@@ -5,4 +5,4 @@ services:
     runtime: python
     pythonVersion: "3.11"
     buildCommand: "pip install .[deploy]"
-    startCommand: "gunicorn --bind 0.0.0.0:$PORT html2md.app:app"
+    startCommand: "gunicorn --workers ${WEB_CONCURRENCY:-1} --bind 0.0.0.0:$PORT html2md.app:app"
