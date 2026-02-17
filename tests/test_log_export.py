@@ -16,10 +16,10 @@ def test_csv_injection(tmp_path):
     assert main(argv) == 0
 
     with open(outfile, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    print(content)
-    assert "'=1+1" in content
-    assert "'+cmd" in content
-    assert "'-risk" in content
-    assert "'@sum" in content
+        reader = csv.DictReader(f)
+        row = next(reader)
+    assert row['ts'] == "2023-01-01"
+    assert row['input'] == "'=1+1"
+    assert row['output'] == "'+cmd"
+    assert row['status'] == "'-risk"
+    assert row['reason'] == "'@sum"
