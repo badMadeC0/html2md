@@ -21,7 +21,10 @@ def main(argv=None):
             if line.isspace(): continue
             try: rec=json.loads(line)
             except json.JSONDecodeError: continue
-            w.writerow([rec.get(f, '') for f in fields])
+            try:
+                rec=json.loads(line)
+                if not isinstance(rec, dict): continue
+            except json.JSONDecodeError: continue
     return 0
 
 if __name__=='__main__':
