@@ -8,7 +8,7 @@ from pathlib import Path
 import anthropic
 
 
-def upload_file(file_path: str) -> dict:
+def upload_file(file_path: str):
     """Upload a file to the Anthropic API."""
     path = Path(file_path)
     if not path.exists():
