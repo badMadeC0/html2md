@@ -11,16 +11,13 @@ def main(argv=None):
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
     inp = Path(args.inp); out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        # Optimized: Use extrasaction='ignore' to let C-level DictWriter handle filtering
-        # and avoid creating a new dictionary for each row in Python.
-        w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval='')
-        w.writeheader()
+        w = csv.DictWriter(fo, fieldnames=fields); w.writeheader()
         for line in fi:
-            # Optimized: Avoid string allocation from strip() for empty check
-            if line.isspace(): continue
+            line=line.strip();
+            if not line: continue
             try: rec=json.loads(line)
-            except json.JSONDecodeError: continue
-            w.writerow(rec)
+            except ValueError: continue
+            w.writerow({k:rec.get(k,'') for k in fields})
     return 0
 
 if __name__=='__main__':

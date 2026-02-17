@@ -91,7 +91,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Trigger:** push and pull_request
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
-- **Steps:** 
+- **Steps:**
   1. Upgrade pip, wheel, setuptools
   2. `pip install -e .` (install package in editable mode)
   3. `pip install pytest` (install test framework)
