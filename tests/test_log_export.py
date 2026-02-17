@@ -20,15 +20,18 @@ def test_log_export_success(tmp_path):
         f.write("invalid json line\n") # Should be skipped
 
     # Run the function
+    print(f"DEBUG: Input file content:\n{inp.read_text(encoding='utf-8')}")
     exit_code = main(["--in", str(inp), "--out", str(out)])
     assert exit_code == 0
 
     # Verify output
     assert out.exists()
+    print(f"DEBUG: Output file content:\n{out.read_text(encoding='utf-8')}")
     with open(out, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
 
+    print(f"DEBUG: Read rows: {rows}")
     assert len(rows) == 2
     assert rows[0]["input"] == "http://a.com"
     assert rows[0]["status"] == "ok"
