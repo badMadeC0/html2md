@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip('flask')
 
-from html2md.app import app, get_host_port
+from html2md.app import app, get_host_port  # type: ignore[import-untyped]
 
 
 def test_health_endpoint():
