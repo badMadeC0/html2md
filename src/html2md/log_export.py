@@ -18,10 +18,10 @@ def main(argv=None):
             if not line: continue
             try: rec=json.loads(line)
             except ValueError: continue
-            # Optimization: pass rec directly to writerow.
-            # This avoids creating a new dictionary for every row (O(M) per row),
-            # relying on DictWriter's handling.
-            w.writerow(rec)
+            # Build a row dict limited to the desired fields, normalizing None to '' to
+            # preserve the original behavior for explicit null values in the JSON.
+            row = {k: ('' if rec.get(k) is None else rec.get(k, '')) for k in fields}
+            w.writerow(row)
     return 0
 
 if __name__=='__main__':
