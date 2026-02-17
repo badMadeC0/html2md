@@ -3,6 +3,7 @@
 ## Project Context
 
 html2md-cli is a Python CLI tool that converts HTML content to Markdown, PDF, and TXT formats.
+The CLI module (`src/html2md/cli.py`) is a placeholder stub; all conversion logic is provided by a separately packaged runtime and must not be implemented in this repository.
 
 ## Language & Version
 
