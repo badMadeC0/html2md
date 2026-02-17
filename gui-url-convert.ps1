@@ -142,7 +142,7 @@ $ConvertBtn.Add_Click({
     [Diagnostics.Process]::Start($psi) | Out-Null
 
     $StatusText.Text = "Conversion started in a new console."
-    $StatusText.Foreground = "Black"
+    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
 
 # --- Show window ---
