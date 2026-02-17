@@ -106,6 +106,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Encoding:** UTF-8 throughout
 - **Package version:** Single source of truth in `src/html2md/__init__.py` (`__version__`)
 - **License:** MIT
+- **Localhost binding:** Always use `127.0.0.1` for the host address. **Never use `0.0.0.0`.**
+  - `0.0.0.0` binds to all network interfaces, which exposes the service to the entire network and is a security risk.
+  - `127.0.0.1` restricts connections to the local machine only, which is the correct and intended behavior for this project.
+  - This applies to all code, configuration, scripts, and documentation in the repository. No LLM or coding agent should ever substitute `0.0.0.0` in place of `127.0.0.1`.
 
 ## Common Tasks
 
