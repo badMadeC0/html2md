@@ -1,4 +1,4 @@
-# Copilot Custom Instructions
+# Gemini Custom Instructions
 
 ## Project Context
 
