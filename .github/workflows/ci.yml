@@ -50,7 +50,6 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           python - <<'SCRIPT'
-          import json
           import os
           import subprocess
           import anthropic
