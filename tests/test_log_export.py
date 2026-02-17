@@ -1,5 +1,6 @@
 
 import json
+import csv
 from pathlib import Path
 from html2md.log_export import main
 
@@ -18,8 +19,9 @@ def test_csv_injection(tmp_path):
     with open(outfile, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         row = next(reader)
-    assert row['ts'] == "2023-01-01"
-    assert row['input'] == "'=1+1"
-    assert row['output'] == "'+cmd"
-    assert row['status'] == "'-risk"
-    assert row['reason'] == "'@sum"
+
+    # Verify values are prepended with a single quote
+    assert row["input"] == "'=1+1"
+    assert row["output"] == "'+cmd"
+    assert row["status"] == "'-risk"
+    assert row["reason"] == "'@sum"

@@ -19,11 +19,7 @@ def main(argv=None):
             except ValueError: continue
             row = {}
             for k in fields:
-                raw = rec.get(k, '')
-                if raw is None:
-                    val = ''
-                else:
-                    val = str(raw)
+                val = str(rec.get(k, ''))
                 if val.startswith(('=', '+', '-', '@')):
                     val = "'" + val
                 row[k] = val
