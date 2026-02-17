@@ -1,11 +1,14 @@
+"""Tests for the Flask application module."""
 import pytest
 
 pytest.importorskip('flask')
 
+# pylint: disable=wrong-import-position
 from html2md.app import app, get_host_port  # type: ignore[import-untyped]
 
 
 def test_health_endpoint():
+    """Test the health check endpoint returns 200 OK."""
     client = app.test_client()
 
     response = client.get('/health')
@@ -15,6 +18,7 @@ def test_health_endpoint():
 
 
 def test_get_host_port_defaults(monkeypatch):
+    """Test get_host_port returns defaults when env vars are missing."""
     monkeypatch.delenv('HOST', raising=False)
     monkeypatch.delenv('PORT', raising=False)
 
@@ -25,6 +29,7 @@ def test_get_host_port_defaults(monkeypatch):
 
 
 def test_get_host_port_invalid_port(monkeypatch, capsys):
+    """Test get_host_port handles invalid PORT environment variable."""
     monkeypatch.setenv('HOST', '127.0.0.1')
     monkeypatch.setenv('PORT', 'invalid')
 
