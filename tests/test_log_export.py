@@ -1,15 +1,20 @@
+"""Tests for the log export module."""
 import json
 import csv
-from html2md.log_export import main
+from html2md.log_export import main  # type: ignore[import-untyped]
 
 def test_log_export_success(tmp_path):
+    """Test successful log export to CSV."""
     # Setup test input
     inp = tmp_path / "input.jsonl"
     out = tmp_path / "output.csv"
 
     records = [
         {"ts": 1.1, "input": "http://a.com", "output": "a.md", "status": "ok", "reason": ""},
-        {"ts": 1.2, "input": "http://b.com", "output": "b.md", "status": "fail", "reason": "404", "extra": "ignored"}
+        {
+            "ts": 1.2, "input": "http://b.com", "output": "b.md",
+            "status": "fail", "reason": "404", "extra": "ignored"
+        }
     ]
 
     with open(inp, "w", encoding="utf-8") as f:
@@ -36,6 +41,7 @@ def test_log_export_success(tmp_path):
     assert "extra" not in rows[0] # Verify header only contains requested fields
 
 def test_log_export_missing_fields(tmp_path):
+    """Test log export handles missing fields gracefully."""
     inp = tmp_path / "input_missing.jsonl"
     out = tmp_path / "output_missing.csv"
 
