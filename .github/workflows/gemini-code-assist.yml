@@ -1,16 +1,24 @@
-name: Gemini Code Assist
+name: CodeQL Analysis
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   merge_group:
 
 permissions:
   contents: read
-  pull-requests: write
+  security-events: write
+  actions: read
 
 jobs:
   code-review:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: google/gemini-code-assist-app/review@v1
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v4
