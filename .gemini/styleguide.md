@@ -7,7 +7,7 @@ html2md-cli is a Python CLI tool that converts HTML content to Markdown, PDF, an
 ## Language & Version
 
 - Python 3.8+
-- Use `from __future__ import annotations` in all modules
+- For new or modified modules, use `from __future__ import annotations` at the top when practical
 
 ## Code Conventions
 
