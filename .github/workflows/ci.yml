@@ -56,7 +56,9 @@ jobs:
           import anthropic
 
           comment = os.environ["COMMENT_BODY"]
-          issue_number = os.environ["ISSUE_NUMBER"]
+          issue_number = os.environ.get("ISSUE_NUMBER", "").strip()
+          if not issue_number:
+              raise SystemExit("ISSUE_NUMBER environment variable is not set or empty; cannot post reply comment.")
           repo = os.environ["REPO"]
 
           client = anthropic.Anthropic()
