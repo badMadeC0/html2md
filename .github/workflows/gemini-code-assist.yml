@@ -1,12 +1,16 @@
 name: CodeQL Analysis
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   merge_group:
 
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 jobs:
   code-review:
