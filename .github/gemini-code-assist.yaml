@@ -1,0 +1,26 @@
+# Gemini Code Assist configuration
+# https://cloud.google.com/gemini/docs/discover/configure-gemini-code-assist
+
+code_review:
+  # Enable automatic code review on pull requests
+  enabled: true
+
+  # Custom instructions for the reviewer aligned with project conventions
+  instructions: |
+    You are reviewing a Python CLI project (html2md-cli) that targets Python >= 3.8.
+    The CLI module (src/html2md/cli.py) is a placeholder stub — do not expect or
+    suggest adding real conversion logic there.
+
+    When reviewing, pay attention to:
+    1. Python 3.8 compatibility — flag any use of newer syntax or APIs (e.g., match
+       statements, str.removeprefix, tomllib).
+    2. No new runtime dependencies unless explicitly justified.
+    3. Placeholder boundary — changes to cli.py should not add real conversion logic.
+    4. Encoding — all file I/O must specify encoding='utf-8'.
+    5. Path handling — use pathlib.Path, not string concatenation or os.path.
+    6. Entry-point contract — main(argv=None) signature, returns an int exit code.
+    7. Test coverage — new entry points or utilities need at least a smoke test.
+    8. Security — watch for command injection in subprocess calls (no unsanitized
+       user input in shell=True), and validate/sanitize file paths from user input.
+    9. CI compatibility — CI runs on windows-latest; avoid Unix-only assumptions.
+    10. License — project is MIT; do not introduce code with incompatible licenses.
