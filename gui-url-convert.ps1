@@ -130,9 +130,13 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    if (-not (Test-Path $outdir)) {
-        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
-        catch {}
+    if (-not (Test-Path -LiteralPath $outdir)) {
+        try {
+            New-Item -ItemType Directory -LiteralPath $outdir -Force | Out-Null
+        } catch {
+            [System.Windows.MessageBox]::Show("Failed to create output directory.","Error","OK","Error") | Out-Null
+            return
+        }
     }
 
     $scriptDir = Split-Path -Parent $PSCommandPath
