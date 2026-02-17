@@ -16,7 +16,7 @@ def main(argv=None):
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         # Optimized: Use csv.writer with direct list comprehension instead of DictWriter.
         # This avoids DictWriter's method call overhead and internal dictionary lookups per row.
-        # Performance: ~98k -> ~122k records/sec (~24% faster).
+        # In local testing this provided a modest throughput improvement; actual gains may vary by environment.
         w = csv.writer(fo)
         w.writerow(fields)
         count = 0
