@@ -113,8 +113,8 @@ $ConvertBtn.Add_Click({
     }
 
     # --- Security Validation ---
-    if ($outdir.Contains('"')) {
-        [System.Windows.MessageBox]::Show("Output directory cannot contain double quotes.","Security Error","OK","Error") | Out-Null
+    if ($outdir -match '["&|<>^%]') {
+        [System.Windows.MessageBox]::Show("Output directory contains forbidden characters (quotes or shell metacharacters).","Security Error","OK","Error") | Out-Null
         return
     }
 
