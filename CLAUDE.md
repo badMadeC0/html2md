@@ -60,6 +60,7 @@ pip install pytest build
 - `reportlab>=3.6.0` — PDF generation
 - `pillow>=9.0.0` — Image processing
 - `pyyaml>=6.0` — YAML config parsing
+- `anthropic>=0.39.0` — Anthropic API client
 
 **Dev:**
 - `pytest` — Test framework

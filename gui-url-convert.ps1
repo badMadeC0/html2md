@@ -27,7 +27,7 @@ Add-Type -AssemblyName System.Xaml
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="html2md - Convert URL"
-        Height="200" Width="580"
+        Height="280" Width="580"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
@@ -36,6 +36,7 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Text="Paste URL:" FontSize="14"/>
@@ -49,6 +50,10 @@ $xaml = @"
         <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 />
+
+        <StatusBar Grid.Row="5" Margin="0,10,0,0">
+            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+        </StatusBar>
     </Grid>
 </Window>
 "@
@@ -62,6 +67,18 @@ $UrlBox    = $window.FindName("UrlBox")
 $OutBox    = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $ConvertBtn= $window.FindName("ConvertBtn")
+$StatusText= $window.FindName("StatusText")
+
+if ($null -eq $StatusText) {
+    throw "UI element 'StatusText' was not found in XAML."
+}
+
+$resetStatusAction = {
+    $StatusText.Text = "Ready"
+    $StatusText.Foreground = "Gray"
+}
+$UrlBox.Add_TextChanged($resetStatusAction)
+$OutBox.Add_TextChanged($resetStatusAction)
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
@@ -77,7 +94,8 @@ $ConvertBtn.Add_Click({
     $outdir = $OutBox.Text.Trim()
 
     if ([string]::IsNullOrWhiteSpace($url)) {
-        [System.Windows.MessageBox]::Show("Please enter a URL.","Missing URL","OK","Warning") | Out-Null
+        $StatusText.Text = "Please enter a URL."
+        $StatusText.Foreground = "Red"
         return
     }
 
@@ -100,16 +118,39 @@ $ConvertBtn.Add_Click({
     }
     # --- Security Validation End ---
 
-    if (-not (Test-Path $outdir)) {
-        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
-        catch {}
+    # Input Validation
+    try {
+        $uri = [System.Uri]$url
+        if ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') {
+             [System.Windows.MessageBox]::Show("Only HTTP and HTTPS URLs are supported.","Invalid Protocol","OK","Error") | Out-Null
+             return
+        }
+        $url = $uri.AbsoluteUri # Canonicalize URL
+    } catch {
+        [System.Windows.MessageBox]::Show("Invalid URL format.","Error","OK","Error") | Out-Null
+        return
+    }
+
+    if ($outdir.Contains('"')) {
+        [System.Windows.MessageBox]::Show("Output directory path cannot contain double quotes.","Invalid Path","OK","Error") | Out-Null
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $outdir)) {
+        try {
+            New-Item -ItemType Directory -LiteralPath $outdir -Force | Out-Null
+        } catch {
+            [System.Windows.MessageBox]::Show("Failed to create output directory.","Error","OK","Error") | Out-Null
+            return
+        }
     }
 
     $scriptDir = Split-Path -Parent $PSCommandPath
     $bat = Join-Path $scriptDir "run-html2md.bat"
 
     if (-not (Test-Path $bat)) {
-        [System.Windows.MessageBox]::Show("run-html2md.bat not found.","Error","OK","Error") | Out-Null
+        $StatusText.Text = "Error: run-html2md.bat not found."
+        $StatusText.Foreground = "Red"
         return
     }
 
@@ -120,7 +161,8 @@ $ConvertBtn.Add_Click({
     $psi.UseShellExecute = $true
     [Diagnostics.Process]::Start($psi) | Out-Null
 
-    [System.Windows.MessageBox]::Show("Conversion started in a new console.","Launched") | Out-Null
+    $StatusText.Text = "Conversion launched in external console."
+    $StatusText.Foreground = "Black"
 })
 
 # --- Show window ---
