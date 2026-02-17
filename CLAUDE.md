@@ -60,6 +60,7 @@ pip install pytest build
 - `reportlab>=3.6.0` — PDF generation
 - `pillow>=9.0.0` — Image processing
 - `pyyaml>=6.0` — YAML config parsing
+- `anthropic>=0.39.0` — Anthropic API client
 
 **Dev:**
 - `pytest` — Test framework
@@ -91,7 +92,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Trigger:** push and pull_request
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
-- **Steps:** 
+- **Steps:**
   1. Upgrade pip, wheel, setuptools
   2. `pip install -e .` (install package in editable mode)
   3. `pip install pytest` (install test framework)
