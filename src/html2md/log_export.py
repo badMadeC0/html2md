@@ -9,7 +9,8 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
-    inp = Path(args.inp); out = Path(args.out)
+    inp = Path(args.inp)
+    out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval='')
         w.writeheader()
