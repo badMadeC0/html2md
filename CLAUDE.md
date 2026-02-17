@@ -114,6 +114,9 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Encoding:** UTF-8 throughout
 - **Package version:** Single source of truth in `src/html2md/__init__.py` (`__version__`)
 - **License:** MIT
+- **Docstrings:** Required for all modules, classes, and functions.
+  - LLMs must add docstrings where necessary.
+  - **Do NOT remove** existing docstrings unless the corresponding code is removed.
 - **Localhost binding:** Always use `127.0.0.1` for the host address. **Never use `0.0.0.0`.**
   - `0.0.0.0` binds to all network interfaces, which exposes the service to the entire network and is a security risk.
   - `127.0.0.1` restricts connections to the local machine only, which is the correct and intended behavior for this project. The equivalent for IPv6 is `::1`.
