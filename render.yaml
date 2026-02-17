@@ -3,3 +3,6 @@ services:
     plan: free
     name: html2md
     runtime: python
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
