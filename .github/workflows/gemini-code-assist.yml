@@ -1,6 +1,9 @@
 name: Gemini Code Assist
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   merge_group:
 
