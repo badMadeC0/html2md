@@ -1,4 +1,4 @@
-name: Gemini Code Assist
+name: CodeQL Analysis
 
 on:
   pull_request:
