@@ -17,7 +17,13 @@ def main(argv=None):
             if not line: continue
             try: rec=json.loads(line)
             except ValueError: continue
-            w.writerow({k:rec.get(k,'') for k in fields})
+            row = {}
+            for k in fields:
+                val = str(rec.get(k, ''))
+                if val.startswith(('=', '+', '-', '@')):
+                    val = "'" + val
+                row[k] = val
+            w.writerow(row)
     return 0
 
 if __name__=='__main__':
