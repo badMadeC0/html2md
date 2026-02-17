@@ -39,7 +39,9 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install dependencies
-        run: pip install anthropic
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e "."
       - name: Respond to @claude mention
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
