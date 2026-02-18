@@ -1,7 +1,6 @@
 """Tests for the log export module."""
 import json
 import csv
-from html2md.log_export import main  # type: ignore[import-untyped]
 
 def test_log_export_success(tmp_path):
     """Test successful log export to CSV."""
