@@ -115,13 +115,17 @@ jobs:
               )
           except Exception as exc:
               raise SystemExit(f"Error: Failed to call Anthropic API: {exc}")
-          content = getattr(response, "content", None) or []
-          if not content:
-              raise SystemExit("Anthropic API response had no content; cannot generate reply.")
+          content = getattr(response, "content", None)
+          if not isinstance(content, list) or not content:
+              raise SystemExit(
+                  "Anthropic API response content was not a non-empty list; cannot generate reply."
+              )
           first_item = content[0]
           text = getattr(first_item, "text", None)
           if not isinstance(text, str) or not text.strip():
-              raise SystemExit("Anthropic API response did not contain text content; cannot generate reply.")
+              raise SystemExit(
+                  "Anthropic API response did not contain string text content; cannot generate reply."
+              )
 
           max_reply_chars = 4000
           reply = text.replace("\x00", "").strip()
