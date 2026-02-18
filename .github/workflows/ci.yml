@@ -128,6 +128,12 @@ jobs:
           if len(reply) > max_reply_chars:
               reply = f"{reply[:max_reply_chars]}\n\n[truncated]"
 
+          # Guardrails for content posted back to GitHub.
+          reply = reply.replace("\x00", "").strip()
+          max_reply_chars = 5000
+          if len(reply) > max_reply_chars:
+              reply = f"{reply[:max_reply_chars]}\n\n[Response truncated to {max_reply_chars} characters.]"
+
           # Post reply via GitHub API
           gh_result = subprocess.run(
               [
