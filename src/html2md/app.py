@@ -2,12 +2,14 @@ import os
 
 from flask import Flask, jsonify
 
+from html2md import __version__
+
 app = Flask(__name__)
 
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok'})
+    return jsonify({'status': 'ok', 'service': 'html2md', 'version': __version__})
 
 
 def get_host_port():
