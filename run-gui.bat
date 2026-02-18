@@ -10,5 +10,10 @@ if not exist "%SCRIPT_DIR%gui-url-convert.ps1" (
 )
 
 REM Launch PowerShell. Use Set-Location to handle paths with '&'.
-powershell -NoProfile -ExecutionPolicy Bypass -STA -Command "Set-Location -LiteralPath '%SCRIPT_DIR%'; & '.\gui-url-convert.ps1'"
+if "%~1"=="" (
+    powershell -NoProfile -ExecutionPolicy Bypass -STA -Command "Set-Location -LiteralPath '%SCRIPT_DIR%'; & '.\gui-url-convert.ps1'"
+) else (
+    echo [INFO] Batch processing file: "%~1"
+    powershell -NoProfile -ExecutionPolicy Bypass -STA -Command "Set-Location -LiteralPath '%SCRIPT_DIR%'; & '.\gui-url-convert.ps1' -BatchFile '%~1'"
+)
 pause
