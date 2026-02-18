@@ -135,7 +135,12 @@ jobs:
           max_reply_chars = 4000
           reply = text.replace("\x00", "").strip()
           if len(reply) > max_reply_chars:
-              reply = f"{reply[:max_reply_chars]}\n\n[truncated]"
+              suffix = "\n\n[truncated]"
+              allowed_length = max_reply_chars - len(suffix)
+              if allowed_length <= 0:
+                  reply = suffix[:max_reply_chars]
+              else:
+                  reply = f"{reply[:allowed_length]}{suffix}"
 
           # Guardrails for content posted back to GitHub.
           reply = reply.replace("\x00", "").strip()
