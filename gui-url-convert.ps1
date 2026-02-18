@@ -6,7 +6,7 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir)
+param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
@@ -24,11 +24,16 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
+            # Default to main content unless BatchWholePage is set
+            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
+            if (-not $BatchWholePage) { $argsList += "--main-content" }
+
             if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe --url "$url" --outdir "$outDir" --all-formats
+                & $venvExe $argsList
             } elseif (Test-Path -LiteralPath $pyScript) {
                 $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                & $pyCmd "$pyScript" --url "$url" --outdir "$outDir" --all-formats
+                $argsList = @("$pyScript") + $argsList
+                & $pyCmd $argsList
             } else {
                 Write-Error "Could not find html2md executable or script."
             }
@@ -83,6 +88,10 @@ $xaml = @"
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">Open Folder</Button>
         </StackPanel>
 
+        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert Whole Page"
+                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
+                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+
         <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
@@ -115,6 +124,7 @@ $OutBox = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
+$WholePageChk = $window.FindName("WholePageChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
@@ -203,17 +213,22 @@ $ConvertBtn.Add_Click({
         
         # Relaunch this script in batch mode
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
+        if ($WholePageChk.IsChecked) {
+            $psi.Arguments += " -BatchWholePage"
+        }
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
+        # If Whole Page is unchecked, we add the flag to ignore headers/footers
+        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats`""
+            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
