@@ -144,7 +144,7 @@ $OpenFolderBtn.Add_Click({
 # --- Convert button logic ---
 $ConvertBtn.Add_Click({
     $rawInput = $UrlBox.Text
-    $urlList = $rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() }
+    $urlList = @($rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
     $outdir = $OutBox.Text.Trim()
 
     $LogBox.Text = "--- Starting Conversion ---`r`n"
