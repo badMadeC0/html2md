@@ -1,8 +1,8 @@
 
 import json
 import csv
-from pathlib import Path
 from html2md.log_export import main
+
 
 def test_log_export_basic(tmp_path):
     input_file = tmp_path / "test.jsonl"
