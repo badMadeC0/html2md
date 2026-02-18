@@ -13,7 +13,13 @@ permissions:
   pull-requests: write
 jobs:
   test:
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request' ||
+      (
+        (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+        contains(github.event.comment.body, '@claude')
+      )
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
