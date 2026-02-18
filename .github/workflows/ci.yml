@@ -55,6 +55,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           THREAD_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
           THREAD_BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
@@ -65,7 +66,21 @@ jobs:
           import subprocess
           import anthropic
 
-          comment = os.environ["COMMENT_BODY"]
+          allowed_associations = {"OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"}
+          association = os.environ.get("COMMENT_AUTHOR_ASSOCIATION", "").strip().upper()
+          if association not in allowed_associations:
+              raise SystemExit(
+                  "Skipping @claude response for untrusted author association "
+                  f"'{association or 'UNKNOWN'}'."
+              )
+
+          comment = os.environ["COMMENT_BODY"].strip()
+          if not comment:
+              raise SystemExit("COMMENT_BODY is empty; cannot generate a response.")
+          max_comment_chars = 4000
+          if len(comment) > max_comment_chars:
+              comment = f"{comment[:max_comment_chars]}\n\n[truncated]"
+
           thread_title = os.environ.get("THREAD_TITLE", "")
           thread_body = os.environ.get("THREAD_BODY", "")
           issue_number = os.environ.get("ISSUE_NUMBER", "").strip()
@@ -100,23 +115,37 @@ jobs:
               )
           except Exception as exc:
               raise SystemExit(f"Error: Failed to call Anthropic API: {exc}")
-          default_reply = "Sorry, I wasn't able to generate a response."
-          reply = default_reply
-          content = getattr(response, "content", None)
-          if isinstance(content, list) and content:
-              first_item = content[0]
-              text = getattr(first_item, "text", None)
-              if isinstance(text, str) and text.strip():
-                  reply = text
+          content = getattr(response, "content", None) or []
+          if not content:
+              raise SystemExit("Anthropic API response had no content; cannot generate reply.")
+          first_item = content[0]
+          text = getattr(first_item, "text", None)
+          if not isinstance(text, str) or not text.strip():
+              raise SystemExit("Anthropic API response did not contain text content; cannot generate reply.")
+
+          max_reply_chars = 4000
+          reply = text.replace("\x00", "").strip()
+          if len(reply) > max_reply_chars:
+              reply = f"{reply[:max_reply_chars]}\n\n[truncated]"
 
           # Post reply via GitHub API
-          subprocess.run(
+          gh_result = subprocess.run(
               [
                   "gh", "api",
                   f"repos/{repo}/issues/{issue_number}/comments",
                   "-f", f"body={reply}",
               ],
               env={**os.environ, "GH_TOKEN": os.environ["GITHUB_TOKEN"]},
-              check=True,
+              check=False,
+              capture_output=True,
+              text=True,
           )
+          if gh_result.returncode != 0:
+              stderr = (gh_result.stderr or "").strip()
+              stdout = (gh_result.stdout or "").strip()
+              details = stderr or stdout or "No output from gh api command."
+              raise SystemExit(f"Failed to post GitHub reply comment: {details}")
+
+          if gh_result.stdout:
+              print(gh_result.stdout.strip())
           SCRIPT
