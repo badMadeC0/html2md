@@ -26,6 +26,7 @@ Add-Type -AssemblyName System.Xaml
 # --- Define XAML UI ---
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
         Title="html2md - Convert URL"
         Height="300" Width="580"
         FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
@@ -40,20 +41,21 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Paste URL:" FontSize="14"/>
+        <Label Content="_Paste URL:" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="440" FontSize="14" Text="./out"/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0">Browse…</Button>
+            <TextBox Name="OutBox" Width="440" FontSize="14" AutomationProperties.Name="Output Directory"/>
+            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse…</Button>
         </StackPanel>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
+                ToolTip="Start conversion process"
                 />
 
-        <StatusBar Grid.Row="5" Margin="0,10,0,0" Background="Transparent">
-            <TextBlock Name="StatusText" Text="Ready"/>
+        <StatusBar Grid.Row="4" Margin="0,10,0,0">
+            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
         </StatusBar>
     </Grid>
 </Window>
