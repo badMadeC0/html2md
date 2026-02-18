@@ -9,8 +9,6 @@ on:
     types: [created]
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 jobs:
   test:
     if: >
@@ -39,6 +37,10 @@ jobs:
       (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -54,6 +56,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+          THREAD_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
+          THREAD_BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
           REPO: ${{ github.repository }}
         run: |
           python - <<'SCRIPT'
@@ -62,6 +66,8 @@ jobs:
           import anthropic
 
           comment = os.environ["COMMENT_BODY"]
+          thread_title = os.environ.get("THREAD_TITLE", "")
+          thread_body = os.environ.get("THREAD_BODY", "")
           issue_number = os.environ.get("ISSUE_NUMBER", "").strip()
           if not issue_number:
               raise SystemExit("ISSUE_NUMBER environment variable is not set or empty; cannot post reply comment.")
@@ -85,6 +91,8 @@ jobs:
                           "content": (
                               f"You are a helpful assistant for the GitHub repository {repo}. "
                               f"A user mentioned you in a comment. Respond concisely and helpfully.\n\n"
+                              f"Thread title:\n{thread_title}\n\n"
+                              f"Thread description:\n{thread_body}\n\n"
                               f"Comment:\n{comment}"
                           ),
                       }
