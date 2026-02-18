@@ -1,4 +1,3 @@
-
 import argparse, json, csv
 from pathlib import Path
 
@@ -12,17 +11,16 @@ def main(argv=None):
     inp = Path(args.inp); out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         # Optimized: restval='' fills missing fields with empty string, extrasaction='ignore' ignores extra fields
-w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
-w.writeheader()
+        w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore'); w.writeheader()
         for line in fi:
             line=line.strip();
             if not line: continue
             try: rec=json.loads(line)
             except ValueError: continue
-            # Build a row dict limited to the desired fields, normalizing None to '' to
-            # preserve the original behavior for explicit null values in the JSON.
-            row = {k: ('' if rec.get(k) is None else rec.get(k, '')) for k in fields}
-            w.writerow(row)
+            # Optimization: pass rec directly to writerow.
+            # This avoids creating a new dictionary for every row (O(M) per row),
+            # relying on DictWriter's handling.
+            w.writerow(rec)
     return 0
 
 if __name__=='__main__':
