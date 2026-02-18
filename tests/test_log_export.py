@@ -1,7 +1,6 @@
 
 import json
 import csv
-import io
 from pathlib import Path
 from html2md.log_export import main
 
