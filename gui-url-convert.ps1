@@ -114,9 +114,9 @@ $UrlBox    = $window.FindName("UrlBox")
 $OutBox    = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
-$ConvertBtn= $window.FindName("ConvertBtn")
-$StatusText= $window.FindName("StatusText")
-$ProgressBar=$window.FindName("ProgressBar")
+$ConvertBtn = $window.FindName("ConvertBtn")
+$StatusText = $window.FindName("StatusText")
+$ProgressBar = $window.FindName("ProgressBar")
 $LogBox    = $window.FindName("LogBox")
 
 # Set default output to Downloads
