@@ -68,22 +68,31 @@ jobs:
               raise SystemExit("ISSUE_NUMBER environment variable is not set or empty; cannot post reply comment.")
           repo = os.environ["REPO"]
 
-          client = anthropic.Anthropic()
-          response = client.messages.create(
-              model="claude-sonnet-4-5-20250929",
-              max_tokens=1024,
-              messages=[
-                  {
-                      "role": "user",
-                      "content": (
-                          f"You are a helpful assistant for the GitHub repository {repo}. "
-                          f"A user mentioned you in a comment. Respond concisely and helpfully.\n\n"
-                          f"Comment:\n{comment}"
-                      ),
-                  }
-              ],
-          )
+          api_key = os.environ.get("ANTHROPIC_API_KEY")
+          if not api_key:
+              raise SystemExit(
+                  "Error: ANTHROPIC_API_KEY environment variable is not set. "
+                  "Please configure the ANTHROPIC_API_KEY secret in your GitHub repository settings."
+              )
 
+          try:
+              client = anthropic.Anthropic(api_key=api_key)
+              response = client.messages.create(
+                  model="claude-sonnet-4-5-20250929",
+                  max_tokens=1024,
+                  messages=[
+                      {
+                          "role": "user",
+                          "content": (
+                              f"You are a helpful assistant for the GitHub repository {repo}. "
+                              f"A user mentioned you in a comment. Respond concisely and helpfully.\n\n"
+                              f"Comment:\n{comment}"
+                          ),
+                      }
+                  ],
+              )
+          except Exception as exc:
+              raise SystemExit(f"Error: Failed to call Anthropic API: {exc}")
           reply = response.content[0].text
 
           # Post reply via GitHub API
