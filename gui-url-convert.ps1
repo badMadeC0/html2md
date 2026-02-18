@@ -110,14 +110,14 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 # $window = [Windows.Markup.XamlReader]::Load((New-Object System.IO.MemoryStream (,$bytes)))
 
 # --- Get controls ---
-$UrlBox    = $window.FindName("UrlBox")
-$OutBox    = $window.FindName("OutBox")
+$UrlBox = $window.FindName("UrlBox")
+$OutBox = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
-$LogBox    = $window.FindName("LogBox")
+$LogBox = $window.FindName("LogBox")
 
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
