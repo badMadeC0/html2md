@@ -22,6 +22,7 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Xaml
+Add-Type -AssemblyName System.Windows.Forms
 
 # --- Define XAML UI ---
 $xaml = @"
