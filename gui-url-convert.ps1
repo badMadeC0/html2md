@@ -28,7 +28,8 @@ $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
         Title="html2md - Convert URL"
-        Height="280" Width="580"
+        Height="300" Width="580"
+        FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
@@ -71,17 +72,6 @@ $BrowseBtn = $window.FindName("BrowseBtn")
 $ConvertBtn= $window.FindName("ConvertBtn")
 $StatusText= $window.FindName("StatusText")
 
-if ($null -eq $StatusText) {
-    throw "UI element 'StatusText' was not found in XAML."
-}
-
-$resetStatusAction = {
-    $StatusText.Text = "Ready"
-    $StatusText.Foreground = "Gray"
-}
-$UrlBox.Add_TextChanged($resetStatusAction)
-$OutBox.Add_TextChanged($resetStatusAction)
-
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -101,50 +91,9 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    # --- Security Validation Start ---
-    if ($outdir.Contains('"')) {
-        [System.Windows.MessageBox]::Show("Output directory path cannot contain double quotes.", "Invalid Path", "OK", "Error") | Out-Null
-        return
-    }
-
-    try {
-        $uri = New-Object System.Uri($url)
-        if ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') {
-            [System.Windows.MessageBox]::Show("Only HTTP and HTTPS URLs are supported.", "Invalid URL Scheme", "OK", "Warning") | Out-Null
-            return
-        }
-        $url = $uri.AbsoluteUri
-    } catch {
-        [System.Windows.MessageBox]::Show("Invalid URL format.", "Invalid URL", "OK", "Error") | Out-Null
-        return
-    }
-    # --- Security Validation End ---
-
-    # Input Validation
-    try {
-        $uri = [System.Uri]$url
-        if ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') {
-             [System.Windows.MessageBox]::Show("Only HTTP and HTTPS URLs are supported.","Invalid Protocol","OK","Error") | Out-Null
-             return
-        }
-        $url = $uri.AbsoluteUri # Canonicalize URL
-    } catch {
-        [System.Windows.MessageBox]::Show("Invalid URL format.","Error","OK","Error") | Out-Null
-        return
-    }
-
-    if ($outdir.Contains('"')) {
-        [System.Windows.MessageBox]::Show("Output directory path cannot contain double quotes.","Invalid Path","OK","Error") | Out-Null
-        return
-    }
-
-    if (-not (Test-Path -LiteralPath $outdir)) {
-        try {
-            New-Item -ItemType Directory -LiteralPath $outdir -Force | Out-Null
-        } catch {
-            [System.Windows.MessageBox]::Show("Failed to create output directory.","Error","OK","Error") | Out-Null
-            return
-        }
+    if (-not (Test-Path $outdir)) {
+        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
+        catch {}
     }
 
     $scriptDir = Split-Path -Parent $PSCommandPath
@@ -163,8 +112,8 @@ $ConvertBtn.Add_Click({
     $psi.UseShellExecute = $true
     [Diagnostics.Process]::Start($psi) | Out-Null
 
-    $StatusText.Text = "Conversion launched in external console."
-    $StatusText.Foreground = "Black"
+    $StatusText.Text = "Conversion started in a new console."
+    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
 
 # --- Show window ---

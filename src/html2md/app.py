@@ -2,14 +2,13 @@ import os
 
 from flask import Flask, jsonify
 
-from . import __version__
+from html2md import __version__
 
 app = Flask(__name__)
 
 
 @app.route('/health')
 def health():
-    """Return the health status of the application."""
     return jsonify({'status': 'ok', 'service': 'html2md', 'version': __version__})
 
 

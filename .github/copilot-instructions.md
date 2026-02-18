@@ -21,13 +21,7 @@ html2md-cli is a Python CLI tool that converts HTML to Markdown, PDF, and TXT fo
 ## Dependencies
 
 Runtime dependencies are declared in `pyproject.toml`; avoid adding new runtime dependencies without discussion. The current set is:
-- `markdownify`
-- `beautifulsoup4`
-- `requests`
-- `reportlab`
-- `pillow`
-- `pyyaml`
-- `anthropic`
+- `markdownify`, `beautifulsoup4`, `requests`, `reportlab`, `pillow`, `pyyaml`
 
 Build-system requirements are defined in `pyproject.toml` (for example `setuptools`, `wheel`). Common local dev tools (not all declared in `pyproject.toml` or installed in CI) include `pytest` and `build`.
 
