@@ -41,7 +41,7 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL:" Target="{Binding ElementName=UrlBox}" FontSize="14" Padding="0"/>
+        <Label Content="_Paste URL:" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
