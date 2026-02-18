@@ -14,16 +14,10 @@ def test_health_endpoint():
     response = client.get('/health')
 
     assert response.status_code == 200
-    result = response.get_json()
-    assert result['status'] == 'ok'
-    assert result['service'] == 'html2md'
-    response = client.get('/health')
-
-    assert response.status_code == 200
-    result = response.get_json()
-    assert result['status'] == 'ok'
-    assert result['service'] == 'html2md'
-    assert result['version'] == __version__
+    json_response = response.get_json()
+    assert json_response['status'] == 'ok'
+    assert json_response['version'] == flask_app_module.__version__
+    assert json_response['service'] == 'html2md'
 
 
 def test_get_host_port_defaults(monkeypatch: pytest.MonkeyPatch):
