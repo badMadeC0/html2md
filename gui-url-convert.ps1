@@ -6,6 +6,37 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
+param([string]$BatchFile)
+
+if ($BatchFile) {
+    if (-not (Test-Path -LiteralPath $BatchFile)) {
+        Write-Error "Batch file not found: $BatchFile"
+        exit 1
+    }
+    $scriptDir = Split-Path -Parent $PSCommandPath
+    if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+
+    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $scriptDir "html2md.py"
+    $outDir = "$env:USERPROFILE\Downloads"
+
+    Get-Content -LiteralPath $BatchFile | ForEach-Object {
+        $url = $_.Trim()
+        if (-not [string]::IsNullOrWhiteSpace($url)) {
+            Write-Host "Processing: $url"
+            if (Test-Path -LiteralPath $venvExe) {
+                & $venvExe --url "$url" --outdir "$outDir" --all-formats
+            } elseif (Test-Path -LiteralPath $pyScript) {
+                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                & $pyCmd "$pyScript" --url "$url" --outdir "$outDir" --all-formats
+            } else {
+                Write-Error "Could not find html2md executable or script."
+            }
+        }
+    }
+    exit
+}
+
 # --- Relaunch in STA mode if needed ---
 # if ([Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
 #     Write-Host "[INFO] Relaunching in STA mode..."
