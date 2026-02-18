@@ -12,7 +12,8 @@ fi
 
 echo "Running Claude agent command with memory fetch disabled..."
 set +e
-bash -lc "$CLAUDE_COMMAND"
+IFS=' ' read -r -a claude_cmd_array <<< "$CLAUDE_COMMAND"
+"${claude_cmd_array[0]}" "${claude_cmd_array[@]:1}"
 status=$?
 set -e
 
