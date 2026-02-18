@@ -1,5 +1,4 @@
 
-import json
 import csv
     command = ["html2md-log-export", "--in", str(infile), "--out", str(outfile)]
     subprocess.run(command, check=True)
