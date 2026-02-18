@@ -1,4 +1,3 @@
-"""Flask application module for html2md."""
 import os
 
 from flask import Flask, jsonify
@@ -8,12 +7,10 @@ app = Flask(__name__)
 
 @app.route('/health')
 def health():
-    """Health check endpoint."""
     return jsonify({'status': 'ok'})
 
 
 def get_host_port():
-    """Get host and port from environment variables."""
     default_port = 10000
     port_str = os.environ.get('PORT')
     try:
@@ -30,5 +27,5 @@ def get_host_port():
 
 
 if __name__=='__main__':
-    HOST_VAL, PORT_VAL = get_host_port()
-    app.run(host=HOST_VAL, port=PORT_VAL)
+    host, port = get_host_port()
+    app.run(host=host, port=port)

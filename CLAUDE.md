@@ -8,7 +8,7 @@
 
 ## Repository Structure
 
-```text
+```
 html2md/
 ├── src/
 │   └── html2md/
@@ -36,7 +36,7 @@ html2md/
 ## Key Entry Points
 
 | Command | Module | Description |
-| ------- | ------ | ----------- |
+|---------|--------|-------------|
 | `html2md` | `html2md.cli:main` | Main converter CLI |
 | `html2md-log-export` | `html2md.log_export:main` | JSONL log to CSV exporter |
 | `python -m html2md` | `html2md.__main__` | Module invocation |
@@ -44,20 +44,16 @@ html2md/
 ## Development Setup
 
 ### Prerequisites
-
 - Python >= 3.8
 
 ### Install (editable/dev mode)
-
 ```bash
 pip install -e .
 pip install pytest build
 ```
 
 ### Dependencies
-
 **Runtime:**
-
 - `markdownify>=0.11.6` — HTML to Markdown conversion
 - `beautifulsoup4>=4.10.0` — HTML parsing
 - `requests>=2.25.0` — HTTP fetching
@@ -66,7 +62,6 @@ pip install pytest build
 - `pyyaml>=6.0` — YAML config parsing
 
 **Dev:**
-
 - `pytest` — Test framework
 - `setuptools>=61`, `wheel` — Build tools
 
@@ -80,13 +75,11 @@ Uses **PEP 517/518** with setuptools. Configuration is entirely in `pyproject.to
 ## Testing
 
 ### Run tests
-
 ```bash
 pytest -q
 ```
 
 ### Test details
-
 - Framework: **pytest**
 - Config: `pyproject.toml` → `[tool.pytest.ini_options]` with `addopts = "-q"`
 - Tests live in `tests/`
@@ -95,7 +88,6 @@ pytest -q
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci.yml`):
-
 - **Trigger:** push and pull_request
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
@@ -114,18 +106,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Encoding:** UTF-8 throughout
 - **Package version:** Single source of truth in `src/html2md/__init__.py` (`__version__`)
 - **License:** MIT
-- **Docstrings:** Required for all modules, classes, and functions.
-  - LLMs must add docstrings where necessary.
-  - **Do NOT remove** existing docstrings unless the corresponding code is removed.
-- **Localhost binding:** Always use `127.0.0.1` for the host address. **Never use `0.0.0.0`.**
-  - `0.0.0.0` binds to all network interfaces, which exposes the service to the entire network and is a security risk.
-  - `127.0.0.1` restricts connections to the local machine only, which is the correct and intended behavior for this project. The equivalent for IPv6 is `::1`.
-  - This applies to all code, configuration, scripts, and documentation in the repository. No LLM or coding agent should ever substitute `0.0.0.0` in place of `127.0.0.1`.
 
 ## Common Tasks
 
 | Task | Command |
-
 |------|---------|
 | Install for development | `pip install -e .` then `pip install pytest build` |
 | Run tests | `pytest -q` |

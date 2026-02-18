@@ -1,5 +1,0 @@
-[tool.pyright]
-typeCheckingMode = "off"
-diagnosticSeverityOverrides = {
-    "reportMissingTypeStubs": "none"
-}
