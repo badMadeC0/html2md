@@ -91,6 +91,28 @@ $ConvertBtn.Add_Click({
         return
     }
 
+    # -- SECURITY CHECK BEGIN --
+    # 1. Validate URL is a well-formed absolute URI (HTTP/HTTPS)
+    $uri = $null
+    if (-not [System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
+        $StatusText.Text = "Error: Invalid URL format."
+        $StatusText.Foreground = "Red"
+        return
+    }
+    if ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') {
+        $StatusText.Text = "Error: Only http/https URLs are supported."
+        $StatusText.Foreground = "Red"
+        return
+    }
+
+    # 2. Prevent command injection via double quotes
+    if ($url.Contains('"') -or $outdir.Contains('"')) {
+        $StatusText.Text = "Error: Inputs cannot contain double quotes."
+        $StatusText.Foreground = "Red"
+        return
+    }
+    # -- SECURITY CHECK END --
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
