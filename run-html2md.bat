@@ -6,7 +6,7 @@ if not exist ".venv\Scripts\python.exe" (
   echo [INFO] Creating virtual environment...
   py -3 -m venv ".venv" || python -m venv ".venv"
 )
-call ".venv\Scripts\activate.bat"
+call ".venv\Scriptsctivate.bat"
 REM Pass all args through to html2md
 html2md %*
 popd

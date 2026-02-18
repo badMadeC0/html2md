@@ -26,7 +26,6 @@ Add-Type -AssemblyName System.Xaml
 # --- Define XAML UI ---
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
         Title="html2md - Convert URL"
         Height="300" Width="580"
         FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
@@ -46,7 +45,7 @@ $xaml = @"
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <TextBox Name="OutBox" Width="440" FontSize="14" AutomationProperties.Name="Output Directory"/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse…</Button>
+            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse...</Button>
         </StackPanel>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
@@ -62,8 +61,13 @@ $xaml = @"
 "@
 
 # --- Parse XAML ---
-$reader = New-Object System.Xml.XmlNodeReader ([xml]$xaml)
+$xmlDoc = [xml]$xaml
+$reader = New-Object System.Xml.XmlNodeReader $xmlDoc
 $window = [Windows.Markup.XamlReader]::Load($reader)
+
+# Fallback if encoding issues persist:
+# $bytes = [System.Text.Encoding]::UTF8.GetBytes($xaml)
+# $window = [Windows.Markup.XamlReader]::Load((New-Object System.IO.MemoryStream (,$bytes)))
 
 # --- Get controls ---
 $UrlBox    = $window.FindName("UrlBox")
