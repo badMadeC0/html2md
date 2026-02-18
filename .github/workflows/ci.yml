@@ -69,10 +69,11 @@ jobs:
           allowed_associations = {"OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"}
           association = os.environ.get("COMMENT_AUTHOR_ASSOCIATION", "").strip().upper()
           if association not in allowed_associations:
-              raise SystemExit(
+              print(
                   "Skipping @claude response for untrusted author association "
                   f"'{association or 'UNKNOWN'}'."
               )
+              raise SystemExit(0)
 
           comment = os.environ["COMMENT_BODY"].strip()
           if not comment:
