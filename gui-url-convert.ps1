@@ -6,7 +6,7 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile)
+param([string]$BatchFile, [string]$BatchOutDir)
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
@@ -18,7 +18,7 @@ if ($BatchFile) {
 
     $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
     $pyScript = Join-Path $scriptDir "html2md.py"
-    $outDir = "$env:USERPROFILE\Downloads"
+    $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
         $url = $_.Trim()
@@ -74,8 +74,8 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL:" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10"/>
+        <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory"/>
@@ -143,13 +143,14 @@ $OpenFolderBtn.Add_Click({
 
 # --- Convert button logic ---
 $ConvertBtn.Add_Click({
-    $url = $UrlBox.Text.Trim()
+    $rawInput = $UrlBox.Text
+    $urlList = $rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() }
     $outdir = $OutBox.Text.Trim()
 
     $LogBox.Text = "--- Starting Conversion ---`r`n"
     $ProgressBar.IsIndeterminate = $true
 
-    if ([string]::IsNullOrWhiteSpace($url)) {
+    if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
         return
@@ -189,30 +190,39 @@ $ConvertBtn.Add_Click({
     $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
     $pyScript = Join-Path $scriptDir "html2md.py"
     
-    if (Test-Path -LiteralPath $venvExe) {
-        $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "powershell.exe"
-        # Run the venv shim directly. It handles paths correctly.
-        $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats`""
-        $psi.WorkingDirectory = $scriptDir
-        $psi.UseShellExecute = $true
-    }
-    elseif (Test-Path -LiteralPath $pyScript) {
-        $LogBox.AppendText("Found Python script: $pyScript`r`n")
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "powershell.exe"
-        $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats`""
-        $psi.WorkingDirectory = $scriptDir
-        $psi.UseShellExecute = $true
-    }
-    else {
-        $StatusText.Text = "Error: html2md executable not found."
-        $StatusText.Foreground = "Red"
-        $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-        $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-        $ProgressBar.IsIndeterminate = $false
-        return
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = "powershell.exe"
+    $psi.WorkingDirectory = $scriptDir
+    $psi.UseShellExecute = $true
+
+    if ($urlList.Count -gt 1) {
+        # --- BATCH MODE ---
+        $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        $urlList | Set-Content -Path $tempFile
+        
+        # Relaunch this script in batch mode
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
+    } else {
+        # --- SINGLE URL MODE ---
+        $url = $urlList[0]
+        
+        if (Test-Path -LiteralPath $venvExe) {
+            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
+            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats`""
+        }
+        elseif (Test-Path -LiteralPath $pyScript) {
+            $LogBox.AppendText("Found Python script: $pyScript`r`n")
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats`""
+        }
+        else {
+            $StatusText.Text = "Error: html2md executable not found."
+            $StatusText.Foreground = "Red"
+            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
+            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
+            $ProgressBar.IsIndeterminate = $false
+            return
+        }
     }
     
     $LogBox.AppendText("Executing process...`r`n")
