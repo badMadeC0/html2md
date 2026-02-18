@@ -1,10 +1,12 @@
+"""Tests for log export functionality."""
 
 import json
 import csv
-from html2md.log_export import main
+from html2md.log_export import main  # type: ignore
 
 
 def test_log_export_basic(tmp_path):
+    """Test basic log export."""
     input_file = tmp_path / "test.jsonl"
     output_file = tmp_path / "test.csv"
 
@@ -17,7 +19,11 @@ def test_log_export_basic(tmp_path):
         for item in data:
             f.write(json.dumps(item) + "\n")
 
-    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'ts,input,output,status,reason']
+    argv = [
+        '--in', str(input_file),
+        '--out', str(output_file),
+        '--fields', 'ts,input,output,status,reason'
+    ]
     ret = main(argv)
     assert ret == 0
 
@@ -29,6 +35,7 @@ def test_log_export_basic(tmp_path):
         assert rows[1]['status'] == "err"
 
 def test_log_export_malformed_json(tmp_path):
+    """Test handling of malformed JSON lines."""
     input_file = tmp_path / "malformed.jsonl"
     output_file = tmp_path / "malformed.csv"
 
@@ -48,6 +55,7 @@ def test_log_export_malformed_json(tmp_path):
         assert rows[1]['ts'] == "2"
 
 def test_log_export_extra_missing_fields(tmp_path):
+    """Test handling of extra or missing fields."""
     input_file = tmp_path / "fields.jsonl"
     output_file = tmp_path / "fields.csv"
 
@@ -76,6 +84,7 @@ def test_log_export_extra_missing_fields(tmp_path):
         assert rows[1]['b'] == "" # default restval
 
 def test_log_export_non_dict_json(tmp_path):
+    """Test handling of valid JSON that is not a dictionary."""
     input_file = tmp_path / "nondict.jsonl"
     output_file = tmp_path / "nondict.csv"
 
