@@ -93,7 +93,14 @@ jobs:
               )
           except Exception as exc:
               raise SystemExit(f"Error: Failed to call Anthropic API: {exc}")
-          reply = response.content[0].text
+          default_reply = "Sorry, I wasn't able to generate a response."
+          reply = default_reply
+          content = getattr(response, "content", None)
+          if isinstance(content, list) and content:
+              first_item = content[0]
+              text = getattr(first_item, "text", None)
+              if isinstance(text, str) and text.strip():
+                  reply = text
 
           # Post reply via GitHub API
           subprocess.run(
