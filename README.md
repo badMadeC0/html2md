@@ -24,7 +24,7 @@ The full runtime conversion workflow described in earlier packaging notes is **n
 ## Entry Points
 
 | Entry Point | Target | Description |
-|---|---|---|
+| --- | --- | --- |
 | `html2md` | [`src/html2md/cli.py:main`](src/html2md/cli.py) | Primary CLI |
 | `html2md-log-export` | [`src/html2md/log_export.py:main`](src/html2md/log_export.py) | JSONL-to-CSV log export utility |
 | `python -m html2md` | [`src/html2md/__main__.py`](src/html2md/__main__.py) | Module execution, delegates to `cli.main()` |
@@ -32,7 +32,7 @@ The full runtime conversion workflow described in earlier packaging notes is **n
 ## Key Files
 
 | File | Description |
-|---|---|
+| --- | --- |
 | [`src/html2md/cli.py`](src/html2md/cli.py) | Main CLI module |
 | [`src/html2md/log_export.py`](src/html2md/log_export.py) | Reads JSONL logs and exports selected fields to CSV |
 | [`src/html2md/__init__.py`](src/html2md/__init__.py) | Package init, exposes `__version__` |
