@@ -1,7 +1,6 @@
 
 import json
 import csv
-from pathlib import Path
 from html2md.log_export import main
 
 def test_csv_injection(tmp_path):
