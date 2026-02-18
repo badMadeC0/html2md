@@ -20,7 +20,13 @@ def main(argv=None):
             row = {}
             for k in fields:
                 val = str(rec.get(k, ''))
-                if val.startswith(('=', '+', '-', '@')):
+            if not line: continue
+            try: rec=json.loads(line)
+            except ValueError: continue
+            row = {}
+            for k in fields:
+                val = str(rec.get(k, ''))
+                if val.startswith(DANGEROUS_CSV_CHARS):
                     val = "'" + val
                 row[k] = val
             w.writerow(row)
