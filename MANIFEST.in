@@ -6,4 +6,3 @@ include gui-url-convert.ps1
 include setup-html2md.ps1
 include run-html2md.bat
 recursive-include .github *
-include src/html2md/py.typed

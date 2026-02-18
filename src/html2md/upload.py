@@ -1,16 +1,14 @@
-"""Upload utility for html2md."""
 from __future__ import annotations
 
 import argparse
 import mimetypes
 import sys
 from pathlib import Path
-from typing import Any
 
 import anthropic
 
 
-def upload_file(file_path: str) -> Any:
+def upload_file(file_path: str) -> dict:
     """Upload a file to the Anthropic API."""
     path = Path(file_path)
     if not path.exists():
@@ -29,7 +27,6 @@ def upload_file(file_path: str) -> Any:
 
 
 def main(argv=None):
-    """Run the upload CLI."""
     ap = argparse.ArgumentParser(
         prog="html2md-upload",
         description="Upload a file to the Anthropic API.",
