@@ -79,7 +79,12 @@ jobs:
               raise SystemExit("COMMENT_BODY is empty; cannot generate a response.")
           max_comment_chars = 4000
           if len(comment) > max_comment_chars:
-              comment = f"{comment[:max_comment_chars]}\n\n[truncated]"
+              suffix = "\n\n[truncated]"
+              available = max_comment_chars - len(suffix)
+              if available <= 0:
+                  comment = suffix[-max_comment_chars:]
+              else:
+                  comment = f"{comment[:available]}{suffix}"
 
           thread_title = os.environ.get("THREAD_TITLE", "")
           thread_body = os.environ.get("THREAD_BODY", "")
