@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 import argparse
-import json
 import csv
+import json
 from pathlib import Path
+
+
+def _sanitize_csv_cell(value: object) -> object:
+    """Prevent spreadsheet formula execution for string values."""
+    if isinstance(value, str) and value.startswith(('=', '+', '-', '@')):
+        return f"'{value}"
+    return value
 
 
 def main(argv=None):
@@ -17,10 +24,11 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    output_fields = [_sanitize_csv_cell(field) for field in fields]
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
+        w = csv.DictWriter(fo, fieldnames=output_fields, restval='', extrasaction='ignore')
         w.writeheader()
         for line in fi:
             line = line.strip()
@@ -32,7 +40,12 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
-            row = {k: ('' if rec.get(k) is None else rec.get(k, '')) for k in fields}
+            row = {
+                output_key: ''
+                if (value := rec.get(input_key)) is None
+                else _sanitize_csv_cell(value)
+                for input_key, output_key in zip(fields, output_fields)
+            }
             w.writerow(row)
     return 0
 

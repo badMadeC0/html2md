@@ -103,3 +103,42 @@ def test_log_export_non_dict_json(tmp_path):
         assert len(rows) == 2
         assert rows[0]['ts'] == "1"
         assert rows[1]['ts'] == "2"
+
+
+def test_log_export_null_becomes_empty_string(tmp_path):
+    """Test explicit null values are exported as empty strings."""
+    input_file = tmp_path / "nulls.jsonl"
+    output_file = tmp_path / "nulls.csv"
+
+    with open(input_file, "w", encoding="utf-8") as f:
+        f.write('{"ts": "1", "status": null}\n')
+
+    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'ts,status']
+    main(argv)
+
+    with open(output_file, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        assert len(rows) == 1
+        assert rows[0]['ts'] == "1"
+        assert rows[0]['status'] == ""
+
+
+def test_log_export_sanitizes_csv_formulas(tmp_path):
+    """Test formula-like headers and values are escaped for CSV safety."""
+    input_file = tmp_path / "formulas.jsonl"
+    output_file = tmp_path / "formulas.csv"
+
+    with open(input_file, "w", encoding="utf-8") as f:
+        f.write('{"safe": "=1+1", "@bad": "@SUM(A1:A2)"}\n')
+
+    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'safe,@bad']
+    main(argv)
+
+    with open(output_file, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        assert len(rows) == 1
+        assert reader.fieldnames == ['safe', "'@bad"]
+        assert rows[0]['safe'] == "'=1+1"
+        assert rows[0]["'@bad"] == "'@SUM(A1:A2)"
