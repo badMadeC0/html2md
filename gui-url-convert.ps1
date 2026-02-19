@@ -213,8 +213,8 @@ $ConvertBtn.Add_Click({
         
         # Relaunch this script in batch mode
                 # Escape double quotes for command line safety
-        $safeTempFile = $tempFile -replace '"', '\"'
-        $safeOutDir = $outdir -replace '"', '\"'
+        $safeTempFile = $tempFile -replace '"', '`"'
+        $safeOutDir = $outdir -replace '"', '`"'
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$safeTempFile`" -BatchOutDir `"$safeOutDir`""
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
