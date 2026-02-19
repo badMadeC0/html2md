@@ -61,12 +61,6 @@ def main(argv=None):
             }
         )
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
-            # Fix common URL typo: trailing slash before query parameters
-            if "/?" in target_url:
-                target_url = target_url.replace("/?", "?")
-
     if args.url or args.batch:
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
