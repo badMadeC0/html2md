@@ -5,7 +5,8 @@ import pytest
 
 # Mock anthropic before importing the module under test
 # This is necessary because anthropic might not be installed in the test environment
-sys.modules["anthropic"] = MagicMock()
+# The anthropic module is now mocked within a pytest fixture to avoid global state mutation.
+# See the 'mocked_upload_file' fixture for details.
 
 from html2md.upload import upload_file
 
