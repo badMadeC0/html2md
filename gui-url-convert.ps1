@@ -106,7 +106,7 @@ $ConvertBtn.Add_Click({
     }
 
     # 2. Prevent command injection via double quotes
-    if ($url.Contains('"') -or $outdir.Contains('"')) {
+if ($url.Contains('"') -or $outdir.Contains('"') -or $url.Contains('%') -or $outdir.Contains('%')) {
         $StatusText.Text = "Error: Inputs cannot contain double quotes."
         $StatusText.Foreground = "Red"
         return
