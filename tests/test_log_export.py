@@ -142,3 +142,23 @@ def test_log_export_sanitizes_csv_formulas(tmp_path):
         assert reader.fieldnames == ['safe', "'@bad"]
         assert rows[0]['safe'] == "'=1+1"
         assert rows[0]["'@bad"] == "'@SUM(A1:A2)"
+
+
+def test_log_export_preserves_distinct_fields_when_sanitized_headers_collide(tmp_path):
+    """Distinct requested fields should remain distinct after header sanitization."""
+    input_file = tmp_path / "colliding_headers.jsonl"
+    output_file = tmp_path / "colliding_headers.csv"
+
+    with open(input_file, "w", encoding="utf-8") as f:
+        f.write('{"@a": "formula", "\'@a": "literal"}\n')
+
+    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', "@a,'@a"]
+    main(argv)
+
+    with open(output_file, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        assert len(rows) == 1
+        assert reader.fieldnames == ["'@a", "'@a_1"]
+        assert rows[0]["'@a"] == "formula"
+        assert rows[0]["'@a_1"] == "literal"
