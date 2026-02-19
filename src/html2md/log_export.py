@@ -19,7 +19,13 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
         w.writeheader()
         for line in fi:
-            line=line.strip();
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
             if not line: continue
             try: rec=json.loads(line)
             except ValueError: continue
