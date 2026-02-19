@@ -29,6 +29,6 @@ def get_host_port():
     return host, port
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     host, port = get_host_port()
     app.run(host=host, port=port)
