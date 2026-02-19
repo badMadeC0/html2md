@@ -15,7 +15,8 @@ def main(argv=None):
     inp = Path(args.inp); out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         # Optimized: restval='' fills missing fields with empty string, extrasaction='ignore' ignores extra fields
-        w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore'); w.writeheader()
+        w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
+        w.writeheader()
         for line in fi:
             line=line.strip();
             if not line: continue
