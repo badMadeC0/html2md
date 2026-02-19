@@ -12,7 +12,8 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
-    inp = Path(args.inp); out = Path(args.out)
+    inp = Path(args.inp)
+    out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         # Optimized: restval='' fills missing fields with empty string, extrasaction='ignore' ignores extra fields
         w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
