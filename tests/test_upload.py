@@ -16,10 +16,7 @@ def test_upload_file_success(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("content", encoding="utf-8")
 
-    # Mock anthropic client instance and upload method
-    mock_client = MagicMock()
-    mock_upload = MagicMock()
-    mock_client.beta.files.upload = mock_upload
+mock_client, mock_upload = anthropic_mock_setup
     mock_upload.return_value.id = "file_123"
 
     with patch("html2md.upload.anthropic.Anthropic", return_value=mock_client) as mock_anthropic_class:
