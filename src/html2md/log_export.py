@@ -27,7 +27,8 @@ def main(argv=None):
             except ValueError:
                 continue
             if not line: continue
-            try: rec=json.loads(line)
+            try:
+                rec = json.loads(line)
             except ValueError: continue
             # Optimization: pass rec directly to writerow.
             # This avoids creating a new dictionary for every row (O(M) per row),
