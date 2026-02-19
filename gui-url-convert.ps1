@@ -212,7 +212,7 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
         
         # Relaunch this script in batch mode
-                # Escape double quotes for command line safety
+        # Escape double quotes for command line safety
         $safeTempFile = $tempFile -replace '"', '`"'
         $safeOutDir = $outdir -replace '"', '`"'
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$safeTempFile`" -BatchOutDir `"$safeOutDir`""
