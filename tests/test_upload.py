@@ -33,7 +33,10 @@ class TestUpload(unittest.TestCase):
         """Test upload_file reuses the provided client."""
         mock_client = MagicMock()
 
-        with patch("pathlib.Path.exists", return_value=True),              patch("pathlib.Path.open", MagicMock()):
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.open", MagicMock()),
+        ):
 
             upload_file("dummy.txt", client=mock_client)
 
