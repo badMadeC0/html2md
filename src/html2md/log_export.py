@@ -32,7 +32,7 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
-            row = {k: ('' if rec.get(k) is None else rec.get(k, '')) for k in fields}
+            row = {k: ('' if (v := rec.get(k)) is None else v) for k in fields}
             w.writerow(row)
     return 0
 
