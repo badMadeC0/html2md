@@ -1,11 +1,13 @@
 """Flask application for html2md."""
 
+import logging
 import os
 
 from flask import Flask, jsonify
 
 from html2md import __version__
 
+logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
@@ -22,9 +24,10 @@ def get_host_port():
     try:
         port_value = int(port_str) if port_str is not None else default_port
     except ValueError:
-        print(
-            f'Warning: Invalid PORT environment variable value '
-            f'{port_str!r}; falling back to default {default_port}.'
+        logger.warning(
+            'Invalid PORT environment variable value %r; falling back to default %d.',
+            port_str,
+            default_port,
         )
         port_value = default_port
 
@@ -33,5 +36,6 @@ def get_host_port():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     host, port = get_host_port()
     app.run(host=host, port=port)
