@@ -1,6 +1,5 @@
 """Tests for html2md.upload."""
 import sys
-import unittest
 from unittest.mock import MagicMock, patch
 
 # Mock anthropic before importing html2md.upload as it is not installed in the environment
