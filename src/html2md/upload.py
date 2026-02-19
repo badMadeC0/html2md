@@ -46,7 +46,9 @@ def main(argv=None):
 
     try:
         # Create client once and pass it, demonstrating reuse pattern
-        client = anthropic.Anthropic()
+    args = ap.parse_args(argv)
+
+    try:
         result = upload_file(args.file, client=client)
         print(f"File uploaded successfully. ID: {result.id}")
     except FileNotFoundError as exc:
