@@ -83,10 +83,11 @@ $OutBox.Add_TextChanged($resetStatusAction)
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    if ($dlg.ShowDialog() -eq "OK") {
-        $OutBox.Text = $dlg.SelectedPath
-    }
-})
+Add-Type -AssemblyName PresentationCore
+Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName WindowsBase
+Add-Type -AssemblyName System.Xaml
+Add-Type -AssemblyName System.Windows.Forms
 
 # --- Convert button logic ---
 $ConvertBtn.Add_Click({
