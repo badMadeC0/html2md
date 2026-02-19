@@ -13,19 +13,28 @@ jobs:
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR') &&
-       (contains(github.event.comment.body, '@claude[agent]') ||
+       (contains(github.event.comment.body, '@claude') ||
         contains(github.event.comment.body, '@codex[agent]')))
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
+      issues: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Run Claude agent (non-blocking)
         env:
           CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
           DISABLE_MEMORY: "true"
           SKIP_MEMORY_FETCH: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          REPO: ${{ github.repository }}
         run: .github/scripts/run_claude_agent.sh
         continue-on-error: true
