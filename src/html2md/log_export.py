@@ -25,6 +25,11 @@ def main(argv=None):
             # Optimization: pass rec directly to writerow.
             # This avoids creating a new dictionary for every row (O(M) per row),
             # relying on DictWriter's handling.
+            if not isinstance(rec, dict):
+                continue
+            # Optimization: pass rec directly to writerow.
+            # This avoids creating a new dictionary for every row (O(M) per row),
+            # relying on DictWriter's handling.
             w.writerow(rec)
     return 0
 
