@@ -58,6 +58,3 @@ class TestUpload(unittest.TestCase):
 
         mock_anthropic.Anthropic.assert_called_once()
         mock_upload_file.assert_called_once_with("dummy.txt", client=mock_client)
-
-if __name__ == "__main__":
-    unittest.main()
