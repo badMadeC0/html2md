@@ -155,7 +155,7 @@ $OpenFolderBtn.Add_Click({
 $ConvertBtn.Add_Click({
     $rawInput = $UrlBox.Text
     $urlList = @($rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
-    $outdir = $OutBox.Text.Trim()
+    $outdir = $OutBox.Text.Trim().Replace('"', '')
 
     $LogBox.Text = "--- Starting Conversion ---`r`n"
     $ProgressBar.IsIndeterminate = $true
@@ -219,16 +219,22 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
+        # Sanitize for single-quoted PowerShell string interpolation
+        $safeUrl = $url.Replace("'", "''")
+        $safeOutDir = $outdir.Replace("'", "''")
+        $safeVenvExe = $venvExe.Replace("'", "''")
+        $safePyScript = $pyScript.Replace("'", "''")
+
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
