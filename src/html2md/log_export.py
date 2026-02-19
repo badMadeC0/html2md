@@ -1,4 +1,9 @@
-import argparse, json, csv
+"""Export html2md JSONL logs to CSV."""
+
+from __future__ import annotations
+import argparse
+import json
+import csv
 from pathlib import Path
 
 
