@@ -50,7 +50,7 @@ class TestUpload(unittest.TestCase):
         argv = ["dummy.txt"]
 
         with patch("sys.stdout", new_callable=MagicMock):
-             main(argv)
+            main(argv)
 
         mock_anthropic.Anthropic.assert_called_once()
         mock_upload_file.assert_called_once_with("dummy.txt", client=mock_client)
