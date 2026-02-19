@@ -67,7 +67,49 @@ def main(argv=None):
             if "/?" in target_url:
                 target_url = target_url.replace("/?", "?")
 
-            print(f"Processing URL: {target_url}")
+    if args.url or args.batch:
+        try:
+            import requests  # type: ignore  # pylint: disable=import-outside-toplevel
+            from markdownify import (
+                markdownify as md,
+            )  # pylint: disable=import-outside-toplevel
+        except ImportError as e:
+            print(
+                f"Error: Missing dependency {e.name}."
+                "Please run: pip install requests markdownify"
+            )
+            return 1
+
+        session = requests.Session()
+        session.headers.update(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Accept": (
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                    "image/avif,image/webp,image/apng,*/*;q=0.8"
+                ),
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Referer": "https://www.google.com/",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-Fetch-User": "?1",
+            }
+        )
+
+        def process_url(target_url: str) -> None:
+            """Process a single URL."""
+            # Fix common URL typo: trailing slash before query parameters
+            if "/?" in target_url:
+                target_url = target_url.replace("/?", "?")
+
 
             try:
                 print("Fetching content...")
