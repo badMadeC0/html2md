@@ -10,7 +10,9 @@ from typing import Any, Optional
 import anthropic
 
 
-def upload_file(file_path: str, client: Optional[anthropic.Anthropic] = None) -> Any:
+def upload_file(
+    file_path: str, client: Optional[anthropic.Anthropic] = None
+) -> Any:
     """Upload a file to the Anthropic API.
 
     Args:
@@ -45,9 +47,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     try:
-        # Create a client once and pass it to upload_file.
-        # The reuse benefit is mainly for callers that invoke upload_file
-        # multiple times with the same client instance.
+        # Create client once and pass it, demonstrating reuse pattern
         client = anthropic.Anthropic()
         result = upload_file(args.file, client=client)
         print(f"File uploaded successfully. ID: {result.id}")
