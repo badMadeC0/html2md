@@ -24,7 +24,7 @@ def get_host_port():
     try:
         port_value = int(port_str) if port_str is not None else default_port
     except ValueError:
-        logger.warning(
+        app.logger.warning(
             'Invalid PORT environment variable value %r; falling back to default %d.',
             port_str,
             default_port,
