@@ -40,5 +40,5 @@ if __name__ == '__main__':
         # serve logs to stdout by default which is good for containerized apps
         serve(app, host=host, port=port)
     except ImportError:
-        print("Warning: 'waitress' not found. Using Flask development server (not for production).", file=sys.stderr)
+        print("Warning: 'waitress' not found. Using Flask development server (not for production).\nTo run in production mode, install with: pip install html2md-cli[deploy]", file=sys.stderr)
         app.run(host=host, port=port)
