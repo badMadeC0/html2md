@@ -35,14 +35,11 @@ def test_upload_file_success(tmp_path):
             # Check arguments passed to upload
             call_args = mock_upload.call_args
             assert call_args is not None
-            # Depending on how it's called (args vs kwargs), checking both
-            # Code uses: file=(path.name, file_data, mime_type) as kwarg
-            kwargs = call_args[1]
+            kwargs = call_args.kwargs
             assert "file" in kwargs
             file_tuple = kwargs["file"]
             assert file_tuple[0] == "test.txt"
-            # file_tuple[1] is the open file object
-            assert hasattr(file_tuple[1], "read")
+            assert file_tuple[1].mode == "rb"
             assert file_tuple[2] == "text/plain"
 
 def test_upload_file_not_found():
