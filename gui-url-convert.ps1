@@ -224,10 +224,10 @@ $ConvertBtn.Add_Click({
         $url = $urlList[0]
         # Sanitize inputs for single-quoted string interpolation
         # Escape single quotes by doubling them
-        $safeUrl = $url -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-        $safeVenv = $venvExe -replace "'", "''"
-        $safePyScript = $pyScript -replace "'", "''"
+        $safeUrl = $url -replace "'", "''" -replace '"', '\"'
+        $safeOutDir = $outdir -replace "'", "''" -replace '"', '\"'
+        $safeVenv = $venvExe -replace "'", "''" -replace '"', '\"'
+        $safePyScript = $pyScript -replace "'", "''" -replace '"', '\"'
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         
