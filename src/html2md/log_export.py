@@ -1,5 +1,9 @@
-import argparse, json, csv
+
+import argparse
+import csv
+import json
 from pathlib import Path
+
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='html2md-log-export', description='Export html2md JSONL logs to CSV')
@@ -23,5 +27,6 @@ def main(argv=None):
             w.writerow(rec)
     return 0
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     raise SystemExit(main())
