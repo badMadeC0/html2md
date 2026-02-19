@@ -24,7 +24,24 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
-    output_fields = [_sanitize_csv_cell(field) for field in fields]
+    output_fields = []
+    field_to_output_map = {}
+    seen_output_names = set()
+    
+    for field in fields:
+        sanitized_field = _sanitize_csv_cell(field)
+        original_sanitized_field = sanitized_field
+        counter = 0
+        while sanitized_field in seen_output_names:
+            counter += 1
+            sanitized_field = f"{original_sanitized_field}_{counter}"
+        
+        output_fields.append(sanitized_field)
+        field_to_output_map[field] = sanitized_field
+        seen_output_names.add(sanitized_field)
+
+    # Then, in the row construction, use field_to_output_map[input_key] as the key.
+    # This ensures that even if original fields sanitize to the same value, they get unique output keys.
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
