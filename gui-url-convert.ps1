@@ -48,7 +48,7 @@ $xaml = @"
         <Label Grid.Row="2" Content="_Output Folder:" Target="{Binding ElementName=OutBox}" FontSize="14"/>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,10">
-            <TextBox Name="OutBox" Width="440" FontSize="14" AutomationProperties.Name="Output Directory"
+            <TextBox Name="OutBox" Width="440" FontSize="14" AutomationProperties.Name="Output Folder"
                      ToolTip="Destination folder for converted files"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse…</Button>
         </StackPanel>
