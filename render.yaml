@@ -4,7 +4,7 @@ services:
     name: html2md
     runtime: python
     buildCommand: pip install .[deploy]
-    startCommand: gunicorn html2md.web:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn html2md.app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: HOST
         value: 0.0.0.0
