@@ -1,27 +1,28 @@
-"""Tests for the html2md.app module."""
+"""Tests for the Flask application."""
+
 import importlib
 
 import pytest
-
-from html2md import __version__  # type: ignore
 
 pytest.importorskip('flask')
 
 
 def test_health_endpoint():
-    """Test the health endpoint."""
+    """Test the health check endpoint."""
     flask_app_module = importlib.import_module('html2md.app')
     client = flask_app_module.app.test_client()
 
     response = client.get('/health')
 
     assert response.status_code == 200
-    from html2md import __version__
-    assert response.get_json() == {'status': 'ok', 'service': 'html2md', 'version': __version__}
+    json_response = response.get_json()
+    assert json_response['status'] == 'ok'
+    assert json_response['service'] == 'html2md'
+    assert json_response['version'] == flask_app_module.__version__
 
 
 def test_get_host_port_defaults(monkeypatch):
-    """Test get_host_port defaults."""
+    """Test getting host and port with defaults."""
     monkeypatch.delenv('HOST', raising=False)
     monkeypatch.delenv('PORT', raising=False)
 
@@ -33,8 +34,8 @@ def test_get_host_port_defaults(monkeypatch):
 
 
 def test_get_host_port_invalid_port(monkeypatch, capsys):
-    """Test get_host_port with invalid port."""
-    monkeypatch.setenv('HOST', '127.0.0.1')
+    """Test getting host and port with invalid port environment variable."""
+    monkeypatch.setenv('HOST', '0.0.0.0')
     monkeypatch.setenv('PORT', 'invalid')
 
     flask_app_module = importlib.import_module('html2md.app')

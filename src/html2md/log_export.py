@@ -2,7 +2,10 @@ import argparse, json, csv
 from pathlib import Path
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog='html2md-log-export', description='Export html2md JSONL logs to CSV')
+    """Run the log export CLI."""
+    ap = argparse.ArgumentParser(
+        prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
+    )
     ap.add_argument('--in', dest='inp', required=True)
     ap.add_argument('--out', dest='out', required=True)
     ap.add_argument('--fields', default='ts,input,output,status,reason')
