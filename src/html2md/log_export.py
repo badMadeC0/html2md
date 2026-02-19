@@ -1,12 +1,14 @@
 """Export html2md JSONL logs to CSV."""
 
+from __future__ import annotations
 import argparse
 import json
 import csv
 from pathlib import Path
 
+
 def main(argv=None):
-    """Run the log export CLI."""
+    """Parse arguments and export a JSONL log file to CSV format."""
     ap = argparse.ArgumentParser(
         prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
     )
@@ -18,7 +20,7 @@ def main(argv=None):
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval='')
+        w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
         w.writeheader()
         for line in fi:
             line = line.strip()
@@ -30,8 +32,10 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
-            w.writerow(rec)
+            row = {k: ('' if (v := rec.get(k)) is None else v) for k in fields}
+            w.writerow(row)
     return 0
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     raise SystemExit(main())
