@@ -80,21 +80,19 @@ $xaml = @"
         </Grid.RowDefinitions>
 
         <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"
-                 ToolTip="Enter one or more URLs (one per line)."/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory"
-                     ToolTip="Destination folder for converted files."/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
-            <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
+            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory"/>
+            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse...</Button>
+            <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">Open Folder</Button>
         </StackPanel>
 
         <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
                 />
@@ -157,7 +155,7 @@ $OpenFolderBtn.Add_Click({
 $ConvertBtn.Add_Click({
     $rawInput = $UrlBox.Text
     $urlList = @($rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
-    $outdir = $OutBox.Text.Trim().Replace('"', '')
+    $outdir = $OutBox.Text.Trim()
 
     $LogBox.Text = "--- Starting Conversion ---`r`n"
     $ProgressBar.IsIndeterminate = $true
@@ -214,9 +212,9 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
         
         # Relaunch this script in batch mode
-        # Escape double quotes for command line safety
-        $safeTempFile = $tempFile -replace '"', '`"'
-        $safeOutDir = $outdir -replace '"', '`"'
+                # Escape double quotes for command line safety
+        $safeTempFile = $tempFile -replace '"', '\"'
+        $safeOutDir = $outdir -replace '"', '\"'
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$safeTempFile`" -BatchOutDir `"$safeOutDir`""
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
@@ -226,10 +224,10 @@ $ConvertBtn.Add_Click({
         $url = $urlList[0]
         # Sanitize inputs for single-quoted string interpolation
         # Escape single quotes by doubling them
-        $safeUrl = $url -replace "'", "''" -replace '"', '\"'
-        $safeOutDir = $outdir -replace "'", "''" -replace '"', '\"'
-        $safeVenv = $venvExe -replace "'", "''" -replace '"', '\"'
-        $safePyScript = $pyScript -replace "'", "''" -replace '"', '\"'
+        $safeUrl = $url -replace "'", "''"
+        $safeOutDir = $outdir -replace "'", "''"
+        $safeVenv = $venvExe -replace "'", "''"
+        $safePyScript = $pyScript -replace "'", "''"
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         
