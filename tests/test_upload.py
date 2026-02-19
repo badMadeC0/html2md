@@ -20,7 +20,8 @@ class TestUpload(unittest.TestCase):
         mock_anthropic.Anthropic.return_value = mock_client
 
         # Mock path existence and open
-        with patch("pathlib.Path.exists", return_value=True),              patch("pathlib.Path.open", MagicMock()):
+        with patch("pathlib.Path.exists", return_value=True), \
+             patch("pathlib.Path.open", MagicMock()):
 
             upload_file("dummy.txt")
 
