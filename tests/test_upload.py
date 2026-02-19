@@ -12,7 +12,6 @@ from html2md.upload import upload_file, main
 """Tests for html2md.upload."""
 import sys
 from unittest.mock import MagicMock
-import pytest
 
 # Mock anthropic before importing html2md.upload as it is not installed in the environment
 # This is required for the import to succeed.
