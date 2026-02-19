@@ -1,4 +1,0 @@
-## 2025-02-17 - Command Injection in PowerShell GUI
-**Vulnerability:** `gui-url-convert.ps1` constructed `cmd.exe` arguments by concatenating user input without validation. Specifically, it interpolated `$url` and `$outdir` directly into `/c "$bat" --url "$url" ...`.
-**Learning:** PowerShell's `ProcessStartInfo` arguments string is passed to the executable. When the executable is `cmd.exe`, the `/c` switch interprets the rest of the line as a command. If user input contains quotes or shell metacharacters, it can break out of the quoting and execute arbitrary commands.
-**Prevention:** Always validate user input before passing it to external processes, especially shells. Use strict allow-lists (like `System.Uri`) and reject dangerous characters (like quotes) if they cannot be safely escaped.
