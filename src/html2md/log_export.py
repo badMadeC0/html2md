@@ -58,10 +58,10 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
             row = {
-                output_key: ''
-                if (value := rec.get(input_key)) is None
-                else _sanitize_csv_cell(value)
-                for input_key, output_key in zip(fields, output_fields)
+                output_key: (
+                    '' if (value := rec.get(input_key)) is None
+                    else _sanitize_csv_cell(value)
+                ) for input_key, output_key in zip(fields, output_fields)
             }
             w.writerow(row)
     return 0
