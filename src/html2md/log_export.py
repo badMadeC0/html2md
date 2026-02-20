@@ -14,19 +14,22 @@ def _sanitize_csv_cell(value: object) -> object:
 
 
 def _build_unique_output_fields(fields: list[str]) -> list[str]:
+def _build_unique_output_fields(fields: list[str]) -> list[str]:
     """Return sanitized output headers while preserving one column per requested field."""
     output_fields: list[str] = []
-    seen_output_names: dict[str, int] = {}
+    used_names: set[str] = set()
 
     for field in fields:
         base_name = str(_sanitize_csv_cell(field))
-        count = seen_output_names.get(base_name, 0)
-        output_name = base_name if count == 0 else f"{base_name}_{count}"
-        seen_output_names[base_name] = count + 1
-        output_fields.append(output_name)
+        candidate = base_name
+        count = 1
+        while candidate in used_names:
+            candidate = f"{base_name}_{count}"
+            count += 1
+        used_names.add(candidate)
+        output_fields.append(candidate)
 
     return output_fields
-
 
 def main(argv=None):
     """Run the log export CLI."""
