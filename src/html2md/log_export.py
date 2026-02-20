@@ -1,6 +1,5 @@
 """Export html2md JSONL logs to CSV."""
 
-from __future__ import annotations
 import argparse
 import csv
 import json
@@ -30,7 +29,7 @@ def _build_unique_output_fields(fields: list[str]) -> list[str]:
 
 
 def main(argv=None):
-    """Parse arguments and export a JSONL log file to CSV format."""
+    """Run the log export CLI."""
     ap = argparse.ArgumentParser(
         prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
     )
@@ -65,6 +64,5 @@ def main(argv=None):
             w.writerow(row)
     return 0
 
-
-if __name__ == '__main__':
+if __name__=='__main__':
     raise SystemExit(main())
