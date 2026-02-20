@@ -112,7 +112,7 @@ def test_log_export_csv_injection(tmp_path):
     # Malicious payload: starts with =
     payload = "=1+1"
     data = [
-        {"input": payload, "output": "@SUM(1,1)", "status": "+ok", "reason": "-fail"}
+        {"input": payload, "output": "@SUM(1,1)", "status": "+ok", "reason": "\t-fail"}
     ]
 
     with open(input_file, "w", encoding="utf-8") as f:
