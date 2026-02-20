@@ -1,4 +1,5 @@
 """Flask application for html2md."""
+from __future__ import annotations
 
 import os
 import sys
