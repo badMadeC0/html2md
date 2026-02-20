@@ -136,8 +136,12 @@ $OutBox.Text = "$env:USERPROFILE\Downloads"
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
     $currentPath = $OutBox.Text.Trim()
-    if ($currentPath -and (Test-Path -LiteralPath $currentPath -PathType Container)) {
-        $dlg.SelectedPath = $currentPath
+    $testPath = $currentPath
+    while ($testPath -and -not (Test-Path -LiteralPath $testPath -PathType Container)) {
+        $testPath = Split-Path -Parent -LiteralPath $testPath
+    }
+    if ($testPath) {
+        $dlg.SelectedPath = $testPath
     }
     if ($dlg.ShowDialog() -eq "OK") {
         $OutBox.Text = $dlg.SelectedPath
