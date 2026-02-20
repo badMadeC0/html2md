@@ -36,11 +36,11 @@ def _build_unique_output_fields(fields: list[str]) -> list[str]:
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
-        prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
+        prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument('--in', dest='inp', required=True)
-    ap.add_argument('--out', dest='out', required=True)
-    ap.add_argument('--fields', default='ts,input,output,status,reason')
+    ap.add_argument("--input", dest="inp", required=True)
+    ap.add_argument("--output", dest="out", required=True)
+    ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
     output_fields = _build_unique_output_fields(fields)
@@ -51,11 +51,11 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=output_fields, restval='', extrasaction='ignore')
         w.writeheader()
         for line in fi:
-            line = line.strip()
-            if not line:
+            # Optimize: Avoid string allocation with strip()
+            if line.isspace():
                 continue
             try:
-                rec = json.loads(line)
+                rec = json_loads(line)
             except json.JSONDecodeError:
                 continue
             if not isinstance(rec, dict):
@@ -69,5 +69,6 @@ def main(argv=None):
             w.writerow(row)
     return 0
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     raise SystemExit(main())
