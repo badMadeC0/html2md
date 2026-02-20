@@ -97,7 +97,7 @@ $xaml = @"
                 ToolTip="Start conversion process"
                 />
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
+        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
@@ -135,6 +135,10 @@ $OutBox.Text = "$env:USERPROFILE\Downloads"
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+    $currentPath = $OutBox.Text.Trim()
+    if ($currentPath -and (Test-Path -LiteralPath $currentPath -PathType Container)) {
+        $dlg.SelectedPath = $currentPath
+    }
     if ($dlg.ShowDialog() -eq "OK") {
         $OutBox.Text = $dlg.SelectedPath
     }
