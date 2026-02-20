@@ -5,4 +5,4 @@
 **Prevention:**
 1. Validate inputs against strict patterns (e.g., `[System.Uri]` for URLs).
 2. Reject inputs containing dangerous characters (like double quotes) when constructing command strings manually.
-3. Prefer using `Start-Process -ArgumentList` with an array of arguments, which handles escaping more safely than building a single command string.
+3. When possible, use `Start-Process -ArgumentList` with an array of arguments, which handles escaping more safely than building a single command string. If string concatenation must be used, validate/reject CMD metacharacters (e.g., ``&|<>^()``) in user-supplied input.
