@@ -40,7 +40,7 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
             # Optimize: Manual row construction avoids DictWriter overhead
-            writerow([rec.get(f, "") for f in fields])
+            writerow((rec.get(f, "") for f in fields))
     return 0
 
 
