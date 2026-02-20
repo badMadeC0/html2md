@@ -46,7 +46,8 @@ def main(argv=None):
                 if isinstance(value, str) and value.startswith(('=', '+', '-', '@', '\t', '\r')):
                     rec[key] = "'" + value
 
-            w.writerow(rec)
+            # Optimize: Manual row construction avoids DictWriter overhead
+            writerow([rec.get(f, "") for f in fields])
     return 0
 
 
