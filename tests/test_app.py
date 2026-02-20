@@ -43,4 +43,4 @@ def test_get_host_port_invalid_port(monkeypatch, capsys):
 
     assert host == '0.0.0.0'
     assert port == 10000
-    assert 'Invalid PORT environment variable value' in capsys.readouterr().out
+    assert 'Invalid PORT environment variable value' in capsys.readouterr().err
