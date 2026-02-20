@@ -1,6 +1,7 @@
 """Flask application for html2md."""
 
 import os
+import sys
 
 from flask import Flask, jsonify
 
@@ -35,4 +36,10 @@ def get_host_port():
 
 if __name__ == "__main__":
     host, port = get_host_port()
-    app.run(host=host, port=port)
+    try:
+        from waitress import serve
+        # serve logs to stdout by default which is good for containerized apps
+        serve(app, host=host, port=port)
+    except ImportError:
+        print("Warning: 'waitress' not found. Using Flask development server (not for production).\nTo run in production mode, install with: pip install html2md-cli[deploy]", file=sys.stderr)
+        app.run(host=host, port=port)
