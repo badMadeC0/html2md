@@ -39,7 +39,7 @@ if __name__ == '__main__':
     try:
         from waitress import serve
         # serve logs to stdout by default which is good for containerized apps
-        serve(app, host=host, port=port)
+serve(app, host=host, port=port, threads=4, channel_timeout=60)
     except ImportError:
         print("Warning: 'waitress' not found. Using Flask development server (not for production).\nTo run in production mode, install with: pip install html2md-cli[deploy]", file=sys.stderr)
         app.run(host=host, port=port)
