@@ -8,8 +8,10 @@ from pathlib import Path
 
 def _sanitize_csv_cell(value: object) -> object:
     """Prevent spreadsheet formula execution for string values."""
-    if isinstance(value, str) and value.startswith(('=', '+', '-', '@')):
-        return f"'{value}"
+    if isinstance(value, str):
+        stripped = value.lstrip()
+        if stripped and stripped[0] in ('=', '+', '-', '@'):
+            return f"'{value}"
     return value
 
 
