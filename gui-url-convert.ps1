@@ -26,7 +26,7 @@ if ($BatchFile) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
             $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            # if (-not $BatchWholePage) { $argsList += "--main-content" }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -237,7 +237,8 @@ $ConvertBtn.Add_Click({
         $safeVenv = $venvExe -replace "'", "''"
         $safePyScript = $pyScript -replace "'", "''"
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+        # $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+        $optArg = ""
         
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
