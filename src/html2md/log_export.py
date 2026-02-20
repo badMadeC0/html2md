@@ -14,6 +14,21 @@ def _sanitize_csv_cell(value: object) -> object:
     return value
 
 
+def _build_unique_output_fields(fields: list[str]) -> list[str]:
+    """Return sanitized output headers while preserving one column per requested field."""
+    output_fields: list[str] = []
+    seen_output_names: dict[str, int] = {}
+
+    for field in fields:
+        base_name = str(_sanitize_csv_cell(field))
+        count = seen_output_names.get(base_name, 0)
+        output_name = base_name if count == 0 else f"{base_name}_{count}"
+        seen_output_names[base_name] = count + 1
+        output_fields.append(output_name)
+
+    return output_fields
+
+
 def main(argv=None):
     """Parse arguments and export a JSONL log file to CSV format."""
     ap = argparse.ArgumentParser(
@@ -24,24 +39,8 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
-    output_fields = []
-    field_to_output_map = {}
-    seen_output_names = set()
-    
-    for field in fields:
-        sanitized_field = _sanitize_csv_cell(field)
-        original_sanitized_field = sanitized_field
-        counter = 0
-        while sanitized_field in seen_output_names:
-            counter += 1
-            sanitized_field = f"{original_sanitized_field}_{counter}"
-        
-        output_fields.append(sanitized_field)
-        field_to_output_map[field] = sanitized_field
-        seen_output_names.add(sanitized_field)
+    output_fields = _build_unique_output_fields(fields)
 
-    # Then, in the row construction, use field_to_output_map[input_key] as the key.
-    # This ensures that even if original fields sanitize to the same value, they get unique output keys.
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
