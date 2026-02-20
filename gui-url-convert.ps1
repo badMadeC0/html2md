@@ -26,7 +26,6 @@ if ($BatchFile) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
             $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -63,6 +62,7 @@ Add-Type -AssemblyName System.Windows.Forms
 # --- Define XAML UI ---
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="html2md - Convert URL"
         Height="450" Width="580"
         FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
@@ -80,30 +80,30 @@ $xaml = @"
         </Grid.RowDefinitions>
 
         <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
+        <TextBox x:Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory"/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse...</Button>
-            <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">Open Folder</Button>
+            <TextBox x:Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory"/>
+            <Button x:Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse...</Button>
+            <Button x:Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">Open Folder</Button>
         </StackPanel>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert Whole Page"
+        <CheckBox x:Name="WholePageChk" Grid.Row="3" Content="Convert Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
+        <Button x:Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
-        <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
+        <TextBox x:Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+            <TextBlock x:Name="StatusText" Text="Ready" Foreground="Gray"/>
         </StatusBar>
     </Grid>
 </Window>
@@ -233,7 +233,7 @@ $ConvertBtn.Add_Click({
         $safeVenv = $venvExe -replace "'", "''"
         $safePyScript = $pyScript -replace "'", "''"
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+        $optArg = ""
         
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
