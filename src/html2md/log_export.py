@@ -30,6 +30,12 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
+
+            # Sanitize fields to prevent CSV injection
+            for key, value in rec.items():
+                if isinstance(value, str) and value.startswith(('=', '+', '-', '@')):
+                    rec[key] = "'" + value
+
             w.writerow(rec)
     return 0
 
