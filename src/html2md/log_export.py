@@ -39,8 +39,15 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
+
+            # Sanitize fields to prevent CSV injection
+            for key in fields:
+                value = rec.get(key)
+                if isinstance(value, str) and value.startswith(('=', '+', '-', '@', '\t', '\r')):
+                    rec[key] = "'" + value
+
             # Optimize: Manual row construction avoids DictWriter overhead
-            writerow((rec.get(f, "") for f in fields))
+            writerow([rec.get(f, "") for f in fields])
     return 0
 
 
