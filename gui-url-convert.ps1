@@ -62,8 +62,10 @@ Add-Type -AssemblyName System.Windows.Forms
 # --- Define XAML UI ---
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="html2md - Convert URL"
-        Height="330" Width="580"
+        Height="450" Width="580"
+        FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
@@ -72,29 +74,36 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL:" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10"
-                 ToolTip="Enter the full URL (e.g., https://example.com)"/>
+        <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+        <TextBox x:Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
-        <Label Grid.Row="2" Content="_Output Folder:" Target="{Binding ElementName=OutBox}" FontSize="14"/>
-
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,5,0,10">
-            <TextBox Name="OutBox" Width="440" FontSize="14" AutomationProperties.Name="Output Folder"
-                     ToolTip="Destination folder for converted files"/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse…</Button>
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <TextBox x:Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory"/>
+            <Button x:Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">Browse...</Button>
+            <Button x:Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">Open Folder</Button>
         </StackPanel>
 
-        <Button Name="ConvertBtn" Grid.Row="4" Content="Convert (All Formats)"
+        <CheckBox x:Name="WholePageChk" Grid.Row="3" Content="Convert Whole Page"
+                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
+                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+
+        <Button x:Name="ConvertBtn" Grid.Row="3" Content="Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
                 />
 
-        <StatusBar Grid.Row="5" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+        <ProgressBar x:Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
+        
+        <TextBox x:Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
+
+        <StatusBar Grid.Row="6" Margin="0,10,0,0">
+            <TextBlock x:Name="StatusText" Text="Ready" Foreground="Gray"/>
         </StatusBar>
     </Grid>
 </Window>
@@ -156,28 +165,6 @@ $ConvertBtn.Add_Click({
         $StatusText.Foreground = "Red"
         return
     }
-
-    # -- SECURITY CHECK BEGIN --
-    # 1. Validate URL is a well-formed absolute URI (HTTP/HTTPS)
-    $uri = $null
-    if (-not [System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
-        $StatusText.Text = "Error: Invalid URL format."
-        $StatusText.Foreground = "Red"
-        return
-    }
-    if ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https') {
-        $StatusText.Text = "Error: Only http/https URLs are supported."
-        $StatusText.Foreground = "Red"
-        return
-    }
-
-    # 2. Prevent command injection via double quotes
-if ($url.Contains('"') -or $outdir.Contains('"') -or $url.Contains('%') -or $outdir.Contains('%')) {
-        $StatusText.Text = "Error: Inputs cannot contain double quotes."
-        $StatusText.Foreground = "Red"
-        return
-    }
-    # -- SECURITY CHECK END --
 
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
