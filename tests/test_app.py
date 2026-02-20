@@ -30,7 +30,7 @@ def test_get_host_port_defaults(monkeypatch):
     host, port = flask_app_module.get_host_port()
 
     assert host == '127.0.0.1'
-    assert port == 10000
+    assert port == flask_app_module.DEFAULT_PORT
 
 
 def test_get_host_port_invalid_port(monkeypatch, capsys):
