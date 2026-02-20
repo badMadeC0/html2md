@@ -1,10 +1,3 @@
-
-import argparse
-import csv
-import json
-from pathlib import Path
-
-
 def main(argv=None):
     ap = argparse.ArgumentParser(prog='html2md-log-export', description='Export html2md JSONL logs to CSV')
     ap.add_argument('--in', dest='inp', required=True)
@@ -15,7 +8,6 @@ def main(argv=None):
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        # Optimized: restval='' fills missing fields with empty string, extrasaction='ignore' ignores extra fields
         w = csv.DictWriter(fo, fieldnames=fields, restval='', extrasaction='ignore')
         w.writeheader()
         for line in fi:

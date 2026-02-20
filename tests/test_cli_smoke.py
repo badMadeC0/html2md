@@ -2,7 +2,7 @@
 import subprocess
 
 def run(cmd):
-    return subprocess.run(cmd, capture_output=True, text=True, shell=True)
+    return subprocess.run(cmd, capture_output=True, text=True, shell=True, check=False)
 
 def test_help_runs():
     r = run("html2md --help")
