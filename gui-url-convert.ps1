@@ -26,7 +26,7 @@ if ($BatchFile) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
             $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            # if (-not $BatchWholePage) { $argsList += "--main-content" }
+            if (-not $BatchWholePage) { $argsList += "--main-content" }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -97,7 +97,7 @@ $xaml = @"
                 ToolTip="Start conversion process"
                 />
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
+        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
@@ -135,14 +135,6 @@ $OutBox.Text = "$env:USERPROFILE\Downloads"
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    $currentPath = $OutBox.Text.Trim()
-    $testPath = $currentPath
-    while ($testPath -and -not (Test-Path -LiteralPath $testPath -PathType Container)) {
-        $testPath = Split-Path -Parent -LiteralPath $testPath
-    }
-    if ($testPath) {
-        $dlg.SelectedPath = $testPath
-    }
     if ($dlg.ShowDialog() -eq "OK") {
         $OutBox.Text = $dlg.SelectedPath
     }
@@ -220,33 +212,23 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
         
         # Relaunch this script in batch mode
-                # Escape double quotes for command line safety
-        $safeTempFile = $tempFile -replace '"', '\"'
-        $safeOutDir = $outdir -replace '"', '\"'
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$safeTempFile`" -BatchOutDir `"$safeOutDir`""
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        # Sanitize inputs for single-quoted string interpolation
-        # Escape single quotes by doubling them
-        $safeUrl = $url -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-        $safeVenv = $venvExe -replace "'", "''"
-        $safePyScript = $pyScript -replace "'", "''"
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        # $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
-        $optArg = ""
+        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenv' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
