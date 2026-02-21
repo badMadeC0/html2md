@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 import argparse
+import logging
 import os
 
 def main(argv=None):
     """Run the CLI."""
+    # Configure logging to stderr
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     ap = argparse.ArgumentParser(
         prog='html2md',
         description='Convert HTML URL to Markdown.'
@@ -26,8 +30,8 @@ def main(argv=None):
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify")
+            logging.error(f"Error: Missing dependency {e.name}."
+                          "Please run: pip install requests markdownify")
             return 1
 
         session = requests.Session()
@@ -58,14 +62,14 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            print(f"Processing URL: {target_url}")
+            logging.info(f"Processing URL: {target_url}")
 
             try:
-                print("Fetching content...")
+                logging.info("Fetching content...")
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
-                print("Converting to Markdown...")
+                logging.info("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
@@ -83,19 +87,19 @@ def main(argv=None):
                     out_path = os.path.join(args.outdir, filename)
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
-                    print(f"Success! Saved to: {out_path}")
+                    logging.info(f"Success! Saved to: {out_path}")
                 else:
                     print(md_content)
 
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}")
+                logging.error(f"Conversion failed: {e}")
 
         if args.url:
             process_url(args.url)
 
         if args.batch:
             if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}")
+                logging.error(f"Error: Batch file not found: {args.batch}")
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
