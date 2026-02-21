@@ -79,7 +79,18 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
+                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+            </StackPanel>
+        </Grid>
+
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -97,10 +108,10 @@ $xaml = @"
                 ToolTip="Start conversion process"
                 />
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
+        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
@@ -124,6 +135,8 @@ $OutBox = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
+$PasteBtn = $window.FindName("PasteBtn")
+$ClearBtn = $window.FindName("ClearBtn")
 $WholePageChk = $window.FindName("WholePageChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
@@ -149,6 +162,39 @@ $OpenFolderBtn.Add_Click({
         $StatusText.Text = "Output folder does not exist."
         $StatusText.Foreground = "Red"
     }
+})
+
+# --- Paste button logic ---
+$PasteBtn.Add_Click({
+    try {
+        if ([System.Windows.Clipboard]::ContainsText()) {
+            $text = [System.Windows.Clipboard]::GetText()
+            if (-not [string]::IsNullOrWhiteSpace($text)) {
+                if ($UrlBox.Text.Length -gt 0 -and -not $UrlBox.Text.EndsWith("`n")) {
+                    $UrlBox.AppendText("`r`n")
+                }
+                $UrlBox.AppendText($text)
+                $UrlBox.Focus()
+                $UrlBox.ScrollToEnd()
+                $StatusText.Text = "Pasted from clipboard."
+                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+            } else {
+                $StatusText.Text = "Clipboard is empty or whitespace."
+            }
+        } else {
+            $StatusText.Text = "Clipboard does not contain text."
+        }
+    } catch {
+        $StatusText.Text = "Error pasting from clipboard."
+    }
+})
+
+# --- Clear button logic ---
+$ClearBtn.Add_Click({
+    $UrlBox.Clear()
+    $UrlBox.Focus()
+    $StatusText.Text = "Cleared."
+    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
 
 # --- Convert button logic ---
