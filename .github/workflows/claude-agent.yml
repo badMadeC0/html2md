@@ -31,6 +31,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
       - name: Validate configuration
         run: |
           if [[ -z "${{ vars.CLAUDE_COMMAND }}" ]]; then
