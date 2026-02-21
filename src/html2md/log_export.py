@@ -1,17 +1,49 @@
 """Export html2md JSONL logs to CSV."""
 
 import argparse
-import json
 import csv
+import json
 from pathlib import Path
 
+_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
-def sanitize_csv_field(value):
-    """Sanitize a field to prevent CSV injection."""
+
+def _sanitize_formula(value: str) -> str:
+    """Prefix strings that look like formulas to prevent CSV injection."""
+    if value.startswith("'"):
+        return value
+    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+        return f"'{value}"
+    return value
+
+
+def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
+    """Return deduplicated/sanitized CSV headers and original->output mapping."""
+    used: set[str] = set()
+    out_fields: list[str] = []
+    mapping: list[tuple[str, str]] = []
+
+    for field in fields:
+        base = _sanitize_formula(field)
+        candidate = base
+        suffix = 1
+        while candidate in used:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+
+        used.add(candidate)
+        out_fields.append(candidate)
+        mapping.append((field, candidate))
+
+    return out_fields, mapping
+
+
+def _sanitize_value(value: object) -> object:
+    """Return CSV-safe value."""
+    if value is None:
+        return ""
     if isinstance(value, str):
-        stripped_value = value.lstrip()
-        if stripped_value.startswith(('=', '+', '-', '@', '\t', '\r')):
-            return f"'{value}"
+        return _sanitize_formula(value)
     return value
 
 
@@ -24,28 +56,37 @@ def main(argv=None):
     ap.add_argument('--out', dest='out', required=True)
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
+
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    fieldnames, mapping = _unique_fieldnames(fields)
+
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval='')
+        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
+
         for line in fi:
             line = line.strip()
             if not line:
                 continue
+
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
+
             if not isinstance(rec, dict):
                 continue
 
-            # Sanitize fields for CSV safety
-            rec = {k: sanitize_csv_field(v) for k, v in rec.items()}
-            w.writerow(rec)
+            row = {
+                output_name: _sanitize_value(rec.get(input_name, ""))
+                for input_name, output_name in mapping
+            }
+            w.writerow(row)
+
     return 0
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     raise SystemExit(main())
