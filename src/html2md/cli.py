@@ -14,6 +14,7 @@ def main(argv=None):
     ap.add_argument('--url', help='Input URL to convert')
     ap.add_argument('--batch', help='File containing URLs to process (one per line)')
     ap.add_argument('--outdir', help='Output directory to save the file')
+    ap.add_argument('--all-formats', action='store_true', help=argparse.SUPPRESS)
 
     args = ap.parse_args(argv)
 
