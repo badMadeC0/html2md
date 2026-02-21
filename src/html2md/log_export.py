@@ -5,6 +5,14 @@ import json
 import csv
 from pathlib import Path
 
+
+def sanitize_csv_field(value):
+    """Sanitize a field to prevent CSV injection."""
+    if isinstance(value, str) and value.startswith(('=', '+', '-', '@')):
+        return f"'{value}"
+    return value
+
+
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
@@ -30,8 +38,12 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
+
+            # Sanitize fields for CSV safety
+            rec = {k: sanitize_csv_field(v) for k, v in rec.items()}
             w.writerow(rec)
     return 0
+
 
 if __name__=='__main__':
     raise SystemExit(main())
