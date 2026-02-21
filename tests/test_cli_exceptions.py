@@ -4,8 +4,6 @@ import sys
 import io
 import os
 
-# Ensure src is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 try:
     from html2md.cli import main
