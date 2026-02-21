@@ -210,9 +210,15 @@ $ConvertBtn.Add_Click({
         $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
-        
+
+        # Sanitize for -File arguments (escape single quotes)
+        $safeCommandPath = $PSCommandPath -replace "'", "''"
+        $safeTempFile = $tempFile -replace "'", "''"
+        $safeOutDir = $outdir -replace "'", "''"
+
         # Relaunch this script in batch mode
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
+        # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
@@ -221,14 +227,20 @@ $ConvertBtn.Add_Click({
         $url = $urlList[0]
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
-        
+
+        # Sanitize inputs for single-quoted string interpolation in PowerShell
+        $safeUrl = $url -replace "'", "''"
+        $safeOutDir = $outdir -replace "'", "''"
+        $safeVenvExe = $venvExe -replace "'", "''"
+        $safePyScript = $pyScript -replace "'", "''"
+
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
