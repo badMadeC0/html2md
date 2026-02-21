@@ -16,7 +16,6 @@ def _sanitize_csv_cell(value: object) -> object:
 
 
 def _build_unique_output_fields(fields: list[str]) -> list[str]:
-def _build_unique_output_fields(fields: list[str]) -> list[str]:
     """Return sanitized output headers while preserving one column per requested field."""
     output_fields: list[str] = []
     used_names: set[str] = set()
@@ -38,8 +37,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument("--input", dest="inp", required=True)
-    ap.add_argument("--output", dest="out", required=True)
+    ap.add_argument("--input", "--in", dest="inp", required=True)
+    ap.add_argument("--output", "--out", dest="out", required=True)
     ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
@@ -55,7 +54,7 @@ def main(argv=None):
             if line.isspace():
                 continue
             try:
-                rec = json_loads(line)
+                rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
             if not isinstance(rec, dict):
