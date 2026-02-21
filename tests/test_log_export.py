@@ -178,6 +178,7 @@ def test_log_export_handles_generated_suffix_name_collision(tmp_path):
     with open(output_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
+        assert len(rows) == 1
         assert reader.fieldnames == ["a", "a_1", "a_2"]
         assert rows[0]["a"] == "v1"
         assert rows[0]["a_1"] == "v2"
@@ -198,4 +199,5 @@ def test_log_export_sanitizes_leading_whitespace_formula(tmp_path):
     with open(output_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
+        assert len(rows) == 1
         assert rows[0]['safe'] == "'\t=1+1"
