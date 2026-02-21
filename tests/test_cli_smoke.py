@@ -1,5 +1,6 @@
 """Smoke tests for CLI."""
 
+import os
 import subprocess
 import sys
 
