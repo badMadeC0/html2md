@@ -180,12 +180,15 @@ $PasteBtn.Add_Click({
                 $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
             } else {
                 $StatusText.Text = "Clipboard is empty or whitespace."
+                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
             }
         } else {
             $StatusText.Text = "Clipboard does not contain text."
+            $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
+        $StatusText.Foreground = "Red"
     }
 })
 
