@@ -37,7 +37,7 @@ def test_log_export_csv_injection(tmp_path):
         rows = list(reader)
 
         # Verify row count
-        assert len(rows) == 5
+        assert len(rows) == 6
 
         # Check sanitization (expect leading single quote)
         assert rows[0]['input'] == "'=SUM(1,2)"
@@ -45,3 +45,4 @@ def test_log_export_csv_injection(tmp_path):
         assert rows[2]['input'] == "'-SUM(1,2)"
         assert rows[3]['input'] == "'@SUM(1,2)"
         assert rows[4]['input'] == "safe_value"
+        assert rows[5]['input'] == "'    =SUM(1,2)"
