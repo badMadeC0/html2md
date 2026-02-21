@@ -49,7 +49,7 @@ class TestCliExceptions(unittest.TestCase):
         if 'requests' not in sys.modules:
             self.skipTest("requests module not available")
 
-        with patch('requests.Session.get') as mock_get:
+with patch('html2md.cli.requests.Session.get') as mock_get:
             mock_resp = MagicMock()
             mock_resp.text = "<h1>Hello</h1>"
             mock_resp.status_code = 200
