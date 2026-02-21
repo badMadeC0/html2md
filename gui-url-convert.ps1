@@ -22,6 +22,7 @@ Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Xaml
+Add-Type -AssemblyName System.Windows.Forms
 
 # --- Define XAML UI ---
 $xaml = @"
@@ -81,6 +82,26 @@ $ConvertBtn.Add_Click({
         return
     }
 
+    # --- Security Validation ---
+    try {
+        $uriObj = [System.Uri]$url
+        if ($uriObj.Scheme -notmatch '^https?$') {
+            throw "Invalid scheme"
+        }
+        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+        $url = $uriObj.AbsoluteUri
+    } catch {
+        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
+        return
+    }
+
+    # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
+    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
+        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        return
+    }
+    # ---------------------------
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
@@ -94,9 +115,14 @@ $ConvertBtn.Add_Click({
         return
     }
 
+    # Use a robust way to launch the process:
+    # 1. Revert to ProcessStartInfo for precise control over the command line.
+    # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
+    #    to ensure all internal quotes are preserved and arguments are correctly delimited.
+    # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats"
+    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
     [Diagnostics.Process]::Start($psi) | Out-Null
