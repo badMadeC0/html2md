@@ -176,6 +176,7 @@ def test_log_export_handles_generated_suffix_name_collision(tmp_path):
     main(argv)
 
     with open(output_file, "r", encoding="utf-8") as f:
+    with open(output_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         assert len(rows) == 1
