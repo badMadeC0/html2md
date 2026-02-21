@@ -2,7 +2,6 @@
 
 import csv
 import json
-import pytest
 from html2md.log_export import main
 
 def test_log_export_csv_injection(tmp_path):
