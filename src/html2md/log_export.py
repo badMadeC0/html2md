@@ -22,7 +22,6 @@ def main(argv=None):
             try: rec=json.loads(line)
             except json.JSONDecodeError: continue
             w.writerow([rec.get(f, '') for f in fields])
-        fo.flush()
     return 0
 
 if __name__=='__main__':
