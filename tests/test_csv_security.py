@@ -16,6 +16,7 @@ def test_log_export_csv_injection(tmp_path):
         {"ts": "3", "input": "-SUM(1,2)", "status": "ok"},
         {"ts": "4", "input": "@SUM(1,2)", "status": "ok"},
         {"ts": "5", "input": "safe_value", "status": "ok"},
+        {"ts": "6", "input": "    =SUM(1,2)", "status": "ok"},
     ]
 
     with open(input_file, "w", encoding="utf-8") as f:
