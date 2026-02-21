@@ -5,6 +5,6 @@ Format: `## YYYY-MM-DD - [Title]`
 **Learning:** [UX/a11y insight]
 **Action:** [How to apply next time]
 
-## 2024-10-18 - PowerShell XAML Accessibility
-**Learning:** PowerShell WPF GUIs defined via inline XAML often miss standard accessibility features like Labels with Target bindings, relying solely on AutomationProperties.
-**Action:** When reviewing PowerShell GUIs, explicitly check for visual labels and ensure `Target="{Binding ElementName=...}"` is used to associate them with inputs for screen readers and keyboard navigation.
+## 2026-02-20 - [Smart Folder Browsing]
+**Learning:** Users often correct path typos by browsing, but standard dialogs reset to root (Desktop), causing frustration. Pre-selecting the current path in `FolderBrowserDialog` significantly reduces this friction.
+**Action:** Always check if a text input contains a valid path and pre-select it when opening a browse dialog.
