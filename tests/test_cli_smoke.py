@@ -1,9 +1,8 @@
 """Smoke tests for CLI."""
 
+import os
 import subprocess
 import sys
-import os
-
 
 def run(cmd):
     """Run a shell command."""
@@ -22,6 +21,6 @@ def run(cmd):
 
 def test_help_runs():
     """Test that help command runs successfully."""
-    # Use python -m to run the module, which works without package installation
+    # Use python -m html2md to ensure tests pass even if package is not installed globally
     r = run(f"{sys.executable} -m html2md --help")
     assert r.returncode == 0, r.stderr

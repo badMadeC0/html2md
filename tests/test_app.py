@@ -1,7 +1,6 @@
 """Tests for the Flask application."""
 
 import importlib
-import logging
 
 import pytest
 
@@ -31,18 +30,17 @@ def test_get_host_port_defaults(monkeypatch):
     host, port = flask_app_module.get_host_port()
 
     assert host == '127.0.0.1'
-    assert port == flask_app_module.DEFAULT_PORT
+    assert port == 10000
 
 
-def test_get_host_port_invalid_port(monkeypatch, caplog):
+def test_get_host_port_invalid_port(monkeypatch, capsys):
     """Test getting host and port with invalid port environment variable."""
     monkeypatch.setenv('HOST', '0.0.0.0')
     monkeypatch.setenv('PORT', 'invalid')
-    caplog.set_level(logging.WARNING)
 
     flask_app_module = importlib.import_module('html2md.app')
     host, port = flask_app_module.get_host_port()
 
     assert host == '0.0.0.0'
-    assert port == flask_app_module.DEFAULT_PORT
-    assert 'Invalid PORT environment variable value' in caplog.text
+    assert port == 10000
+    assert 'Invalid PORT environment variable value' in capsys.readouterr().out
