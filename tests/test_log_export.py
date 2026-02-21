@@ -28,6 +28,7 @@ def test_log_export_success(tmp_path):
     with open(out, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
+
     assert len(rows) == 2
     assert rows[0]["input"] == "http://a.com"
     assert rows[0]["status"] == "ok"
