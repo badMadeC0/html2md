@@ -8,8 +8,10 @@ from pathlib import Path
 
 def sanitize_csv_field(value):
     """Sanitize a field to prevent CSV injection."""
-    if isinstance(value, str) and value.startswith(('=', '+', '-', '@')):
-        return f"'{value}"
+    if isinstance(value, str):
+        stripped_value = value.lstrip()
+        if stripped_value.startswith(('=', '+', '-', '@', '\t', '\r')):
+            return f"'{value}"
     return value
 
 
