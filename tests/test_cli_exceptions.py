@@ -23,7 +23,8 @@ class TestCliExceptions(unittest.TestCase):
         sys.stdout = self.captured_output
         sys.stderr = self.captured_stderr
 
-        sys.stderr = self.original_stderr
+    def tearDown(self):
+        sys.stdout = self.original_stdout
         sys.stderr = self.original_stderr
 
     def test_network_error(self):
@@ -49,7 +50,7 @@ class TestCliExceptions(unittest.TestCase):
         if 'requests' not in sys.modules:
             self.skipTest("requests module not available")
 
-with patch('html2md.cli.requests.Session.get') as mock_get:
+        with patch('requests.Session.get') as mock_get:
             mock_resp = MagicMock()
             mock_resp.text = "<h1>Hello</h1>"
             mock_resp.status_code = 200
@@ -58,12 +59,12 @@ with patch('html2md.cli.requests.Session.get') as mock_get:
             with patch('markdownify.markdownify', return_value="# Hello"):
                 with patch('os.makedirs'), patch('os.path.exists', return_value=False):
                     with patch('builtins.open', side_effect=OSError("Permission denied")):
-                         try:
-                             main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                         except Exception as e:
-                             self.fail(f"main raised exception {e}")
+                        try:
+                            main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                        except Exception as e:
+                            self.fail(f"main raised exception {e}")
 
-                         output = self.captured_stderr.getvalue()
-                         # Expect "File error: Permission denied"
-                         self.assertIn("File error", output)
-                         self.assertIn("Permission denied", output)
+                        output = self.captured_stderr.getvalue()
+                        # Expect "File error: Permission denied"
+                        self.assertIn("File error", output)
+                        self.assertIn("Permission denied", output)
