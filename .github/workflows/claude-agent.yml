@@ -4,18 +4,22 @@ on:
   workflow_dispatch:
   issue_comment:
     types: [created]
+  pull_request_review_comment:
+    types: [created]
 
 jobs:
   run-claude-agent:
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issue_comment' &&
+      ((github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR') &&
        (contains(github.event.comment.body, '@claude-agent') ||
         contains(github.event.comment.body, '@claude[bot]') ||
-        contains(github.event.comment.body, '@codex[agent]')))
+        contains(github.event.comment.body, '@codex[agent]') ||
+        contains(github.event.comment.body, '@Claude') ||
+        contains(github.event.comment.body, '@claude')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,11 +28,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Run Claude agent (non-blocking)
+      - name: Validate configuration
+        run: |
+          if [[ -z "${{ vars.CLAUDE_COMMAND }}" ]]; then
+            echo "::error::CLAUDE_COMMAND repository variable is not set. Configure it in Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
+
+      - name: Run Claude agent
         env:
           CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISABLE_MEMORY: "true"
           SKIP_MEMORY_FETCH: "true"
         run: .github/scripts/run_claude_agent.sh
-        continue-on-error: true
