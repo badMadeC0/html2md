@@ -23,8 +23,7 @@ class TestCliExceptions(unittest.TestCase):
         sys.stdout = self.captured_output
         sys.stderr = self.captured_stderr
 
-    def tearDown(self):
-        sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
         sys.stderr = self.original_stderr
 
     def test_network_error(self):
