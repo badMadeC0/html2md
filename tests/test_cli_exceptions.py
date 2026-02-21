@@ -13,8 +13,8 @@ class TestCliExceptions(unittest.TestCase):
     def setUp(self):
         # Suppress output during tests
         self.captured_output = io.StringIO()
-        self.original_stdout = sys.stdout
-        sys.stdout = self.captured_output
+        self.original_stderr = sys.stderr
+        sys.stderr = self.captured_output
 
     def tearDown(self):
         sys.stdout = self.original_stdout
