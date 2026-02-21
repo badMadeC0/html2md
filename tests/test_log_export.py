@@ -197,6 +197,7 @@ def test_log_export_sanitizes_leading_whitespace_formula(tmp_path):
     main(argv)
 
     with open(output_file, "r", encoding="utf-8") as f:
+    with open(output_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         assert len(rows) == 1
