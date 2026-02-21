@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import os
+from pathlib import Path
 
 
 def main(argv=None):
@@ -102,10 +103,11 @@ def main(argv=None):
             process_url(args.url)
 
         if args.batch:
-            if not os.path.exists(args.batch):
+            batch_path = Path(args.batch)
+            if not batch_path.exists():
                 print(f"Error: Batch file not found: {args.batch}")
                 return 1
-            with open(args.batch, "r", encoding="utf-8") as f:
+            with batch_path.open("r", encoding="utf-8") as f:
                 urls = [line.strip() for line in f if line.strip()]
 
             if args.outdir:
