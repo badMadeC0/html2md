@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import os
+import sys
 
 def main(argv=None):
     """Run the CLI."""
@@ -27,7 +28,7 @@ def main(argv=None):
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify")
+                  "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -99,7 +100,7 @@ def main(argv=None):
 
         if args.batch:
             if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}")
+                print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:

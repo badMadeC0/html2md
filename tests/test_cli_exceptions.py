@@ -7,17 +7,25 @@ import os
 # Ensure src is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from html2md.cli import main
-import requests
+try:
+    from html2md.cli import main
+    import requests
+except ImportError:
+    pass
+
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
         # Suppress output during tests
         self.captured_output = io.StringIO()
+        self.captured_stderr = io.StringIO()
+        self.original_stdout = sys.stdout
         self.original_stderr = sys.stderr
-        sys.stderr = self.captured_output
+        sys.stdout = self.captured_output
+        sys.stderr = self.captured_stderr
 
     def tearDown(self):
         sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
 
     def test_network_error(self):
         """Test that network errors are caught and printed."""
@@ -32,7 +40,7 @@ class TestCliExceptions(unittest.TestCase):
             except Exception as e:
                 self.fail(f"main raised exception {e}")
 
-            output = self.captured_output.getvalue()
+            output = self.captured_stderr.getvalue()
             # Expect "Network error: Network unreachable"
             self.assertIn("Network error", output)
             self.assertIn("Network unreachable", output)
@@ -56,7 +64,7 @@ class TestCliExceptions(unittest.TestCase):
                          except Exception as e:
                              self.fail(f"main raised exception {e}")
 
-                         output = self.captured_output.getvalue()
+                         output = self.captured_stderr.getvalue()
                          # Expect "File error: Permission denied"
                          self.assertIn("File error", output)
                          self.assertIn("Permission denied", output)
