@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@1.0.0
 
       - name: Validate configuration
         run: |
