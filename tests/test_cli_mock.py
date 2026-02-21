@@ -98,7 +98,7 @@ class TestCliMain(unittest.TestCase):
                             html2md.cli.main(['--url', 'http://example.com/foo', '--outdir', 'out'])
 
                             mock_makedirs.assert_called_with('out')
-                            mock_file.assert_called_with('out/foo.md', 'w', encoding='utf-8')
+                            mock_file.assert_called_with(os.path.join('out', 'foo.md'), 'w', encoding='utf-8')
                             mock_file().write.assert_called_with('# Content')
 
     def test_outdir_default_filename(self):
@@ -128,7 +128,7 @@ class TestCliMain(unittest.TestCase):
                     with patch('builtins.print'):
                         html2md.cli.main(['--url', 'http://example.com/', '--outdir', 'out'])
 
-                        mock_file.assert_called_with('out/example.com.md', 'w', encoding='utf-8')
+                        mock_file.assert_called_with(os.path.join('out', 'example.com.md'), 'w', encoding='utf-8')
 
     def test_outdir_fallback_filename(self):
         """Test processing with --outdir and fallback filename."""
@@ -158,7 +158,7 @@ class TestCliMain(unittest.TestCase):
                         # Using '?query' to force empty basename from split('?')[0] which is empty string
                         html2md.cli.main(['--url', '?query', '--outdir', 'out'])
 
-                        mock_file.assert_called_with('out/conversion_result.md', 'w', encoding='utf-8')
+                        mock_file.assert_called_with(os.path.join('out', 'conversion_result.md'), 'w', encoding='utf-8')
 
     def test_batch_processing(self):
         """Test processing with --batch."""
