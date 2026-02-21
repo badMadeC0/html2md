@@ -164,11 +164,48 @@ $OpenFolderBtn.Add_Click({
     }
 })
 
+function Get-ClipboardTextSta {
+    <#
+    Executes clipboard text access on a temporary STA thread so the GUI
+    works even when the main runspace is MTA (e.g., in PowerShell 7).
+    Returns an object with:
+      - HasText : [bool]  - true if clipboard contains text
+      - Text    : [string] - the clipboard text (may be $null)
+    #>
+    $state = New-Object psobject -Property @{
+        HasText = $false
+        Text    = $null
+    }
+
+    try {
+        $thread = New-Object System.Threading.Thread({
+            param($s)
+            if ([System.Windows.Clipboard]::ContainsText()) {
+                $s.HasText = $true
+                $s.Text = [System.Windows.Clipboard]::GetText()
+            } else {
+                $s.HasText = $false
+                $s.Text = $null
+            }
+        })
+
+        $thread.SetApartmentState([System.Threading.ApartmentState]::STA)
+        $thread.Start($state)
+        $thread.Join()
+    } catch {
+        # Swallow here; caller will handle generic error messaging.
+    }
+
+    return $state
+}
+
 # --- Paste button logic ---
 $PasteBtn.Add_Click({
     try {
-        if ([System.Windows.Clipboard]::ContainsText()) {
-            $text = [System.Windows.Clipboard]::GetText()
+        $clipboardState = Get-ClipboardTextSta
+
+        if ($clipboardState -and $clipboardState.HasText) {
+            $text = $clipboardState.Text
             if (-not [string]::IsNullOrWhiteSpace($text)) {
                 if ($UrlBox.Text.Length -gt 0 -and -not $UrlBox.Text.EndsWith("`n")) {
                     $UrlBox.AppendText("`r`n")
