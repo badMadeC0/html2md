@@ -79,7 +79,18 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
+                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+            </StackPanel>
+        </Grid>
+
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -97,10 +108,10 @@ $xaml = @"
                 ToolTip="Start conversion process"
                 />
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
+        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
@@ -124,6 +135,8 @@ $OutBox = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
+$PasteBtn = $window.FindName("PasteBtn")
+$ClearBtn = $window.FindName("ClearBtn")
 $WholePageChk = $window.FindName("WholePageChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
@@ -149,6 +162,80 @@ $OpenFolderBtn.Add_Click({
         $StatusText.Text = "Output folder does not exist."
         $StatusText.Foreground = "Red"
     }
+})
+
+function Get-ClipboardTextSta {
+    <#
+    Executes clipboard text access on a temporary STA thread so the GUI
+    works even when the main runspace is MTA (e.g., in PowerShell 7).
+    Returns an object with:
+      - HasText : [bool]  - true if clipboard contains text
+      - Text    : [string] - the clipboard text (may be $null)
+    #>
+    $state = New-Object psobject -Property @{
+        HasText = $false
+        Text    = $null
+    }
+
+    try {
+        $thread = New-Object System.Threading.Thread({
+            param($s)
+            if ([System.Windows.Clipboard]::ContainsText()) {
+                $s.HasText = $true
+                $s.Text = [System.Windows.Clipboard]::GetText()
+            } else {
+                $s.HasText = $false
+                $s.Text = $null
+            }
+        })
+
+        $thread.SetApartmentState([System.Threading.ApartmentState]::STA)
+        $thread.Start($state)
+        $thread.Join()
+    } catch {
+        # Swallow here; caller will handle generic error messaging.
+    }
+
+    return $state
+}
+
+# --- Paste button logic ---
+$PasteBtn.Add_Click({
+    try {
+        $clipboardState = Get-ClipboardTextSta
+
+        if ($clipboardState -and $clipboardState.HasText) {
+            $text = $clipboardState.Text
+            if (-not [string]::IsNullOrWhiteSpace($text)) {
+                if ($UrlBox.Text.Length -gt 0 -and -not $UrlBox.Text.EndsWith("`n")) {
+                    $UrlBox.AppendText("`r`n")
+                }
+                $UrlBox.AppendText($text)
+                $UrlBox.Focus()
+                $UrlBox.ScrollToEnd()
+                $StatusText.Text = "Pasted from clipboard."
+                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+            } else {
+                $StatusText.Text = "Clipboard is empty or whitespace."
+                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+            }
+        } else {
+            $StatusText.Text = "Clipboard does not contain text."
+            $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+        }
+    } catch {
+        $StatusText.Text = "Error pasting from clipboard."
+        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "Red"
+    }
+})
+
+# --- Clear button logic ---
+$ClearBtn.Add_Click({
+    $UrlBox.Clear()
+    $UrlBox.Focus()
+    $StatusText.Text = "Cleared."
+    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
 
 # --- Convert button logic ---
