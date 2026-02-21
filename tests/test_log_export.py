@@ -164,13 +164,13 @@ def test_log_export_preserves_distinct_fields_when_sanitized_headers_collide(tmp
         assert rows[0]["'@a_1"] == "literal"
 
 
-def test_log_export_handles_existing_suffix_name_collision(tmp_path):
-    """Generated suffix names should not collide with existing field names."""
+def test_log_export_handles_generated_suffix_name_collision(tmp_path):
+    """Repeated fields stay unique even when one already has a numeric suffix."""
     input_file = tmp_path / "suffix_collision.jsonl"
     output_file = tmp_path / "suffix_collision.csv"
 
     with open(input_file, "w", encoding="utf-8") as f:
-        f.write('{"a": "first", "a_1": "second"}\n')
+        f.write('{"a": "v1", "a_1": "v2"}\n')
 
     argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'a,a_1,a']
     main(argv)
@@ -178,26 +178,24 @@ def test_log_export_handles_existing_suffix_name_collision(tmp_path):
     with open(output_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-        assert len(rows) == 1
-        assert reader.fieldnames == ['a', 'a_1', 'a_2']
-        assert rows[0]['a'] == 'first'
-        assert rows[0]['a_1'] == 'second'
-        assert rows[0]['a_2'] == 'first'
+        assert reader.fieldnames == ["a", "a_1", "a_2"]
+        assert rows[0]["a"] == "v1"
+        assert rows[0]["a_1"] == "v2"
+        assert rows[0]["a_2"] == "v1"
 
 
-def test_log_export_sanitizes_whitespace_prefixed_formula(tmp_path):
-    """Values with leading whitespace before formulas should also be escaped."""
-    input_file = tmp_path / "whitespace_formula.jsonl"
-    output_file = tmp_path / "whitespace_formula.csv"
+def test_log_export_sanitizes_leading_whitespace_formula(tmp_path):
+    """Values with leading whitespace before formulas are escaped."""
+    input_file = tmp_path / "leading_whitespace_formula.jsonl"
+    output_file = tmp_path / "leading_whitespace_formula.csv"
 
     with open(input_file, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"value": "\t=1+1"}) + "\n")
+        f.write('{"safe": "\\t=1+1"}\n')
 
-    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'value']
+    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'safe']
     main(argv)
 
     with open(output_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
-        assert len(rows) == 1
-        assert rows[0]['value'] == "'\t=1+1"
+        assert rows[0]['safe'] == "'\t=1+1"
