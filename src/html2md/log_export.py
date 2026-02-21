@@ -1,53 +1,71 @@
 """Export html2md JSONL logs to CSV."""
 
 import argparse
-import json
 import csv
+import json
 from pathlib import Path
 
+
+def _sanitize_csv_cell(value: object) -> object:
+    """Prevent spreadsheet formula execution for string values."""
+    if isinstance(value, str):
+        stripped = value.lstrip()
+        if stripped and stripped[0] in ('=', '+', '-', '@'):
+            return f"'{value}"
+    return value
+
+
+def _build_unique_output_fields(fields: list[str]) -> list[str]:
+    """Return sanitized output headers while preserving one column per requested field."""
+    output_fields: list[str] = []
+    used_names: set[str] = set()
+
+    for field in fields:
+        base_name = str(_sanitize_csv_cell(field))
+        candidate = base_name
+        count = 1
+        while candidate in used_names:
+            candidate = f"{base_name}_{count}"
+            count += 1
+        used_names.add(candidate)
+        output_fields.append(candidate)
+
+    return output_fields
 
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
         prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument("--input", dest="inp", required=True)
-    ap.add_argument("--output", dest="out", required=True)
+    ap.add_argument("--input", "--in", dest="inp", required=True)
+    ap.add_argument("--output", "--out", dest="out", required=True)
     ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
-    fields = [f.strip() for f in args.fields.split(",") if f.strip()]
+    fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    output_fields = _build_unique_output_fields(fields)
+
     inp = Path(args.inp)
     out = Path(args.out)
-
-    with inp.open("r", encoding="utf-8") as fi, out.open(
-        "w", newline="", encoding="utf-8"
-    ) as fo:
-        writer = csv.writer(fo)
-        writer.writerow(fields)
-
-        # Optimize: Pre-bind methods for faster loop execution
-        writerow = writer.writerow
-        json_loads = json.loads
-
+    with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
+        w = csv.DictWriter(fo, fieldnames=output_fields, restval='', extrasaction='ignore')
+        w.writeheader()
         for line in fi:
             # Optimize: Avoid string allocation with strip()
             if line.isspace():
                 continue
             try:
-                rec = json_loads(line)
+                rec = json.loads(line)
             except json.JSONDecodeError:
                 continue
             if not isinstance(rec, dict):
                 continue
-
-            # Sanitize fields to prevent CSV injection
-            for key in fields:
-                value = rec.get(key)
-                if isinstance(value, str) and value.startswith(('=', '+', '-', '@', '\t', '\r')):
-                    rec[key] = "'" + value
-
-            # Optimize: Manual row construction avoids DictWriter overhead
-            writerow([rec.get(f, "") for f in fields])
+            row = {
+                output_key: (
+                    '' if (value := rec.get(input_key)) is None
+                    else _sanitize_csv_cell(value)
+                ) for input_key, output_key in zip(fields, output_fields)
+            }
+            w.writerow(row)
     return 0
 
 
