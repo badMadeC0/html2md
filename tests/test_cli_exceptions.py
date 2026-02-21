@@ -7,12 +7,8 @@ import os
 # Ensure src is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-try:
-    from html2md.cli import main
-    import requests
-except ImportError:
-    raise unittest.SkipTest("html2md.cli or requests not available; skipping CLI exception tests")
-
+from html2md.cli import main
+import requests
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
         # Suppress output during tests
