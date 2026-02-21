@@ -47,13 +47,9 @@ class TestCliMock(unittest.TestCase):
 
     def test_missing_dependencies(self):
         """Test behavior when dependencies are missing."""
-        # Ensure dependencies are NOT in sys.modules
-        with patch.dict(sys.modules):
-            if 'requests' in sys.modules:
-                del sys.modules['requests']
-            if 'markdownify' in sys.modules:
-                del sys.modules['markdownify']
-
+        # Ensure dependencies import fails by setting them to None in sys.modules
+        # This overrides even if they are installed in the environment.
+        with patch.dict(sys.modules, {'requests': None, 'markdownify': None}):
             f = io.StringIO()
             with redirect_stdout(f):
                 ret = main(['--url', 'http://example.com'])
@@ -133,9 +129,6 @@ class TestCliMock(unittest.TestCase):
             with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp:
                 tmp.write("http://a.com\nhttp://b.com")
                 tmp_path = tmp.name
-                # Close explicitly so it can be re-opened on Windows if needed
-                # (though strict locking usually applies to delete=True or explicit locking)
-                # But it's good practice.
 
             try:
                 f = io.StringIO()
