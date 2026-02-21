@@ -88,9 +88,9 @@ def main(argv=None):
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}")
+                print(f"Network error: {e}", file=sys.stderr)
             except OSError as e:
-                print(f"File error: {e}")
+                print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}")
 
