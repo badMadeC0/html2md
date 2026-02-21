@@ -1,0 +1,30 @@
+name: Request Jules Review
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  request-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request review from Jules bot
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            try {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                reviewers: ['google-labs-jules[bot]']
+              });
+              console.log(`Requested review from @google-labs-jules[bot] on PR #${pr.number}`);
+            } catch (error) {
+              console.log(`Could not request review: ${error.message}`);
+              console.log('Ensure @google-labs-jules[bot] has access to this repository.');
+            }

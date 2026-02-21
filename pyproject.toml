@@ -26,11 +26,19 @@ dependencies = [
   "reportlab>=3.6.0",
   "pillow>=9.0.0",
   "pyyaml>=6.0",
+  "anthropic>=0.39.0",
+]
+
+[project.optional-dependencies]
+deploy = [
+  "flask>=2.0.0",
+  "gunicorn>=20.1.0",
 ]
 
 [project.scripts]
 html2md = "html2md.cli:main"
 html2md-log-export = "html2md.log_export:main"
+html2md-upload = "html2md.upload:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
