@@ -1,5 +1,5 @@
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 # Mock anthropic module before importing html2md.upload
