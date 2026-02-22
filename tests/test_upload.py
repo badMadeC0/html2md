@@ -83,13 +83,9 @@ def test_upload_file_success(tmp_path):
         mock_files.upload.assert_called_once()
 
         # Verify arguments passed to upload
-        call_args = mock_files.upload.call_args
-        assert call_args is not None
-        kwargs = call_args.kwargs
-        assert "file" in kwargs
-        file_tuple = kwargs["file"]
-        assert file_tuple[0] == "test.txt"
-        assert file_tuple[2] == "text/plain"  # mimetypes should guess this
+        mock_files.upload.assert_called_once_with(
+            file=("test.txt", ANY, "text/plain")
+        )
 
 
 def test_upload_file_not_found():
