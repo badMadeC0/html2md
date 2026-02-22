@@ -1,4 +1,5 @@
 """Upload utility for html2md."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,8 +11,12 @@ from typing import Any
 import anthropic
 
 
-def upload_file(file_path: str) -> Any:
-    """Upload a file to the Anthropic API."""
+def upload_file(file_path: str, client: anthropic.Anthropic | None = None) -> "anthropic.types.File":
+    """Upload a file to the Anthropic API.
+
+    Note: As of SDK v0.83.0, file uploads are only available via the beta API.
+    Once a stable `client.files.upload` exists, this should be updated.
+    """
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -20,8 +25,10 @@ def upload_file(file_path: str) -> Any:
     if mime_type is None:
         mime_type = "application/octet-stream"
 
-    client = anthropic.Anthropic()
+    if client is None:
+        client = anthropic.Anthropic()
     with path.open("rb") as file_data:
+        # Use beta API for file uploads (no stable alternative yet)
         result = client.beta.files.upload(
             file=(path.name, file_data, mime_type),
         )

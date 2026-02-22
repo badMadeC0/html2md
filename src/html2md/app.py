@@ -30,7 +30,7 @@ def get_host_port():
         )
         port_value = DEFAULT_PORT
 
-    hostname = os.environ.get('HOST', '127.0.0.1')
+    hostname = os.environ.get('HOST', '0.0.0.0')
     return hostname, port_value
 
 
