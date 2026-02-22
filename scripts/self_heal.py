@@ -23,6 +23,7 @@ def has_changes() -> bool:
         ["git", "status", "--porcelain"],
         capture_output=True,
         text=True,
+        check=True,
     )
     return bool(result.stdout.strip())
 
