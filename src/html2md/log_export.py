@@ -67,9 +67,12 @@ def main(argv=None):
         w = csv.writer(fo)
         w.writerow(fieldnames)
 
+        # Optimization: Pre-calculate input keys to avoid tuple unpacking in loop
+        input_keys = [k for k, _ in mapping]
+
         for line in fi:
-            line = line.strip()
-            if not line:
+            # Optimization: Avoid allocating stripped string if line is empty/whitespace
+            if not line or line.isspace():
                 continue
 
             try:
@@ -81,8 +84,8 @@ def main(argv=None):
                 continue
 
             row = [
-                _sanitize_value(rec.get(input_name, ""))
-                for input_name, _ in mapping
+                _sanitize_value(rec.get(k, ""))
+                for k in input_keys
             ]
             w.writerow(row)
 
