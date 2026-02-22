@@ -37,14 +37,10 @@ def passes_healthcheck() -> bool:
 def main(argv: list[str] | None = None) -> int:
     fixed = False
 
-    # 1. Re-install package (catches missing deps, broken editable installs)
-    print("\n=== Step 1: Re-install package ===")
-    sh([sys.executable, "-m", "pip", "install", "-e", "."], "editable install")
-    sh([sys.executable, "-m", "pip", "install", "pytest", "ruff"], "dev deps")
     if passes_healthcheck():
+        print("Fixed after re-install.")
         fixed = fixed or has_changes()
         if fixed:
-            print("Fixed after re-install.")
             return 0
 
     # 2. Lint/format auto-fix with ruff
