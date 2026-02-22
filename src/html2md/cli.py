@@ -67,7 +67,11 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(
+                    response.text,
+                    heading_style="ATX",
+                    strip=['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta']
+                )
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
