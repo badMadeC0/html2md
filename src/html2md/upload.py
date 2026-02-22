@@ -1,4 +1,5 @@
 """Upload utility for html2md."""
+
 from __future__ import annotations
 
 import argparse
@@ -23,8 +24,10 @@ def upload_file(file_path: str) -> BetaFile:
     if mime_type is None:
         mime_type = "application/octet-stream"
 
-    client = anthropic.Anthropic()
+    if client is None:
+        client = anthropic.Anthropic()
     with path.open("rb") as file_data:
+        # Use beta API for file uploads (no stable alternative yet)
         result = client.beta.files.upload(
             file=(path.name, file_data, mime_type),
         )
