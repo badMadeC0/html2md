@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not has_changes():
         print("\n=== Healthcheck passes but no file changes to commit. ===")
-        return 0
+        return 1
 
     print("\n=== Repairs applied successfully. ===")
     return 0
