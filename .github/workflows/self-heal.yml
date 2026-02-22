@@ -77,6 +77,5 @@ jobs:
           **Repairs attempted:** see attached artifact ``selfheal-logs`` for details.
 
           - Pre-repair healthcheck: ``selfheal-pre.txt``
-          - Repair log: ``selfheal-repair.txt``
-          - Post-repair healthcheck: ``selfheal-post.txt``
-          "@ --label "self-heal"
+          "@
+          --label "self-heal"
