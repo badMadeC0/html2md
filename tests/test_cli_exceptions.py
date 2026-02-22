@@ -11,7 +11,8 @@ try:
     from html2md.cli import main
     import requests
 except ImportError:
-    pass
+    main = None
+    requests = None
 
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
@@ -29,26 +30,30 @@ class TestCliExceptions(unittest.TestCase):
 
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
+        if main is None or 'requests' not in sys.modules:
+            self.skipTest("required modules not available")
 
-        with patch('requests.Session.get') as mock_get:
-            mock_get.side_effect = requests.RequestException("Network unreachable")
+        # Mock sys.stderr to capture output
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            # Patch requests.Session.get directly
+            with patch('requests.Session.get') as mock_get:
+                mock_get.side_effect = requests.RequestException("Network unreachable")
 
-            try:
-                main(['--url', 'http://example.com'])
-            except Exception as e:
-                self.fail(f"main raised exception {e}")
+                try:
+                    main(['--url', 'http://example.com'])
+                except Exception as e:
+                    self.fail(f"main raised exception {e}")
 
-            output = self.captured_stderr.getvalue()
-            # Expect "Network error: Network unreachable"
-            self.assertIn("Network error", output)
-            self.assertIn("Network unreachable", output)
+                output = captured_stderr.getvalue()
+                # Expect "Network error: Network unreachable"
+                self.assertIn("Network error", output)
+                self.assertIn("Network unreachable", output)
 
     def test_file_error(self):
         """Test that file I/O errors are caught and printed."""
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
+        if main is None or 'requests' not in sys.modules:
+            self.skipTest("required modules not available")
 
         with patch('requests.Session.get') as mock_get:
             mock_resp = MagicMock()
