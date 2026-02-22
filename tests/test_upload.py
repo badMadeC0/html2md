@@ -132,12 +132,6 @@ class TestUploadMain(unittest.TestCase):
 
         # Instantiate APIError
         # If it's the real one, it might need arguments. If it's our mock, it might not.
-        try:
-             # Try instantiating with typical args just in case it's the real one or a good mock
-            mock_request = MagicMock()
-            error = module_anthropic.APIError(message="API Error occurred", request=mock_request, body={})
-        except TypeError:
-            # Fallback for simple mock or different signature
             error = module_anthropic.APIError("API Error occurred")
 
         mock_upload_file.side_effect = error
