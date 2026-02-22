@@ -20,7 +20,10 @@ def test_cli_conversion_request_failure(capsys):
         # Run main
         exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
-    # Verify exit code
+    # Verify exit code.
+    # The CLI returns 0 here because process_url catches exceptions internally
+    # and prints error messages, but does not propagate failures to main()'s
+    # return value.
     assert exit_code == 1
 
     # Verify output
