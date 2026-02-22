@@ -1,48 +1,32 @@
-"""Tests for CLI logging behavior."""
-
+import subprocess
 import logging
-import sys
-import unittest.mock
-from html2md.cli import main
 
-def test_logging_output(capsys):
+
+def test_logging_output():
     """Test that logs go to stderr and content output goes to stdout."""
 
-    # Mock requests
-    mock_requests = unittest.mock.MagicMock()
-    mock_response = unittest.mock.MagicMock()
-    mock_response.text = "<html>content</html>"
-    mock_response.status_code = 200
-    mock_requests.Session.return_value.get.return_value = mock_response
-
-    # Mock markdownify module
-    mock_md_module = unittest.mock.MagicMock()
-    mock_md_module.markdownify.return_value = "# Markdown Content"
-
-    # Reset logging handlers to ensure basicConfig in main() takes effect
+    # Reset logging handlers in the current process; actual logging config
+    # for the CLI will be exercised in the subprocess.
     root = logging.getLogger()
     for handler in root.handlers[:]:
         root.removeHandler(handler)
 
-    # Patch sys.modules to mock imports inside main()
-    with unittest.mock.patch.dict(sys.modules, {
-        'requests': mock_requests,
-        'markdownify': mock_md_module
-    }):
-        # Run main with URL argument
-            exit_code = main(['--url', 'http://example.com'])
+    # Run the CLI as a module in a subprocess with a URL argument.
+    result = subprocess.run(
+        [sys.executable, "-m", "html2md", "--url", "http://example.com"],
+        capture_output=True,
+        text=True,
+    )
 
-    assert exit_code == 0
-
-    captured = capsys.readouterr()
+    assert result.returncode == 0
 
     # Assert logs are in stderr
-    assert "Processing URL: http://example.com" in captured.err
-    assert "Fetching content..." in captured.err
-    assert "Converting to Markdown..." in captured.err
+    assert "Processing URL: http://example.com" in result.stderr
+    assert "Fetching content..." in result.stderr
+    assert "Converting to Markdown..." in result.stderr
 
     # Assert content is in stdout
-    assert "# Markdown Content" in captured.out
+    assert "# Markdown Content" in result.stdout
 
     # Assert logs are NOT in stdout
-    assert "Processing URL" not in captured.out
+    assert "Processing URL" not in result.stdout
