@@ -28,5 +28,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Run Claude agent script
-        run: .github/scripts/run_claude_agent.sh
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
