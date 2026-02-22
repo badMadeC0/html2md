@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 
 def main(argv=None):
     """Run the CLI."""
@@ -91,6 +92,10 @@ def main(argv=None):
                 else:
                     print(md_content)
 
+            except requests.RequestException as e:
+                print(f"Network error: {e}", file=sys.stderr)
+            except OSError as e:
+                print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logging.error(f"Conversion failed: {e}")
 
