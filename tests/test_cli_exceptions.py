@@ -3,38 +3,12 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
-
-# Ensure src is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
-
-IMPORTS_AVAILABLE = True
-
-try:
-    from html2md.cli import main
-    import requests
-except ImportError:
-    # Optional dependencies or package under test not available; tests will be skipped as needed.
-    IMPORTS_AVAILABLE = False
+import requests
+from html2md.cli import main
 
 class TestCliExceptions(unittest.TestCase):
-    def setUp(self):
-        # Suppress output during tests
-        self.captured_output = io.StringIO()
-        self.captured_stderr = io.StringIO()
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
-        sys.stdout = self.captured_output
-        sys.stderr = self.captured_stderr
-
-    def tearDown(self):
-        sys.stdout = self.original_stdout
-        sys.stderr = self.original_stderr
-
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
-
         # Mock sys.stderr to capture output
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
@@ -54,24 +28,23 @@ class TestCliExceptions(unittest.TestCase):
 
     def test_file_error(self):
         """Test that file I/O errors are caught and printed."""
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            with patch('requests.Session.get') as mock_get:
+                mock_resp = MagicMock()
+                mock_resp.text = "<h1>Hello</h1>"
+                mock_resp.status_code = 200
+                mock_get.return_value = mock_resp
 
-        with patch('requests.Session.get') as mock_get:
-            mock_resp = MagicMock()
-            mock_resp.text = "<h1>Hello</h1>"
-            mock_resp.status_code = 200
-            mock_get.return_value = mock_resp
+                with patch('markdownify.markdownify', return_value="# Hello"):
+                    with patch('os.makedirs'), patch('os.path.exists', return_value=False):
+                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                             try:
+                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                             except Exception as e:
+                                 self.fail(f"main raised exception {e}")
 
-            with patch('markdownify.markdownify', return_value="# Hello"):
-                with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                    with patch('builtins.open', side_effect=OSError("Permission denied")):
-                        try:
-                            main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                        except Exception as e:
-                            self.fail(f"main raised exception {e}")
-
-                        output = self.captured_stderr.getvalue()
-                        # Expect "File error: Permission denied"
-                        self.assertIn("File error", output)
-                        self.assertIn("Permission denied", output)
+                             output = captured_stderr.getvalue()
+                             # Expect "File error: Permission denied"
+                             self.assertIn("File error", output)
+                             self.assertIn("Permission denied", output)
