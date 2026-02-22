@@ -99,7 +99,7 @@ def main(argv=None):
 
         if args.batch:
             if not os.path.exists(args.batch):
-                logging.error(f"Error: Batch file not found: {args.batch}")
+                logging.error(f"Batch file not found: {args.batch}")
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
