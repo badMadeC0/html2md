@@ -11,9 +11,11 @@ class TestCliExceptions(unittest.TestCase):
         # Mock sys.stderr to capture output
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
-            # Patch requests.Session.get directly
-            with patch('requests.Session.get') as mock_get:
-                mock_get.side_effect = requests.RequestException("Network unreachable")
+            # Patch requests.Session class instead of get method for better compatibility with mocks
+            with patch('requests.Session') as mock_session_cls:
+                mock_session = MagicMock()
+                mock_session_cls.return_value = mock_session
+                mock_session.get.side_effect = requests.RequestException("Network unreachable")
 
                 try:
                     main(['--url', 'http://example.com'])
@@ -29,11 +31,16 @@ class TestCliExceptions(unittest.TestCase):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
-            with patch('requests.Session.get') as mock_get:
+            with patch('requests.Session') as mock_session_cls:
+                mock_session = MagicMock()
+                mock_session_cls.return_value = mock_session
+
                 mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
+                # Updated for new implementation using iter_content and encoding
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
+                mock_resp.encoding = "utf-8"
                 mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+                mock_session.get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):

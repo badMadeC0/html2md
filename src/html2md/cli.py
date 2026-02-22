@@ -63,11 +63,27 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
 
+                # Security: Enforce content length limit (10MB) to prevent DoS
+                max_size = 10 * 1024 * 1024
+                content_length = response.headers.get("Content-Length")
+                if content_length and int(content_length) > max_size:
+                    raise ValueError(f"Content too large ({content_length} bytes). Limit is {max_size} bytes.")
+
+                content = []
+                downloaded_size = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    downloaded_size += len(chunk)
+                    if downloaded_size > max_size:
+                        raise ValueError(f"Content exceeded limit of {max_size} bytes.")
+                    content.append(chunk)
+
+                text_content = b"".join(content).decode(response.encoding or "utf-8", errors="replace")
+
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(text_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):

@@ -16,3 +16,8 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Vulnerability:** Constructing PowerShell commands via string interpolation (e.g., `-Command "..."`) is risky. While `Start-Process -ArgumentList` is preferred, it may not support all use cases (like keeping the window open with `-NoExit` easily without wrapper scripts).
 **Learning:** When using `-Command` is unavoidable, wrapping arguments in single quotes and escaping existing single quotes by doubling them (`' -> ''`) provides a robust defense against injection.
 **Prevention:** Always sanitize variables before interpolating them into a command string. For single-quoted strings in PowerShell, replace `'` with `''`.
+
+## 2024-10-24 - Unbounded Resource Consumption (DoS) in HTTP Client
+**Vulnerability:** The CLI tool fetched URL content using `requests.get()` without checking `Content-Length` or using `stream=True`. A malicious server could serve an arbitrarily large file, causing the application to consume all available memory and crash (Denial of Service).
+**Learning:** Simply setting `timeout` protects against slow connections but not against massive payloads. Applications processing external URLs must enforce explicit size limits.
+**Prevention:** Always use `stream=True` when fetching untrusted content. Check `Content-Length` header first, then iterate over the response body in chunks, enforcing a cumulative size limit before processing.
