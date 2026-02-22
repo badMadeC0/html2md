@@ -1,8 +1,8 @@
 """Tests for CLI logging behavior."""
 
+import logging
 import sys
 import unittest.mock
-import logging
 from html2md.cli import main
 
 def test_logging_output(capsys):
