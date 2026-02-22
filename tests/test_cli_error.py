@@ -1,14 +1,7 @@
-import sys
-import os
+import unittest.mock
 from unittest.mock import MagicMock, patch
 
-# Ensure src is in sys.path
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
 import html2md.cli
-
 def test_cli_conversion_request_failure(capsys):
     """Test that requests.get failure is caught and printed."""
 
