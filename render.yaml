@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: html2md
+    runtime: python
+    buildCommand: pip install ".[deploy]"
+    startCommand: gunicorn html2md.app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.11"
