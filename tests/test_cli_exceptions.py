@@ -7,11 +7,14 @@ import os
 # Ensure src is in path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
+IMPORTS_AVAILABLE = True
+
 try:
     from html2md.cli import main
     import requests
 except ImportError:
-    pass
+    # Optional dependencies or package under test not available; tests will be skipped as needed.
+    IMPORTS_AVAILABLE = False
 
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
