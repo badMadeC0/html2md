@@ -126,9 +126,5 @@ def test_upload_file(uploader):
             mock_path.return_value = mock_path_obj
             mock_path_obj.exists.return_value = False
 
-            try:
+            with pytest.raises(FileNotFoundError):
                 upload_file("nonexistent.txt")
-            except FileNotFoundError:
-                pass
-            else:
-                assert False, "Should have raised FileNotFoundError"
