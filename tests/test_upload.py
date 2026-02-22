@@ -124,12 +124,11 @@ def test_main_api_error(mock_stderr, mock_upload_file):
     """Test main handling of Anthropic APIError."""
     from html2md.upload import anthropic as module_anthropic
 
-    mock_request = MagicMock()
-    error = module_anthropic.APIError(
-        "API Error occurred", request=mock_request, body=None
-    )
-    mock_upload_file.side_effect = error
+    class TestAPIError(Exception):
+        pass
 
+    module_anthropic.APIError = TestAPIError
+    mock_upload_file.side_effect = TestAPIError("API Error occurred")
     ret = upload.main(["test_file.txt"])
 
     assert ret == 1
