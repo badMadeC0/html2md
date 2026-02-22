@@ -5,13 +5,10 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
-  pull_request:
-    types: [opened, synchronize]
 
 jobs:
   claude:
     if: >
-      github.event_name == 'pull_request' ||
       ((github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
