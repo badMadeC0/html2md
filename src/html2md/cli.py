@@ -30,8 +30,7 @@ def main(argv=None):
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
-            logging.error(f"Missing dependency {e.name}. "
-                          "Please run: pip install requests markdownify")
+            logging.error(f"Missing dependency {e.name}. Please run: pip install requests markdownify")
             return 1
 
         session = requests.Session()
