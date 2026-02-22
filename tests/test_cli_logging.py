@@ -30,10 +30,7 @@ def test_logging_output(capsys):
         'markdownify': mock_md_module
     }):
         # Run main with URL argument
-        try:
             exit_code = main(['--url', 'http://example.com'])
-        except SystemExit as e:
-            exit_code = e.code
 
     assert exit_code == 0
 
