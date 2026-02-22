@@ -67,7 +67,7 @@ def test_upload_file_success(tmp_path):
     """Test the upload_file function logic."""
     # Create a dummy file
     test_file = tmp_path / "test.txt"
-    test_file.write_text("content")
+    test_file.write_text("content", encoding="utf-8")
 
     # Mock anthropic.Anthropic
     with patch("html2md.upload.anthropic.Anthropic") as mock_client_cls:
