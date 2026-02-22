@@ -166,6 +166,28 @@ $ConvertBtn.Add_Click({
         return
     }
 
+    # --- Security Validation ---
+    foreach ($u in $urlList) {
+        try {
+            $uriObj = [System.Uri]$u
+            if ($uriObj.Scheme -notmatch '^https?$') {
+                throw "Invalid scheme"
+            }
+        } catch {
+            [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
+            $ProgressBar.IsIndeterminate = $false
+            return
+        }
+    }
+
+    # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
+    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
+        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $ProgressBar.IsIndeterminate = $false
+        return
+    }
+    # ---------------------------
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
@@ -211,24 +233,39 @@ $ConvertBtn.Add_Click({
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
 
+        # Sanitize for -File arguments (escape single quotes)
+        $safeCommandPath = $PSCommandPath -replace "'", "''"
+        $safeTempFile = $tempFile -replace "'", "''"
+        $safeOutDir = $outdir -replace "'", "''"
+
         # Relaunch this script in batch mode
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
+        # Use AbsoluteUri for proper percent-encoding
+        try {
+            $url = ([System.Uri]$url).AbsoluteUri
+        } catch {}
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
+        # Sanitize inputs for single-quoted string interpolation
+        $safeUrl = $url -replace "'", "''"
+        $safeOutDir = $outdir -replace "'", "''"
+        $safeVenvExe = $venvExe -replace "'", "''"
+        $safePyScript = $pyScript -replace "'", "''"
+
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
