@@ -11,7 +11,7 @@ from typing import Any
 import anthropic
 
 
-def upload_file(file_path: str, client: anthropic.Anthropic | None = None) -> Any:
+def upload_file(file_path: str, client: anthropic.Anthropic | None = None) -> "anthropic.types.File":
     """Upload a file to the Anthropic API.
 
     Note: As of SDK v0.83.0, file uploads are only available via the beta API.
