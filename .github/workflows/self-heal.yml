@@ -40,13 +40,7 @@ jobs:
         continue-on-error: true
         run: python scripts/healthcheck.py | tee selfheal-pre.txt
 
-      - name: Attempt self-heal repairs
-        run: python scripts/self_heal.py | tee selfheal-repair.txt
-
-      - name: Run healthcheck (post-repair)
-        id: post
-        continue-on-error: true
-        run: python scripts/healthcheck.py | tee selfheal-post.txt
+      - name: Attempt self-heal repairs\n        run: python scripts/self_heal.py | tee selfheal-repair.txt\n        continue-on-error: true\n\n      - name: Run healthcheck (post-repair)\n        id: post\n        continue-on-error: true\n        if: always()\n        run: python scripts/healthcheck.py | tee selfheal-post.txt
 
       - name: Collect logs
         if: always()
