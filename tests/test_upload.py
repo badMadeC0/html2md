@@ -10,7 +10,8 @@ except ImportError:
     anthropic = MagicMock()
 
     class APIError(Exception):
-        pass
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args)
 
     anthropic.APIError = APIError
     anthropic.Anthropic = MagicMock()
