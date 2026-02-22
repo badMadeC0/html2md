@@ -11,13 +11,14 @@ try:
     from html2md.cli import main
     import requests
 except ImportError:
-    pass
+    main = None
+    requests = None
 
 class TestCliExceptions(unittest.TestCase):
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
+        if main is None or 'requests' not in sys.modules:
+            self.skipTest("required modules not available")
 
         # Mock sys.stderr to capture output
         captured_stderr = io.StringIO()
@@ -38,8 +39,8 @@ class TestCliExceptions(unittest.TestCase):
 
     def test_file_error(self):
         """Test that file I/O errors are caught and printed."""
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
+        if main is None or 'requests' not in sys.modules:
+            self.skipTest("required modules not available")
 
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
