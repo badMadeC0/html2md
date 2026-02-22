@@ -21,7 +21,7 @@ def test_cli_conversion_request_failure(capsys):
         exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
     # Verify exit code
-    assert exit_code == 0
+    assert exit_code == 1
 
     # Verify output
     captured = capsys.readouterr()
