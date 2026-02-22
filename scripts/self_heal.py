@@ -31,7 +31,11 @@ def has_changes() -> bool:
 def passes_healthcheck() -> bool:
     """Return True if scripts/healthcheck.py exits 0."""
     result = subprocess.run([sys.executable, "scripts/healthcheck.py"])
-    # Run repair steps sequentially, but stop if healthcheck starts passing.
+    return result.returncode == 0
+
+
+def main() -> int:
+    """Run repair steps sequentially, but stop if healthcheck starts passing."""
     if not passes_healthcheck():
         print("\n=== Step 1: Re-install package ===")
         sh([sys.executable, "-m", "pip", "install", "-e", "."], "editable install")
