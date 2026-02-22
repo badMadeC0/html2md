@@ -31,51 +31,30 @@ def has_changes() -> bool:
 def passes_healthcheck() -> bool:
     """Return True if scripts/healthcheck.py exits 0."""
     result = subprocess.run([sys.executable, "scripts/healthcheck.py"])
-    return result.returncode == 0
+    # Run repair steps sequentially, but stop if healthcheck starts passing.
+    if not passes_healthcheck():
+        print("\n=== Step 1: Re-install package ===")
+        sh([sys.executable, "-m", "pip", "install", "-e", "."], "editable install")
+        sh([sys.executable, "-m", "pip", "install", "pytest", "ruff"], "dev deps")
 
+    if not passes_healthcheck():
+        print("\n=== Step 2: Lint/format auto-fix ===")
+        sh([sys.executable, "-m", "ruff", "check", "--fix", "src/", "tests/"], "ruff fix")
+        sh([sys.executable, "-m", "ruff", "format", "src/", "tests/"], "ruff format")
 
-def main(argv: list[str] | None = None) -> int:
-    fixed = False
+    if not passes_healthcheck():
+        print("\n=== Step 3: Dependency upgrade ===")
+        sh(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "-e", "."],
+            "upgrade deps",
+        )
 
-    if passes_healthcheck():
-        print("Fixed after re-install.")
-        fixed = fixed or has_changes()
-        if fixed:
-            return 0
-
-    # 2. Lint/format auto-fix with ruff
-    print("\n=== Step 2: Lint/format auto-fix ===")
-    sh([sys.executable, "-m", "ruff", "check", "--fix", "src/", "tests/"], "ruff fix")
-    sh([sys.executable, "-m", "ruff", "format", "src/", "tests/"], "ruff format")
-    if passes_healthcheck():
-        fixed = fixed or has_changes()
-        if fixed:
-            print("Fixed after lint/format.")
-            return 0
-
-    # 3. Upgrade dependencies (may fix version conflicts)
-    print("\n=== Step 3: Dependency upgrade ===")
-    sh(
-        [sys.executable, "-m", "pip", "install", "--upgrade", "-e", "."],
-        "upgrade deps",
-    )
-    if passes_healthcheck():
-        fixed = fixed or has_changes()
-        if fixed:
-            print("Fixed after dependency upgrade.")
-            return 0
-
-    # 4. Rebuild package metadata (clean + reinstall)
-    print("\n=== Step 4: Clean reinstall ===")
-    sh(
-        [sys.executable, "-m", "pip", "install", "--force-reinstall", "-e", "."],
-        "force reinstall",
-    )
-    if passes_healthcheck():
-        fixed = fixed or has_changes()
-        if fixed:
-            print("Fixed after clean reinstall.")
-            return 0
+    if not passes_healthcheck():
+        print("\n=== Step 4: Clean reinstall ===")
+        sh(
+            [sys.executable, "-m", "pip", "install", "--force-reinstall", "-e", "."],
+            "force reinstall",
+        )
 
     # If nothing worked, report failure
     if not passes_healthcheck():
@@ -84,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not has_changes():
         print("\n=== Healthcheck passes but no file changes to commit. ===")
-        return 1
+        return 0
 
     print("\n=== Repairs applied successfully. ===")
     return 0
