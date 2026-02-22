@@ -3,7 +3,6 @@
 from __future__ import annotations
 import argparse
 import os
-import sys
 
 def main(argv=None):
     """Run the CLI."""
@@ -15,6 +14,7 @@ def main(argv=None):
     ap.add_argument('--url', help='Input URL to convert')
     ap.add_argument('--batch', help='File containing URLs to process (one per line)')
     ap.add_argument('--outdir', help='Output directory to save the file')
+    ap.add_argument('--all-formats', action='store_true', help='Generate all formats (placeholder)')
 
     args = ap.parse_args(argv)
 
@@ -28,30 +28,10 @@ def main(argv=None):
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests markdownify")
             return 1
 
         session = requests.Session()
-        session.headers.update({
-            'User-Agent': (
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/120.0.0.0 Safari/537.36'
-            ),
-            'Accept': (
-                'text/html,application/xhtml+xml,application/xml;q=0.9,'
-                'image/avif,image/webp,image/apng,*/*;q=0.8'
-            ),
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.google.com/',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'cross-site',
-            'Sec-Fetch-User': '?1',
-        })
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""
@@ -63,7 +43,27 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                headers = {
+                    'User-Agent': (
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                        'AppleWebKit/537.36 (KHTML, like Gecko) '
+                        'Chrome/120.0.0.0 Safari/537.36'
+                    ),
+                    'Accept': (
+                        'text/html,application/xhtml+xml,application/xml;q=0.9,'
+                        'image/avif,image/webp,image/apng,*/*;q=0.8'
+                    ),
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Referer': 'https://www.google.com/',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'cross-site',
+                    'Sec-Fetch-User': '?1',
+                }
+                response = session.get(target_url, headers=headers, timeout=30)
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
@@ -88,19 +88,15 @@ def main(argv=None):
                 else:
                     print(md_content)
 
-            except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
-            except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                print(f"Conversion failed: {e}")
 
         if args.url:
             process_url(args.url)
 
         if args.batch:
             if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
+                print(f"Error: Batch file not found: {args.batch}")
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
