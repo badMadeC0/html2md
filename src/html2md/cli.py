@@ -8,7 +8,7 @@ import os
 def main(argv=None):
     """Run the CLI."""
     # Configure logging to stderr
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', force=True)
 
     ap = argparse.ArgumentParser(
         prog='html2md',
