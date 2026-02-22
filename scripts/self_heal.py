@@ -34,7 +34,7 @@ def passes_healthcheck() -> bool:
     return result.returncode == 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     fixed = False
 
     # 1. Re-install package (catches missing deps, broken editable installs)
