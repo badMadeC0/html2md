@@ -21,9 +21,9 @@ from html2md import upload
 
 
 @patch("html2md.upload.anthropic.Anthropic")
-@patch("pathlib.Path.open")
-@patch("pathlib.Path.exists")
-@patch("mimetypes.guess_type")
+@patch("html2md.upload.Path.open")
+@patch("html2md.upload.Path.exists")
+@patch("html2md.upload.mimetypes.guess_type")
 def test_upload_file_success(mock_guess_type, mock_exists, mock_open, mock_anthropic):
     """Test successful file upload."""
     mock_exists.return_value = True
