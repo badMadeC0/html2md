@@ -38,7 +38,7 @@ def test_upload_file_calls_beta_api(tmp_path: Path):
     file_tuple = call_kwargs["file"]
     # file_tuple structure: (filename, file_object, mime_type)
     assert file_tuple[0] == "test.txt"
-    # Verify file object is open and readable
+    # Verify the file object argument
     assert file_tuple[1].name == str(file_path)
     assert file_tuple[2] == "text/plain"
 
