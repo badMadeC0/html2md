@@ -1,5 +1,4 @@
 import sys
-import types
 from unittest.mock import MagicMock, patch
 
 def test_upload_file():
