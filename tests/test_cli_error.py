@@ -1,4 +1,3 @@
-import unittest.mock
 from unittest.mock import MagicMock, patch
 
 import html2md.cli
