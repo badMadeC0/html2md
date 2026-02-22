@@ -40,10 +40,15 @@ def main() -> int:
     )
 
     # 4. Lint with ruff (if available)
-    ok &= run(
-        [sys.executable, "-m", "ruff", "check", "src/", "tests/"],
-        "Lint (ruff check)",
-    )
+    ruff_label = "Lint (ruff check)"
+    if check_tool_exists([sys.executable, "-m", "ruff"]):
+        ok &= run(
+            [sys.executable, "-m", "ruff", "check", "src/", "tests/"],
+            ruff_label,
+        )
+    else:
+        print(f"\n==> {ruff_label}")
+        print("    Ruff not found, skipping linting.")
 
     # 5. Verify package builds
     ok &= run(
