@@ -18,7 +18,7 @@ def run(cmd: list[str], label: str) -> bool:
     return True
 
 
-def main() -> int:
+def main(argv=None) -> int:
     ok = True
 
     # 1. Verify the package imports cleanly
