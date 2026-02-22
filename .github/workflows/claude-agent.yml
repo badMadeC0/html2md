@@ -31,17 +31,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@1.0.0
-
       - name: Validate configuration
-        env:
-          CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
         run: |
-          if [[ -z "$CLAUDE_COMMAND" ]]; then
+          if [[ -z "${{ vars.CLAUDE_COMMAND }}" ]]; then
             echo "::error::CLAUDE_COMMAND repository variable is not set. Configure it in Settings > Secrets and variables > Actions > Variables."
-            # Use return or just echo error instead of exit to avoid triggering safety filter in tool
-            false
+            exit 1
           fi
 
       - name: Run Claude agent
