@@ -14,6 +14,19 @@ except ImportError:
     pass
 
 class TestCliExceptions(unittest.TestCase):
+    def setUp(self):
+        # Suppress output during tests
+        self.captured_output = io.StringIO()
+        self.captured_stderr = io.StringIO()
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+        sys.stdout = self.captured_output
+        sys.stderr = self.captured_stderr
+
+    def tearDown(self):
+        sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
+
     def test_network_error(self):
         """Test that network errors are caught and printed."""
         if 'requests' not in sys.modules:
@@ -41,23 +54,21 @@ class TestCliExceptions(unittest.TestCase):
         if 'requests' not in sys.modules:
             self.skipTest("requests module not available")
 
-        captured_stderr = io.StringIO()
-        with patch('sys.stderr', captured_stderr):
-            with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
-                mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+        with patch('requests.Session.get') as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.text = "<h1>Hello</h1>"
+            mock_resp.status_code = 200
+            mock_get.return_value = mock_resp
 
-                with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
-                             try:
-                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                             except Exception as e:
-                                 self.fail(f"main raised exception {e}")
+            with patch('markdownify.markdownify', return_value="# Hello"):
+                with patch('os.makedirs'), patch('os.path.exists', return_value=False):
+                    with patch('builtins.open', side_effect=OSError("Permission denied")):
+                        try:
+                            main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                        except Exception as e:
+                            self.fail(f"main raised exception {e}")
 
-                             output = captured_stderr.getvalue()
-                             # Expect "File error: Permission denied"
-                             self.assertIn("File error", output)
-                             self.assertIn("Permission denied", output)
+                        output = self.captured_stderr.getvalue()
+                        # Expect "File error: Permission denied"
+                        self.assertIn("File error", output)
+                        self.assertIn("Permission denied", output)
