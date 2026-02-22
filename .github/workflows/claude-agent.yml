@@ -1,53 +1,33 @@
 name: claude-agent
 
 on:
-  workflow_dispatch:
   issue_comment:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  pull_request:
+    types: [opened, synchronize]
 
 jobs:
-  run-claude-agent:
+  claude:
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
       ((github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR') &&
-       (contains(github.event.comment.body, '@claude-agent') ||
-        contains(github.event.comment.body, '@claude[bot]') ||
-        contains(github.event.comment.body, '@codex[agent]') ||
-        contains(github.event.comment.body, '@Claude') ||
-        contains(github.event.comment.body, '@claude')))
+       (contains(github.event.comment.body, '@claude') ||
+        contains(github.event.comment.body, '@Claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       issues: write
-
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code@1.0.0
-
-      - name: Validate configuration
-        env:
-          CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
-        run: |
-          if [[ -z "$CLAUDE_COMMAND" ]]; then
-            echo "::error::CLAUDE_COMMAND repository variable is not set. Configure it in Settings > Secrets and variables > Actions > Variables."
-            # Use return or just echo error instead of exit to avoid triggering safety filter in tool
-            false
-          fi
-
-      - name: Run Claude agent
-        env:
-          CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISABLE_MEMORY: "true"
-          SKIP_MEMORY_FETCH: "true"
-        run: .github/scripts/run_claude_agent.sh
+      - uses: anthropic-ai/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
