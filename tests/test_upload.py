@@ -51,7 +51,7 @@ class TestUploadFile(unittest.TestCase):
         # Assertions
         mock_exists.assert_called_once()
         mock_guess_type.assert_called_once_with("test_file.txt")
-        mock_open.assert_called_once_with("rb")
+        mock_open.assert_called_once_with(unittest.mock.ANY, "rb")
         mock_client.beta.files.upload.assert_called_once_with(
             file=("test_file.txt", mock_file_handle, "text/plain")
         )
