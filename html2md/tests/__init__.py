@@ -4,6 +4,5 @@ import requests  # type: ignore
 
 def test_requests() -> None:
     """Test requests import."""
-    if requests is None:
-        return
+        raise ImportError("requests is not installed, but is required for this test.")
     assert requests is not None
