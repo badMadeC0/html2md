@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import os
+import sys
 
 def main(argv=None):
     """Run the CLI."""
@@ -92,7 +93,7 @@ def main(argv=None):
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                print(f"Conversion failed: {e}")
 
         if args.url:
             process_url(args.url)

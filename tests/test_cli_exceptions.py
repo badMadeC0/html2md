@@ -13,24 +13,32 @@ try:
     from html2md.cli import main
     import requests
 except ImportError:
-    main = None
-    requests = None
+    pass
 
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
-        # Suppress output during tests
-        self.captured_output = io.StringIO()
+        # Suppress stdout
+        self.captured_stdout = io.StringIO()
         self.original_stdout = sys.stdout
-        sys.stdout = self.captured_output
+        sys.stdout = self.captured_stdout
+
+        # Suppress stderr and capture it
+        self.captured_stderr = io.StringIO()
+        self.original_stderr = sys.stderr
+        sys.stderr = self.captured_stderr
 
     def tearDown(self):
         sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
 
     def test_network_error(self):
         """Test that network errors are caught and printed."""
+        # Check if requests is available
+        if 'requests' not in sys.modules:
+            self.skipTest("requests module not available")
+
         # Mock requests.Session.get to raise RequestException
-        with patch('requests.Session.get') as mock_get, \
-             patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
+        with patch('requests.Session.get') as mock_get:
             mock_get.side_effect = requests.RequestException("Network unreachable")
 
             try:
@@ -38,7 +46,8 @@ class TestCliExceptions(unittest.TestCase):
             except Exception as e:
                 self.fail(f"main raised exception {e}")
 
-            output = mock_stderr.getvalue()
+            output = self.captured_stderr.getvalue()
+            # New behavior: "Network error: Network unreachable" on stderr
             self.assertIn("Network error", output)
             self.assertIn("Network unreachable", output)
 
@@ -67,7 +76,7 @@ class TestCliExceptions(unittest.TestCase):
                          except Exception as e:
                              self.fail(f"main raised exception {e}")
 
-                         output = self.captured_output.getvalue()
-                         # New behavior: "File error: Permission denied"
+                         output = self.captured_stderr.getvalue()
+                         # New behavior: "File error: Permission denied" on stderr
                          self.assertIn("File error", output)
                          self.assertIn("Permission denied", output)
