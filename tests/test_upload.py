@@ -83,7 +83,13 @@ def test_upload_file_success(mock_upload_module, tmp_path):
     call_args = mock_files.upload.call_args
     kwargs = call_args.kwargs
     assert 'file' in kwargs
-    assert kwargs['file'][0] == "test.txt"
+    file_arg = kwargs['file']
+    assert isinstance(file_arg, tuple)
+    assert len(file_arg) == 3
+    # Verify filename, file handle, and MIME type
+    assert file_arg[0] == "test.txt"
+    assert hasattr(file_arg[1], "read")
+    assert file_arg[2] == "text/plain"
 
 def test_upload_file_not_found(mock_upload_module):
     upload = mock_upload_module
