@@ -2,10 +2,68 @@
 
 from __future__ import annotations
 import argparse
+import logging
 import os
+from urllib.parse import urlparse
+
+# Configure module-level logger
+logger = logging.getLogger(__name__)
+
+def process_url(target_url: str, session, md_func, outdir: str | None = None) -> None:
+    """Process a single URL.
+
+    Args:
+        target_url: The URL to process.
+        session: The requests session to use.
+        md_func: The markdownify function to use.
+        outdir: Output directory (optional).
+    """
+    try:
+        # Fix common URL typo: trailing slash before query parameters
+        if '/?' in target_url:
+            target_url = target_url.replace('/?', '?')
+
+        logger.info("Processing URL: %s", target_url)
+
+        # Validate URL scheme (Security Fix)
+        parsed = urlparse(target_url)
+        if parsed.scheme != 'https':
+            raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only HTTPS is allowed.")
+
+        logger.info("Fetching content...")
+        response = session.get(target_url, timeout=30)
+        response.raise_for_status()
+
+        logger.info("Converting to Markdown...")
+        md_content = md_func(response.text, heading_style="ATX")
+
+        if outdir:
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
+
+            # Create a simple filename based on the URL
+            filename = "conversion_result.md"
+            url_path = target_url.split('?')[0].rstrip('/')
+            if url_path:
+                base = os.path.basename(url_path)
+                if base:
+                    filename = f"{base}.md"
+
+            out_path = os.path.join(outdir, filename)
+            with open(out_path, 'w', encoding='utf-8') as f:
+                f.write(md_content)
+            logger.info("Success! Saved to: %s", out_path)
+        else:
+            print(md_content)
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Conversion failed: %s", e)
 
 def main(argv=None):
     """Run the CLI."""
+    # Configure logging for the application
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     ap = argparse.ArgumentParser(
         prog='html2md',
         description='Convert HTML URL to Markdown.'
@@ -26,8 +84,7 @@ def main(argv=None):
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify")
+            logger.error("Error: Missing dependency %s. Please run: pip install requests markdownify", e.name)
             return 1
 
         session = requests.Session()
@@ -52,56 +109,18 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
-            # Fix common URL typo: trailing slash before query parameters
-            if '/?' in target_url:
-                target_url = target_url.replace('/?', '?')
-
-            print(f"Processing URL: {target_url}")
-
-            try:
-                print("Fetching content...")
-                response = session.get(target_url, timeout=30)
-                response.raise_for_status()
-
-                print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
-
-                if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
-                    # Create a simple filename based on the URL
-                    filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(url_path)
-                        if base:
-                            filename = f"{base}.md"
-
-                    out_path = os.path.join(args.outdir, filename)
-                    with open(out_path, 'w', encoding='utf-8') as f:
-                        f.write(md_content)
-                    print(f"Success! Saved to: {out_path}")
-                else:
-                    print(md_content)
-
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}")
-
         if args.url:
-            process_url(args.url)
+            process_url(args.url, session, md, args.outdir)
 
         if args.batch:
             if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}")
+                logger.error("Error: Batch file not found: %s", args.batch)
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        process_url(u, session, md, args.outdir)
 
         return 0
 
