@@ -1,9 +1,9 @@
 """Tests for the upload module."""
-import pytest
+import os
 import subprocess
 import sys
-import os
 from unittest.mock import MagicMock, patch
+import pytest
 
 # Ensure src is in sys.path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
