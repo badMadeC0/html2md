@@ -61,17 +61,6 @@ def test_main_api_error(capsys, mock_anthropic_upload_module):
         assert exit_code == 1
 
 
-# Placeholder tests to ensure the smoke test starts at line 63
-def test_placeholder_for_line_count():
-    """Empty test to help reach the desired line count."""
-    assert True
-
-
-def test_placeholder_for_line_count_2():
-    """Another empty test."""
-    assert True
-
-
 def test_html2md_upload_help_runs():
     """Verify that 'html2md-upload --help' runs and exits with code 0."""
     env = os.environ.copy()
