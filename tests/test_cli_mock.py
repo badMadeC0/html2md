@@ -4,7 +4,6 @@ import sys
 import os
 import io
 import tempfile
-import shutil
 from contextlib import redirect_stdout
 
 # Add src to path
