@@ -56,7 +56,11 @@ def test_upload_file_not_found():
     """Test upload_file raises FileNotFoundError for missing file."""
     with pytest.raises(FileNotFoundError):
         upload_file("non_existent_file.txt")
+```suggestion
+import pytest
 
+# 1. Mock the 'anthropic' module before importing anything that uses it.
+import mimetypes
 
 def test_main_success(capsys):
     """Test main function successful execution."""
