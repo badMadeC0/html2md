@@ -26,26 +26,21 @@ def test_upload_api_error(capsys):
     mock_client_instance.beta.files.upload.side_effect = MockAPIError("Some API error")
 
     # Create a dummy file for the test
-    dummy_file = "dummy_test_upload.txt"
-    with open(dummy_file, "w") as f:
-        f.write("test content")
+    dummy_file = tmp_path / "dummy_test_upload.txt"
+    dummy_file.write_text("test content")
 
-    try:
-        with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
-            # Import inside the patch to ensure it uses the mock
-            import html2md.upload
-            # Reload if already imported (though unlikely in fresh pytest run)
-            import importlib
-            importlib.reload(html2md.upload)
+    with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
+        # Import inside the patch to ensure it uses the mock
+        import html2md.upload
+        # Reload if already imported (though unlikely in fresh pytest run)
+        import importlib
+        importlib.reload(html2md.upload)
 
-            exit_code = html2md.upload.main([dummy_file])
+        exit_code = html2md.upload.main([str(dummy_file)])
 
-        assert exit_code == 1
-        captured = capsys.readouterr()
-        assert "Error: Some API error" in captured.err
-    finally:
-        if os.path.exists(dummy_file):
-            os.remove(dummy_file)
+    assert exit_code == 1
+    captured = capsys.readouterr()
+    assert "Error: Some API error" in captured.err
 
 def test_upload_file_not_found(capsys):
     """Test that FileNotFoundError is caught and printed as 'Error: ...'."""
