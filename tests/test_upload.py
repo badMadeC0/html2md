@@ -3,22 +3,18 @@ import io
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import importlib.util
 
-# Mock anthropic module before importing html2md.upload if it's not installed
-if importlib.util.find_spec("anthropic") is None:
-    # Create a mock module
-    mock_anthropic = MagicMock()
-    # We need to mock the APIError class specifically so it can be used in except blocks
-    class MockAPIError(Exception):
-        def __init__(self, message, request, body=None):
-            super().__init__(message)
-            self.request = request
-            self.body = body
-            self.message = message
-
-    mock_anthropic.APIError = MockAPIError
-    sys.modules["anthropic"] = mock_anthropic
+# Mock anthropic module if not installed
+try:
+    import anthropic
+except ImportError:
+    anthropic = MagicMock()
+    # Define APIError as a real class so we can catch it
+    class APIError(Exception):
+        pass
+    anthropic.APIError = APIError
+    anthropic.Anthropic = MagicMock()
+    sys.modules["anthropic"] = anthropic
 
 from html2md import upload
 
@@ -55,6 +51,7 @@ class TestUploadFile(unittest.TestCase):
         # Assertions
         mock_exists.assert_called_once()
         mock_guess_type.assert_called_once_with("test_file.txt")
+        # Ensure only one argument ("rb") is checked, as mock_open on class doesn't receive self
         mock_open.assert_called_once_with("rb")
         mock_client.beta.files.upload.assert_called_once_with(
             file=("test_file.txt", mock_file_handle, "text/plain")
@@ -127,11 +124,23 @@ class TestUploadMain(unittest.TestCase):
     @patch("sys.stderr", new_callable=io.StringIO)
     def test_main_api_error(self, mock_stderr, mock_upload_file):
         """Test main handling of Anthropic APIError."""
-        # Use the mocked or real APIError class
-        from html2md.upload import anthropic as upload_anthropic
+        # Use the mocked APIError class if anthropic is mocked
+        # Otherwise use the real one, but here we can just rely on what upload_file raises
+        # We need to ensure we raise the same exception class that main catches.
 
-        mock_request = MagicMock()
-        error = upload_anthropic.APIError(message="API Error occurred", request=mock_request, body={})
+        # We need access to the APIError class used by the module under test
+        from html2md.upload import anthropic as module_anthropic
+
+        # Instantiate APIError
+        # If it's the real one, it might need arguments. If it's our mock, it might not.
+        try:
+             # Try instantiating with typical args just in case it's the real one or a good mock
+            mock_request = MagicMock()
+            error = module_anthropic.APIError(message="API Error occurred", request=mock_request, body={})
+        except TypeError:
+            # Fallback for simple mock or different signature
+            error = module_anthropic.APIError("API Error occurred")
+
         mock_upload_file.side_effect = error
 
         ret = upload.main(["test_file.txt"])
