@@ -228,7 +228,7 @@ $psi.Arguments = "-NoExit -Command `"& '$($venvExe.Replace("'", "''"))' --url '$
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+$psi.Arguments = "-NoExit -Command `"& $pyCmd '$($pyScript.Replace("'", "''"))' --url '$($url.Replace("'", "''"))' --outdir '$($outdir.Replace("'", "''"))' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
