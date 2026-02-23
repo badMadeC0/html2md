@@ -1,4 +1,5 @@
 """Tests for the upload module."""
+import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 import pytest
@@ -113,3 +114,15 @@ def test_main_no_args(capsys):
 
     captured = capsys.readouterr()
     assert "usage: html2md-upload" in captured.err
+
+
+def test_upload_help_runs():
+    """Verify html2md-upload --help exits with code 0."""
+    result = subprocess.run(
+        [sys.executable, "-m", "html2md.upload", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "usage: html2md-upload" in result.stdout
