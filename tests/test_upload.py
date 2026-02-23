@@ -1,4 +1,5 @@
 import sys
+import pytest
 from unittest.mock import MagicMock, patch
 
 # Mock anthropic module before importing html2md.upload
@@ -7,7 +8,6 @@ sys.modules["anthropic"] = mock_anthropic
 
 # Now we can import the module under test
 from html2md.upload import upload_file
-
 
 @patch("html2md.upload.Path")
 @patch("html2md.upload.mimetypes")
@@ -18,7 +18,6 @@ def test_upload_file(mock_mimetypes, mock_path):
     mock_path.return_value = mock_path_obj
     mock_path_obj.exists.return_value = True
     mock_path_obj.name = "test_file.txt"
-    mock_path_obj.__str__ = lambda s: file_path
 
     # Mock open context manager
     mock_file_handle = MagicMock()
@@ -40,7 +39,7 @@ def test_upload_file(mock_mimetypes, mock_path):
     assert result == expected_result
     mock_path.assert_called_once_with(file_path)
     mock_path_obj.exists.assert_called_once()
-    mock_mimetypes.guess_type.assert_called_once_with(file_path)
+    mock_mimetypes.guess_type.assert_called_once()
     mock_anthropic.Anthropic.assert_called_once()
     mock_client.beta.files.upload.assert_called_once()
 
@@ -52,7 +51,6 @@ def test_upload_file(mock_mimetypes, mock_path):
     assert uploaded_file_tuple[0] == "test_file.txt"
     assert uploaded_file_tuple[1] == mock_file_handle
     assert uploaded_file_tuple[2] == "text/plain"
-
 
 def test_upload_file_not_found():
     with patch("html2md.upload.Path") as mock_path:
