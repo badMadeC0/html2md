@@ -1,9 +1,6 @@
 """Test suite for html2md."""
 
-try:
-    import requests  # type: ignore
-except ImportError:
-    requests = None
+import requests  # type: ignore
 
 def test_requests() -> None:
     """Test requests import."""
