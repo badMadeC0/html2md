@@ -18,29 +18,36 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure')
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.x'
+          cache: 'pip'
 
-      - name: Install package and dev tools
+      - name: Install deps
         run: |
-          python -m pip install --upgrade pip wheel setuptools
+          pip install --upgrade pip
           pip install -e .
           pip install pytest ruff
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: python scripts/healthcheck.py | tee selfheal-pre.txt
+        run: python scripts/healthcheck.py > selfheal-pre.txt
 
-      - name: Attempt self-heal repairs\n        run: python scripts/self_heal.py | tee selfheal-repair.txt\n        continue-on-error: true\n\n      - name: Run healthcheck (post-repair)\n        id: post\n        continue-on-error: true\n        if: always()\n        run: python scripts/healthcheck.py | tee selfheal-post.txt
+      - name: Attempt self-heal repairs
+        run: python scripts/self_heal.py > selfheal-repair.txt
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: python scripts/healthcheck.py > selfheal-post.txt
 
       - name: Collect logs
         if: always()
@@ -52,26 +59,31 @@ jobs:
             selfheal-repair.txt
             selfheal-post.txt
 
-      - name: Create PR with fixes
-        if: steps.post.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check for changes
+        id: check_changes
         run: |
-          git diff --quiet && echo "No changes to commit" && exit 0
-          $branch = "auto/self-heal-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-          git checkout -b $branch
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: self-heal auto-repairs`n`nApplied by .github/workflows/self-heal.yml"
-          git push -u origin $branch
-          gh pr create --title "fix: self-heal auto-repairs" --body @"
-          ## Self-heal auto-fix
+          $status = git status --porcelain
+          if ($status) {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "changes=true"
+          }
 
-          This PR was created automatically by the self-heal workflow after CI failure.
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success' && steps.check_changes.outputs.changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: self-heal fixes [skip ci]"
+          title: "chore: self-heal fixes"
+          body: |
+            Self-healing workflow triggered by failure in `ci`.
 
-          **Repairs attempted:** see attached artifact ``selfheal-logs`` for details.
+            Logs attached in artifacts.
 
-          - Pre-repair healthcheck: ``selfheal-pre.txt``
-          "@
-          --label "self-heal"
+            Repairs applied:
+            - Lint/format fixes (ruff)
+            - Dependency updates (if any)
+
+            Please review the changes.
+          branch: self-heal/auto-fix
+          delete-branch: true
+          labels: self-heal
