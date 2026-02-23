@@ -40,7 +40,7 @@ def test_upload_file(mock_mimetypes, mock_path):
     assert result == expected_result
     mock_path.assert_called_once_with(file_path)
     mock_path_obj.exists.assert_called_once()
-    mock_mimetypes.guess_type.assert_called_once()
+    mock_mimetypes.guess_type.assert_called_once_with(file_path)
     mock_anthropic.Anthropic.assert_called_once()
     mock_client.beta.files.upload.assert_called_once()
 
