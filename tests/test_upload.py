@@ -7,7 +7,7 @@ src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-def test_upload_api_error(capsys):
+def test_upload_api_error(capsys, tmp_path):
     """Test that anthropic.APIError is caught and printed as 'Error: ...'."""
 
     # Mock anthropic module before importing html2md.upload
@@ -32,7 +32,7 @@ def test_upload_api_error(capsys):
     with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
         # Import inside the patch to ensure it uses the mock
         import html2md.upload
-        # Reload if already imported (though unlikely in fresh pytest run)
+        # Reload if already imported
         import importlib
         importlib.reload(html2md.upload)
 
@@ -45,11 +45,14 @@ def test_upload_api_error(capsys):
 def test_upload_file_not_found(capsys):
     """Test that FileNotFoundError is caught and printed as 'Error: ...'."""
 
-    import html2md.upload
-    import importlib
-    importlib.reload(html2md.upload)
+    mock_anthropic = MagicMock()
 
-    exit_code = html2md.upload.main(["non_existent_file.txt"])
+    with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
+        import html2md.upload
+        import importlib
+        importlib.reload(html2md.upload)
+
+        exit_code = html2md.upload.main(["non_existent_file.txt"])
 
     assert exit_code == 1
     captured = capsys.readouterr()
