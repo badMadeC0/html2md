@@ -67,10 +67,11 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
+                # Consider using a dedicated sanitizer like bleach or an allow-list of tags
                 md_content = md(
                     response.text,
                     heading_style="ATX",
-                    strip=['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta']
+                    strip=['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta', 'svg', 'math', 'form', 'input', 'button']
                 )
 
                 if args.outdir:
