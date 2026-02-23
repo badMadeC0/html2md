@@ -79,7 +79,14 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+            <Button Name="ClearBtn" Grid.Column="1" Content="C_lear" Width="60" Height="22" Margin="0,0,0,2" VerticalAlignment="Bottom" ToolTip="Clear URL input"/>
+        </Grid>
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -120,6 +127,7 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 
 # --- Get controls ---
 $UrlBox = $window.FindName("UrlBox")
+$ClearBtn = $window.FindName("ClearBtn")
 $OutBox = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
@@ -131,6 +139,12 @@ $LogBox = $window.FindName("LogBox")
 
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
+
+# --- Clear button logic ---
+$ClearBtn.Add_Click({
+    $UrlBox.Clear()
+    $UrlBox.Focus()
+})
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
