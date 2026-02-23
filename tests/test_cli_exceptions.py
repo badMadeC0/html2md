@@ -28,12 +28,9 @@ class TestCliExceptions(unittest.TestCase):
 
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        # Check if requests is available
-        if 'requests' not in sys.modules:
-            self.skipTest("requests module not available")
-
         # Mock requests.Session.get to raise RequestException
-        with patch('requests.Session.get') as mock_get:
+        with patch('requests.Session.get') as mock_get, \
+             patch('sys.stderr', new_callable=io.StringIO) as mock_stderr:
             mock_get.side_effect = requests.RequestException("Network unreachable")
 
             try:
@@ -41,8 +38,7 @@ class TestCliExceptions(unittest.TestCase):
             except Exception as e:
                 self.fail(f"main raised exception {e}")
 
-            output = self.captured_output.getvalue()
-            # New behavior: "Network error: Network unreachable"
+            output = mock_stderr.getvalue()
             self.assertIn("Network error", output)
             self.assertIn("Network unreachable", output)
 
