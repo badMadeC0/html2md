@@ -64,7 +64,7 @@ def test_upload_main_success(mock_upload_module, capsys):
 def test_upload_file_success(mock_upload_module, tmp_path):
     upload = mock_upload_module
     test_file = tmp_path / "test.txt"
-    test_file.write_text("content")
+    test_file.write_text("content", encoding='utf-8')
 
     # We need to mock Anthropic inside the imported module
     mock_anthropic = sys.modules['anthropic']
