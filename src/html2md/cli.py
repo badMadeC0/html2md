@@ -104,6 +104,13 @@ def main(argv=None):
                         if base:
                             base_name = base
 
+                    # Ensure unique filename to prevent overwriting
+                    original_base = base_name
+                    counter = 1
+                    while os.path.exists(os.path.join(args.outdir, f"{base_name}.md")):
+                        base_name = f"{original_base}_{counter}"
+                        counter += 1
+
                     # Save Markdown
                     out_path = os.path.join(args.outdir, f"{base_name}.md")
                     with open(out_path, 'w', encoding='utf-8') as f:
