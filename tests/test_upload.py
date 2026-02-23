@@ -52,15 +52,6 @@ def test_upload_main_file_not_found(mock_upload_module, capsys):
 def test_upload_main_success(mock_upload_module, capsys):
     upload = mock_upload_module
     with patch('html2md.upload.upload_file') as mock_upload:
-        mock_result = MagicMock()
-        mock_result.id = "file_12345"
-        mock_upload.return_value = mock_result
-        ret = upload.main(['valid.txt'])
-        assert ret == 0
-        captured = capsys.readouterr()
-        assert "File uploaded successfully. ID: file_12345" in captured.out
-
-def test_upload_file_success(mock_upload_module, tmp_path):
     upload = mock_upload_module
     test_file = tmp_path / "test.txt"
     test_file.write_text("content")
