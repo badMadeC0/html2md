@@ -1,9 +1,6 @@
 """Tests for CLI."""
 
-try:
-    import requests  # type: ignore
-except ImportError:
-    requests = None
+import requests  # type: ignore
 
 def test_requests_import():
     """Test requests import and usage."""
