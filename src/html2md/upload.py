@@ -56,7 +56,7 @@ def main(argv=None):
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except anthropic.APIError as exc:
-        print(f"API error: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
     return 0
 
