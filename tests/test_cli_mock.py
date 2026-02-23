@@ -86,7 +86,7 @@ class TestCliMain(unittest.TestCase):
         mock_file = mock_open()
 
         def open_side_effect(file, mode='r', *args, **kwargs):
-            if isinstance(file, str) and file.startswith('out'):
+            if isinstance(file, str) and file.startswith(test_outdir):
                 return mock_file(file, mode, *args, **kwargs)
             return real_open(file, mode, *args, **kwargs)
 
