@@ -5,7 +5,7 @@ import requests  # type: ignore
 def test_requests_import():
     """Test requests import and usage."""
     if requests is None:
-        return
+        raise ImportError("The 'requests' library is not installed, this test requires it.")
     assert requests is not None
 
     try:
