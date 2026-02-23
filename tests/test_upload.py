@@ -10,6 +10,7 @@ def mock_upload_module():
     class MockAPIError(Exception):
         def __init__(self, message, request=None, body=None):
             super().__init__(message)
+            self.message = message
             self.request = request
             self.body = body
 
