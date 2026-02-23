@@ -13,7 +13,8 @@ try:
     from html2md.cli import main
     import requests
 except ImportError:
-    pass
+    main = None
+    requests = None
 
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
