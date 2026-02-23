@@ -78,7 +78,7 @@ class TestCliMock(unittest.TestCase):
             # Check mock calls
             self.mock_session.get.assert_called_with('http://example.com', timeout=30)
             # The 'markdownify' called is self.mock_markdownify.markdownify
-            self.mock_markdownify.markdownify.assert_called()
+            self.mock_markdownify.markdownify.assert_called_once_with('<html><body><h1>Test</h1></body></html>', heading_style="ATX")
 
     def test_url_file_output(self):
         """Test output to file using real temporary directory."""
