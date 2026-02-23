@@ -147,7 +147,10 @@ class TestCliMain(unittest.TestCase):
         mock_file = mock_open()
 
         def open_side_effect(file, mode='r', *args, **kwargs):
-            if isinstance(file, str) and file.startswith('out'):
+            # The 'out' directory name is used in the CLI arguments and assertions.
+            # Ideally, this value would be a variable defined at the test function level.
+            expected_outdir_prefix = 'out'
+            if isinstance(file, str) and file.startswith(expected_outdir_prefix):
                 return mock_file(file, mode, *args, **kwargs)
             return real_open(file, mode, *args, **kwargs)
 
