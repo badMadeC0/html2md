@@ -1,73 +1,69 @@
-import unittest
-from unittest.mock import patch, MagicMock
 import sys
-import io
 import os
-import requests
+from unittest.mock import MagicMock, patch
 
-# Ensure src is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+# Ensure src is in sys.path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
 import html2md.cli
 
-class TestCliError(unittest.TestCase):
-    def test_cli_conversion_request_failure(self):
-        """Test that requests.get failure is caught and printed."""
+def test_cli_conversion_request_failure(capsys):
+    """Test that requests.get failure is caught and printed."""
 
-        # Configure requests mock to fail
-        # Use a real RequestException so the except block catches it
-        mock_requests = MagicMock()
-        mock_requests.RequestException = requests.RequestException
+    # Create mocks
+    mock_requests = MagicMock()
+    mock_markdownify = MagicMock()
 
-        mock_session = MagicMock()
-        mock_requests.Session.return_value = mock_session
-        mock_session.get.side_effect = requests.RequestException("Network error")
+    # Configure requests mock to fail
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_session.get.side_effect = Exception("Network error")
 
-        mock_markdownify = MagicMock()
+    # We must patch sys.modules so that the 'import requests' inside main() gets our mock
+    # We also mock markdownify since it's imported in the same block
+    with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+        # Run main
+        exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
-        # Capture stderr
-        captured_stderr = io.StringIO()
+    # Verify exit code
+    assert exit_code == 0
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except Exception as e:
-                    self.fail(f"main raised exception {e}")
+    # Verify output
+    captured = capsys.readouterr()
+    assert "Processing URL: http://example.com" in captured.out
+    assert "Fetching content..." in captured.out
+    assert "Conversion failed: Network error" in captured.out
 
-        output = captured_stderr.getvalue()
-        self.assertIn("Network error", output)
 
-    def test_cli_conversion_markdownify_failure(self):
-        """Test that markdownify failure is caught and printed."""
+def test_cli_conversion_markdownify_failure(capsys):
+    """Test that markdownify failure is caught and printed."""
 
-        mock_requests = MagicMock()
-        # We need RequestException to be valid for the except clause
-        mock_requests.RequestException = requests.RequestException
+    # Create mocks
+    mock_requests = MagicMock()
+    mock_markdownify = MagicMock()
 
-        mock_session = MagicMock()
-        mock_requests.Session.return_value = mock_session
-        mock_response = MagicMock()
-        mock_response.text = "<html></html>"
-        mock_session.get.return_value = mock_response
+    # Configure requests mock to succeed
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_response = MagicMock()
+    mock_response.text = "<html></html>"
+    mock_session.get.return_value = mock_response
 
-        mock_markdownify = MagicMock()
-        # Mocking the module attribute access
-        mock_markdownify.markdownify.side_effect = Exception("Parse error")
+    # Configure markdownify mock to fail
+    # Note: in main(), it does 'from markdownify import markdownify as md'
+    # When we mock the module 'markdownify', importing 'markdownify' from it returns the attribute.
+    # So we need to ensure the attribute raises exception when called.
+    mock_markdownify.markdownify.side_effect = Exception("Parse error")
 
-        captured_stderr = io.StringIO()
+    with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+        exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except Exception as e:
-                    self.fail(f"main raised exception {e}")
+    assert exit_code == 0
 
-        output = captured_stderr.getvalue()
-        # The code catches Exception and prints "Conversion failed: {e}"
-        self.assertIn("Conversion failed", output)
-        self.assertIn("Parse error", output)
-
-if __name__ == '__main__':
-    unittest.main()
+    captured = capsys.readouterr()
+    assert "Processing URL: http://example.com" in captured.out
+    assert "Fetching content..." in captured.out
+    assert "Converting to Markdown..." in captured.out
+    assert "Conversion failed: Parse error" in captured.out
