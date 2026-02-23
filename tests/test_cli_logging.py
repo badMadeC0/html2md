@@ -5,6 +5,7 @@ import subprocess
 import sys
 import unittest.mock
 import os
+import socket
 from html2md.cli import main
 
 def test_logging_output(capsys):
@@ -15,6 +16,9 @@ def test_logging_output(capsys):
     mock_response = unittest.mock.MagicMock()
     mock_response.text = "<html>content</html>"
     mock_response.status_code = 200
+    # Important: Explicitly set is_redirect to False to avoid urljoin error
+    mock_response.is_redirect = False
+
     mock_requests.Session.return_value.get.return_value = mock_response
 
     # Mock markdownify module
@@ -31,11 +35,16 @@ def test_logging_output(capsys):
         'requests': mock_requests,
         'markdownify': mock_md_module
     }):
-        # Run main with URL argument
-        try:
-            exit_code = main(['--url', 'http://example.com'])
-        except SystemExit as e:
-            exit_code = e.code
+        # Mock getaddrinfo to return a public IP so validation passes
+        with unittest.mock.patch('socket.getaddrinfo') as mock_dns:
+            # Return a valid public IP (Google's DNS)
+            mock_dns.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 80))]
+
+            # Run main with URL argument
+            try:
+                exit_code = main(['--url', 'http://example.com'])
+            except SystemExit as e:
+                exit_code = e.code
 
     assert exit_code == 0
 
@@ -43,7 +52,7 @@ def test_logging_output(capsys):
 
     # Assert logs are in stderr
     assert "Processing URL: http://example.com" in captured.err
-    assert "Fetching content..." in captured.err
+    assert "Fetching content from: http://example.com" in captured.err
     assert "Converting to Markdown..." in captured.err
 
     # Assert content is in stdout
@@ -73,20 +82,17 @@ def test_logging_output_subprocess():
         env=env
     )
 
-    # In both missing dependency case (return code 1) and network failure case (return code 0 with error log),
-    # the logs should go to stderr.
-
     if result.returncode == 1:
         # Dependency failure
-        # Check stderr for dependency error
         assert "Missing dependency" in result.stderr
     else:
         # Network failure
         assert result.returncode == 0
         # Logs in stderr
         assert "Processing URL" in result.stderr
-        assert "Fetching content..." in result.stderr
-        assert "Conversion failed" in result.stderr
 
-    # Standard output should be empty (no markdown)
+        # New behavior: Validation failure prevents "Fetching content" log
+        assert "URL validation failed" in result.stderr or "Could not resolve hostname" in result.stderr
+
+    # Standard output should be empty
     assert result.stdout == ""

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import logging
 import os
+import socket
+from urllib.parse import urlparse, urljoin
 
 def main(argv=None):
     """Run the CLI."""
@@ -55,6 +58,46 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        def validate_url(url: str) -> bool:
+            """
+            Validate the URL to prevent SSRF attacks.
+            Ensures the URL scheme is http/https and the hostname does not resolve to a private IP.
+            """
+            try:
+                parsed = urlparse(url)
+                if parsed.scheme not in ('http', 'https'):
+                    logging.warning(f"Invalid scheme for URL: {url}")
+                    return False
+
+                hostname = parsed.hostname
+                if not hostname:
+                    return False
+
+                # Check if hostname is an IP address
+                try:
+                    ip_obj = ipaddress.ip_address(hostname)
+                    if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast:
+                         logging.warning(f"Blocked private IP: {hostname}")
+                         return False
+                except ValueError:
+                    # Hostname is not an IP, resolve it
+                    try:
+                        addr_info = socket.getaddrinfo(hostname, None)
+                        for _, _, _, _, sockaddr in addr_info:
+                            ip = sockaddr[0]
+                            ip_obj = ipaddress.ip_address(ip)
+                            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast:
+                                logging.warning(f"Blocked domain resolving to private IP: {hostname} -> {ip}")
+                                return False
+                    except socket.gaierror:
+                        logging.warning(f"Could not resolve hostname: {hostname}")
+                        return False
+
+                return True
+            except Exception as e:
+                logging.error(f"URL validation error: {e}")
+                return False
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -64,8 +107,38 @@ def main(argv=None):
             logging.info(f"Processing URL: {target_url}")
 
             try:
-                logging.info("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                current_url = target_url
+                response = None
+
+                # Manual redirect handling with validation
+                for _ in range(10):  # Max 10 redirects
+                    if not validate_url(current_url):
+                        logging.error(f"URL validation failed: {current_url}")
+                        return
+
+                    logging.info(f"Fetching content from: {current_url}")
+                    response = session.get(current_url, timeout=30, allow_redirects=False)
+
+                    if response.is_redirect:
+                        location = response.headers.get('Location')
+                        if not location:
+                            break
+
+                        # Resolve relative URL
+                        prev_url = current_url
+                        current_url = urljoin(current_url, location)
+                        logging.info(f"Redirecting: {prev_url} -> {current_url}")
+                        continue
+                    else:
+                        break
+                else:
+                    logging.error("Too many redirects")
+                    return
+
+                if response is None:
+                    logging.error("No response received")
+                    return
+
                 response.raise_for_status()
 
                 logging.info("Converting to Markdown...")
