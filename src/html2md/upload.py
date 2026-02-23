@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
+def upload_file(file_path: str) -> Any:
+    """Upload a file to the Anthropic API."""
+    import anthropic
 def upload_file(file_path: str) -> Any:
     """Upload a file to the Anthropic API."""
     import anthropic
