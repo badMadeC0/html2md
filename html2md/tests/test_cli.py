@@ -8,9 +8,5 @@ def test_requests_import():
         raise ImportError("The 'requests' library is not installed, this test requires it.")
     assert requests is not None
 
-    try:
-        response = requests.get('https://httpbin.org/get', timeout=10)
-        assert response.status_code == 200
-    except requests.RequestException:
-        # Ignore network errors in tests
-        pass
+    response = requests.get('https://httpbin.org/get', timeout=10)
+    assert response.status_code == 200
