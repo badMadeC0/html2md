@@ -79,3 +79,30 @@ def test_upload_file_not_found(mock_upload_module):
     upload = mock_upload_module
     with pytest.raises(FileNotFoundError):
         upload.upload_file("non_existent_file.txt")
+
+def test_upload_file_default_mime_type(mock_upload_module, tmp_path):
+    """Test default mime type when detection fails."""
+    upload = mock_upload_module
+    test_file = tmp_path / "unknown_file.xyz"
+    test_file.write_text("some content")
+
+    with patch("mimetypes.guess_type") as mock_guess_type:
+        mock_guess_type.return_value = (None, None)
+
+        mock_anthropic = sys.modules['anthropic']
+        mock_client = mock_anthropic.Anthropic.return_value
+        mock_files = mock_client.beta.files
+        mock_upload_resp = MagicMock()
+        mock_upload_resp.id = "file_def"
+        mock_files.upload.return_value = mock_upload_resp
+
+        result = upload.upload_file(str(test_file))
+
+        assert result.id == "file_def"
+        mock_files.upload.assert_called_once()
+
+        call_args = mock_files.upload.call_args
+        kwargs = call_args.kwargs
+        assert 'file' in kwargs
+        assert kwargs['file'][0] == "unknown_file.xyz"
+        assert kwargs['file'][2] == "application/octet-stream"
