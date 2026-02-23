@@ -56,9 +56,31 @@ def test_upload_file_not_found():
     """Test upload_file raises FileNotFoundError for missing file."""
     with pytest.raises(FileNotFoundError):
         upload_file("non_existent_file.txt")
-import pytest
 
-# 1. Mock the 'anthropic' module before importing anything that uses it.
+
+def test_upload_file_default_mime_type(tmp_path):
+    """Test that DEFAULT_MIME_TYPE is used when mime type cannot be guessed."""
+    from html2md.upload import DEFAULT_MIME_TYPE
+
+    test_file = tmp_path / "test.unknown"
+    test_file.write_text("content", encoding="utf-8")
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.beta.files.upload.return_value = MagicMock()
+
+    with patch("mimetypes.guess_type", return_value=(None, None)) as mock_guess_type, \
+         patch("anthropic.Anthropic", return_value=mock_client_instance):
+
+        upload_file(str(test_file))
+
+        mock_guess_type.assert_called_once_with(str(test_file))
+
+        mock_client_instance.beta.files.upload.assert_called_once()
+        call_kwargs = mock_client_instance.beta.files.upload.call_args.kwargs
+        file_tuple = call_kwargs["file"]
+        assert file_tuple[0] == "test.unknown"
+        assert file_tuple[2] == DEFAULT_MIME_TYPE
+
 
 def test_main_success(capsys):
     """Test main function successful execution."""
@@ -102,7 +124,7 @@ def test_main_api_error(capsys):
 
         captured = capsys.readouterr()
         # Check stderr for error message
-        assert "Error:" in captured.err
+        assert "API error: Something went wrong with API" in captured.err
 
 def test_main_no_args(capsys):
     """Test main function exits when no file is provided."""
