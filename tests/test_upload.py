@@ -62,10 +62,6 @@ def test_placeholder_for_line_count_2():
 
 def test_html2md_upload_help_runs():
     """Verify that 'html2md-upload --help' runs and exits with code 0."""
-    # This assumes 'html2md-upload' is a console script available in the PATH.
-    # If it's not, the test might need to invoke the module directly, e.g.,
-    # [sys.executable, "-m", "html2md.cli", "upload", "--help"]
-    # or similar, depending on how the entry point is configured in pyproject.toml.
-    result = subprocess.run(["html2md-upload", "--help"], capture_output=True, text=True, check=False)
+    result = subprocess.run([sys.executable, "-m", "html2md.upload", "--help"], capture_output=True, text=True, check=False)
     assert result.returncode == 0
     assert "usage" in result.stdout.lower()
