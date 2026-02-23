@@ -69,8 +69,8 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
+                    os.makedirs(args.outdir, exist_ok=True)
+
 
                     # Create a simple filename based on the URL
                     filename = "conversion_result.md"
@@ -97,11 +97,20 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}")
                 return 1
+
+            urls = []
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        urls.append(u)
+
+            if urls:
+                import concurrent.futures
+                # Use ThreadPoolExecutor for concurrent processing
+                # max_workers=10 provides a good balance for network I/O
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    list(executor.map(process_url, urls))
 
         return 0
 
