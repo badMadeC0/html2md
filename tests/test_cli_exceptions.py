@@ -13,7 +13,7 @@ try:
     from html2md.cli import main
     import requests
 except ImportError:
-    pass
+    raise unittest.SkipTest("html2md.cli or requests module not available; skipping CLI exception tests")
 
 class TestCliExceptions(unittest.TestCase):
     def setUp(self):
