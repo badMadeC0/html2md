@@ -224,7 +224,7 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+$psi.Arguments = "-NoExit -Command `"& '$($venvExe.Replace("'", "''"))' --url '$($url.Replace("'", "''"))' --outdir '$($outdir.Replace("'", "''"))' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
