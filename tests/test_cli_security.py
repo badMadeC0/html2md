@@ -52,7 +52,7 @@ class TestCliSecurity(unittest.TestCase):
             strip_arg = kwargs.get('strip')
 
             self.assertIsNotNone(strip_arg, "markdownify called without 'strip' argument")
-            for tag in ['script', 'style']:
+            for tag in STRIP_TAGS:
                 self.assertIn(tag, strip_arg, f"Tag '{tag}' not found in strip argument")
 
 if __name__ == '__main__':
