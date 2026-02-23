@@ -25,8 +25,6 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
             $argsList = @("--url", "$url", "--outdir", "$outDir")
             # if (-not $BatchWholePage) { $argsList += "--main-content" }
 
@@ -222,17 +220,14 @@ $ConvertBtn.Add_Click({
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         # $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-$psi.Arguments = "-NoExit -Command `"& '$($venvExe.Replace("'", "''"))' --url '$($url.Replace("'", "''"))' --outdir '$($outdir.Replace("'", "''"))' --all-formats$optArg`""
             $psi.Arguments = "-NoExit -Command `"& '$($venvExe.Replace("'", "''"))' --url '$($url.Replace("'", "''"))' --outdir '$($outdir.Replace("'", "''"))'`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-$psi.Arguments = "-NoExit -Command `"& $pyCmd '$($pyScript.Replace("'", "''"))' --url '$($url.Replace("'", "''"))' --outdir '$($outdir.Replace("'", "''"))' --all-formats$optArg`""
             $psi.Arguments = "-NoExit -Command `"& $pyCmd '$($pyScript.Replace("'", "''"))' --url '$($url.Replace("'", "''"))' --outdir '$($outdir.Replace("'", "''"))'`""
         }
         else {
