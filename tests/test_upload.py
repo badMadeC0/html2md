@@ -18,6 +18,7 @@ def test_upload_file(mock_mimetypes, mock_path):
     mock_path.return_value = mock_path_obj
     mock_path_obj.exists.return_value = True
     mock_path_obj.name = "test_file.txt"
+    mock_path_obj.__str__ = lambda s: file_path
 
     # Mock open context manager
     mock_file_handle = MagicMock()
