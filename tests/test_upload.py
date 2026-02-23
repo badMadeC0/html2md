@@ -16,17 +16,17 @@ def mock_upload_module():
     mock_anthropic.APIError = MockAPIError
     mock_anthropic.Anthropic = MagicMock()
 
-    with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
-        # Force reload or import if not present so it picks up the mock
+    original_upload_module = sys.modules.pop('html2md.upload', None)
+    try:
+        with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
+            import html2md.upload
+            yield html2md.upload
+    finally:
+        # Cleanup: remove the mocked module and restore original if it existed
         if 'html2md.upload' in sys.modules:
             del sys.modules['html2md.upload']
-
-        import html2md.upload
-        yield html2md.upload
-
-        # Cleanup
-        if 'html2md.upload' in sys.modules:
-            del sys.modules['html2md.upload']
+        if original_upload_module:
+            sys.modules['html2md.upload'] = original_upload_module
 
 def test_upload_main_api_error(mock_upload_module, capsys):
     upload = mock_upload_module
