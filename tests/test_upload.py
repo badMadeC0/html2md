@@ -3,11 +3,10 @@ import io
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
+import importlib.util
 
 # Mock anthropic module before importing html2md.upload if it's not installed
-try:
-    import anthropic
-except ImportError:
+if importlib.util.find_spec("anthropic") is None:
     # Create a mock module
     mock_anthropic = MagicMock()
     # We need to mock the APIError class specifically so it can be used in except blocks
