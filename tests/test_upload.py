@@ -58,5 +58,7 @@ def test_upload_file_not_found():
         mock_path.return_value = mock_path_obj
         mock_path_obj.exists.return_value = False
 
-        with pytest.raises(FileNotFoundError):
+import sys
+from unittest.mock import MagicMock, patch
+import pytest
             upload_file("nonexistent.txt")
