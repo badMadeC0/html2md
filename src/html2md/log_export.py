@@ -11,13 +11,13 @@ def main(argv=None):
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
     inp = Path(args.inp); out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fields); w.writeheader()
+        w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval=''); w.writeheader()
         for line in fi:
             line=line.strip();
             if not line: continue
             try: rec=json.loads(line)
             except: continue
-            w.writerow({k:rec.get(k,'') for k in fields})
+            w.writerow(rec)
     return 0
 
 if __name__=='__main__':
