@@ -5,15 +5,19 @@ import csv
 import json
 from pathlib import Path
 
-_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_FORMULA_PREFIXES = ('=', '+', '-', '@')
+_CONTROL_PREFIXES = ('\t', '\r')
 
 
-def _sanitize_formula(value: str) -> str:
-    """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
-        return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
-        return f"'{value}"
+def sanitize_csv_field(value):
+    """Sanitize a field to prevent CSV injection."""
+    if isinstance(value, str):
+        # Check for formula injection (stripping all whitespace)
+        if value.lstrip().startswith(_FORMULA_PREFIXES):
+            return f"'{value}"
+        # Check for control character injection (stripping only spaces to detect \t, \r)
+        if value.lstrip(" ").startswith(_CONTROL_PREFIXES):
+            return f"'{value}"
     return value
 
 
@@ -24,7 +28,10 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
     mapping: list[tuple[str, str]] = []
 
     for field in fields:
-        base = _sanitize_formula(field)
+        base = sanitize_csv_field(field)
+        if not isinstance(base, str):
+             base = str(base)
+
         candidate = base
         suffix = 1
         while candidate in used:
@@ -42,9 +49,7 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if isinstance(value, str):
-        return _sanitize_formula(value)
-    return value
+    return sanitize_csv_field(value)
 
 
 def main(argv=None):
