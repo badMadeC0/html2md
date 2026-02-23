@@ -1,2 +1,4 @@
-# Assign reviewers for all pull requests
-* @badMadeC0 @google-labs-jules
+* @badMade
+src/** @badMade
+tests/** @badMade
+scripts/** @badMade
