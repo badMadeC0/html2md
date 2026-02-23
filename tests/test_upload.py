@@ -62,6 +62,18 @@ def test_placeholder_for_line_count_2():
 
 def test_html2md_upload_help_runs():
     """Verify that 'html2md-upload --help' runs and exits with code 0."""
-    result = subprocess.run([sys.executable, "-m", "html2md.upload", "--help"], capture_output=True, text=True, check=False)
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    if existing_pythonpath:
+        env["PYTHONPATH"] = src_path + os.pathsep + existing_pythonpath
+    else:
+        env["PYTHONPATH"] = src_path
+    result = subprocess.run(
+        [sys.executable, "-m", "html2md.upload", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
     assert result.returncode == 0
     assert "usage" in result.stdout.lower()
