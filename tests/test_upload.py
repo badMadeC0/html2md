@@ -42,6 +42,21 @@ def test_upload_main_api_error(mock_upload_module, capsys):
         assert "API error: Test API Error" in captured.err
 
 def test_upload_main_file_not_found(mock_upload_module, capsys):
+def test_upload_main_api_error(mock_upload_module, capsys):
+    """Test that main() handles anthropic.APIError correctly."""
+    upload = mock_upload_module
+    mock_anthropic = sys.modules['anthropic']
+    MockAPIError = mock_anthropic.APIError
+
+    with patch('html2md.upload.upload_file') as mock_upload:
+        mock_upload.side_effect = MockAPIError("Test API Error")
+        ret = upload.main(['dummy.txt'])
+        assert ret == 1
+        captured = capsys.readouterr()
+        assert "API error: Test API Error" in captured.err
+
+def test_upload_main_file_not_found(mock_upload_module, capsys):
+    """Test that main() handles FileNotFoundError correctly."""
     upload = mock_upload_module
     with patch('html2md.upload.upload_file') as mock_upload:
         mock_upload.side_effect = FileNotFoundError("File not found")
@@ -51,6 +66,7 @@ def test_upload_main_file_not_found(mock_upload_module, capsys):
         assert "Error: File not found" in captured.err
 
 def test_upload_main_success(mock_upload_module, capsys):
+    """Test successful execution of main()."""
     upload = mock_upload_module
     with patch('html2md.upload.upload_file') as mock_upload:
         mock_result = MagicMock()
@@ -62,9 +78,10 @@ def test_upload_main_success(mock_upload_module, capsys):
         assert "File uploaded successfully. ID: file_12345" in captured.out
 
 def test_upload_file_success(mock_upload_module, tmp_path):
+    """Test successful file upload with correct parameters."""
     upload = mock_upload_module
     test_file = tmp_path / "test.txt"
-    test_file.write_text("content", encoding='utf-8')
+    test_file.write_text("content")
 
     # We need to mock Anthropic inside the imported module
     mock_anthropic = sys.modules['anthropic']
@@ -92,6 +109,7 @@ def test_upload_file_success(mock_upload_module, tmp_path):
     assert file_arg[2] == "text/plain"
 
 def test_upload_file_not_found(mock_upload_module):
+    """Test that upload_file() raises FileNotFoundError for non-existent files."""
     upload = mock_upload_module
     with pytest.raises(FileNotFoundError):
         upload.upload_file("non_existent_file.txt")
