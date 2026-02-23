@@ -33,8 +33,9 @@ def test_process_url_exception(capsys):
         # Verify exit code (should be 0 because the exception is caught and printed)
         assert exit_code == 0
 
-        # Verify that our mock was actually used
+        # Verify that our mock was used and conversion was not attempted
         mock_session.get.assert_called_once()
+        mock_md.markdownify.assert_not_called()
 
     # Capture stdout and stderr
     captured = capsys.readouterr()
