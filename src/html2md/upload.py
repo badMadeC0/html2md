@@ -7,11 +7,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import anthropic
-
 
 def upload_file(file_path: str) -> Any:
     """Upload a file to the Anthropic API."""
+    import anthropic
+
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -36,6 +36,16 @@ def main(argv=None):
     )
     ap.add_argument("file", help="Path to the file to upload")
     args = ap.parse_args(argv)
+
+    try:
+        import anthropic
+    except ImportError as e:
+        print(
+            f"Error: Missing dependency {e.name}. "
+            "Please run: pip install anthropic",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         result = upload_file(args.file)
