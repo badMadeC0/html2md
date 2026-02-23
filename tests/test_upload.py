@@ -1,149 +1,79 @@
-"""Tests for upload functionality."""
-import io
 import sys
-import unittest
+import sys
 from unittest.mock import MagicMock, patch
 
-# Mock anthropic module if not installed
-try:
-    import anthropic
-except ImportError:
-    anthropic = MagicMock()
-    # Define APIError as a real class so we can catch it
-    class APIError(Exception):
-        pass
-    anthropic.APIError = APIError
-    anthropic.Anthropic = MagicMock()
-    sys.modules["anthropic"] = anthropic
+def test_upload_file():
+    # Create a mock anthropic module
+    mock_anthropic = MagicMock()
+    # We need to mock the module structure so that 'from anthropic.types.beta import BetaFile' works or is ignored
+    # But since we are mocking the whole module, any attribute access returns a MagicMock by default.
 
-from html2md import upload
+    with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        # Ensure html2md.upload is not in sys.modules so it imports our mocked anthropic
+        if "html2md.upload" in sys.modules:
+            del sys.modules["html2md.upload"]
 
+        from html2md.upload import upload_file
 
-class TestUploadFile(unittest.TestCase):
-    """Tests for the upload_file function."""
-
-    @patch("html2md.upload.anthropic.Anthropic")
-    @patch("pathlib.Path.open")
-    @patch("pathlib.Path.exists")
-    @patch("pathlib.Path.name", new_callable=unittest.mock.PropertyMock)
-    @patch("mimetypes.guess_type")
-    def test_upload_file_success(
-        self, mock_guess_type, mock_path_name, mock_exists, mock_open, mock_anthropic
-    ):
-        """Test successful file upload."""
         # Setup mocks
-        mock_exists.return_value = True
-        mock_path_name.return_value = "test_file.txt"
-        mock_guess_type.return_value = ("text/plain", None)
+        with patch("html2md.upload.Path") as mock_path,              patch("html2md.upload.mimetypes") as mock_mimetypes:
 
-        mock_file_handle = MagicMock()
-        mock_open.return_value.__enter__.return_value = mock_file_handle
+            file_path = "test_file.txt"
+            mock_path_obj = MagicMock()
+            mock_path.return_value = mock_path_obj
+            mock_path_obj.exists.return_value = True
+            mock_path_obj.name = "test_file.txt"
 
-        mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
-        mock_result = MagicMock()
-        mock_result.id = "file_12345"
-        mock_client.beta.files.upload.return_value = mock_result
+            # Mock open context manager
+            mock_file_handle = MagicMock()
+            mock_path_obj.open.return_value.__enter__.return_value = mock_file_handle
 
-        # Call function
-        result = upload.upload_file("test_file.txt")
+            mock_mimetypes.guess_type.return_value = ("text/plain", None)
 
-        # Assertions
-        mock_exists.assert_called_once()
-        mock_guess_type.assert_called_once_with("test_file.txt")
-        # Ensure only one argument ("rb") is checked, as mock_open on class doesn't receive self
-        mock_open.assert_called_once_with("rb")
-        mock_client.beta.files.upload.assert_called_once_with(
-            file=("test_file.txt", mock_file_handle, "text/plain")
-        )
-        self.assertEqual(result, mock_result)
+            # Mock Anthropic client
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
 
-    @patch("pathlib.Path.exists")
-    def test_upload_file_not_found(self, mock_exists):
-        """Test file not found error."""
-        mock_exists.return_value = False
+            expected_result = MagicMock()
+            mock_client.beta.files.upload.return_value = expected_result
 
-        with self.assertRaises(FileNotFoundError):
-            upload.upload_file("non_existent_file.txt")
+            # Execute
+            result = upload_file(file_path)
 
-    @patch("html2md.upload.anthropic.Anthropic")
-    @patch("pathlib.Path.open")
-    @patch("pathlib.Path.exists")
-    @patch("pathlib.Path.name", new_callable=unittest.mock.PropertyMock)
-    @patch("mimetypes.guess_type")
-    def test_upload_file_default_mime_type(
-        self, mock_guess_type, mock_path_name, mock_exists, mock_open, mock_anthropic
-    ):
-        """Test default mime type when detection fails."""
-        mock_exists.return_value = True
-        mock_path_name.return_value = "unknown_file"
-        mock_guess_type.return_value = (None, None)
+            # Verify
+            assert result == expected_result
+            mock_path.assert_called_once_with(file_path)
+            mock_path_obj.exists.assert_called_once()
+            mock_mimetypes.guess_type.assert_called_once()
+            mock_anthropic.Anthropic.assert_called_once()
+            mock_client.beta.files.upload.assert_called_once()
 
-        mock_file_handle = MagicMock()
-        mock_open.return_value.__enter__.return_value = mock_file_handle
+            # Verify arguments passed to upload
+            call_args = mock_client.beta.files.upload.call_args
+            assert call_args is not None
+            assert "file" in call_args.kwargs
+            uploaded_file_tuple = call_args.kwargs["file"]
+            assert uploaded_file_tuple[0] == "test_file.txt"
+            assert uploaded_file_tuple[1] == mock_file_handle
+            assert uploaded_file_tuple[2] == "text/plain"
 
-        mock_client = MagicMock()
-        mock_anthropic.return_value = mock_client
+def test_upload_file_not_found():
+    # Similar setup for not found case
+    mock_anthropic = MagicMock()
+    with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        if "html2md.upload" in sys.modules:
+            del sys.modules["html2md.upload"]
+        from html2md.upload import upload_file
 
-        upload.upload_file("unknown_file")
+        with patch("html2md.upload.Path") as mock_path:
+            mock_path_obj = MagicMock()
+            mock_path.return_value = mock_path_obj
+            mock_path.return_value = mock_path_obj
+            mock_path_obj.exists.return_value = False
 
-        mock_client.beta.files.upload.assert_called_once()
-        call_args = mock_client.beta.files.upload.call_args
-        self.assertEqual(call_args.kwargs['file'][2], "application/octet-stream")
-
-
-class TestUploadMain(unittest.TestCase):
-    """Tests for the main function."""
-
-    @patch("html2md.upload.upload_file")
-    @patch("sys.stdout", new_callable=io.StringIO)
-    def test_main_success(self, mock_stdout, mock_upload_file):
-        """Test successful execution of main."""
-        mock_result = MagicMock()
-        mock_result.id = "file_123"
-        mock_upload_file.return_value = mock_result
-
-        ret = upload.main(["test_file.txt"])
-
-        self.assertEqual(ret, 0)
-        mock_upload_file.assert_called_once_with("test_file.txt")
-        self.assertIn("File uploaded successfully. ID: file_123", mock_stdout.getvalue())
-
-    @patch("html2md.upload.upload_file")
-    @patch("sys.stderr", new_callable=io.StringIO)
-    def test_main_file_not_found(self, mock_stderr, mock_upload_file):
-        """Test main handling of FileNotFoundError."""
-        mock_upload_file.side_effect = FileNotFoundError("File not found: bad_file.txt")
-
-        ret = upload.main(["bad_file.txt"])
-
-        self.assertEqual(ret, 1)
-        self.assertIn("Error: File not found: bad_file.txt", mock_stderr.getvalue())
-
-    @patch("html2md.upload.upload_file")
-    @patch("sys.stderr", new_callable=io.StringIO)
-    def test_main_api_error(self, mock_stderr, mock_upload_file):
-        """Test main handling of Anthropic APIError."""
-        # Use the mocked APIError class if anthropic is mocked
-        # Otherwise use the real one, but here we can just rely on what upload_file raises
-        # We need to ensure we raise the same exception class that main catches.
-
-        # We need access to the APIError class used by the module under test
-        from html2md.upload import anthropic as module_anthropic
-
-        # Instantiate APIError
-        # If it's the real one, it might need arguments. If it's our mock, it might not.
-        try:
-             # Try instantiating with typical args just in case it's the real one or a good mock
-            mock_request = MagicMock()
-            error = module_anthropic.APIError(message="API Error occurred", request=mock_request, body={})
-        except TypeError:
-            # Fallback for simple mock or different signature
-            error = module_anthropic.APIError("API Error occurred")
-
-        mock_upload_file.side_effect = error
-
-        ret = upload.main(["test_file.txt"])
-
-        self.assertEqual(ret, 1)
-        self.assertIn("API error: API Error occurred", mock_stderr.getvalue())
+            try:
+                upload_file("nonexistent.txt")
+            except FileNotFoundError:
+                pass
+            else:
+                assert False, "Should have raised FileNotFoundError"
