@@ -52,6 +52,8 @@ class TestCliSecurity(unittest.TestCase):
             strip_arg = kwargs.get('strip')
 
             self.assertIsNotNone(strip_arg, "markdownify called without 'strip' argument")
+            # Explicitly define the list of tags to check for, to match what's in the CLI code
+            STRIP_TAGS = ['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta']
             for tag in STRIP_TAGS:
                 self.assertIn(tag, strip_arg, f"Tag '{tag}' not found in strip argument")
 
