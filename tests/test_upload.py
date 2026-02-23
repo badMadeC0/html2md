@@ -1,6 +1,7 @@
 """Tests for the upload module."""
 import sys
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 # 1. Mock the 'anthropic' module before importing anything that uses it.
