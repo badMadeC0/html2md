@@ -35,10 +35,7 @@ class TestCliMock(unittest.TestCase):
         """Test that --help-only prints help and exits with 0."""
         f = io.StringIO()
         with redirect_stdout(f):
-            try:
-                ret = main(['--help-only'])
-            except SystemExit:
-                ret = 0
+            ret = main(['--help-only'])
 
         output = f.getvalue()
         self.assertEqual(ret, 0)
