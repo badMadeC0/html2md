@@ -45,14 +45,11 @@ def test_upload_api_error(capsys):
 def test_upload_file_not_found(capsys):
     """Test that FileNotFoundError is caught and printed as 'Error: ...'."""
 
-    mock_anthropic = MagicMock()
+    import html2md.upload
+    import importlib
+    importlib.reload(html2md.upload)
 
-    with patch.dict(sys.modules, {'anthropic': mock_anthropic}):
-        import html2md.upload
-        import importlib
-        importlib.reload(html2md.upload)
-
-        exit_code = html2md.upload.main(["non_existent_file.txt"])
+    exit_code = html2md.upload.main(["non_existent_file.txt"])
 
     assert exit_code == 1
     captured = capsys.readouterr()
