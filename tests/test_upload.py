@@ -44,21 +44,6 @@ def test_main_api_error(capsys):
         exit_code = main(["test.txt"])
         assert exit_code == 1
 
-# Intermediate lines to ensure the smoke test starts at line 63
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
 
 def test_html2md_upload_help_runs():
     """Verify that 'html2md-upload --help' runs and exits with code 0."""
