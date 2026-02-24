@@ -8,46 +8,19 @@ import anthropic
 from html2md.upload import main, upload_file
 
 def test_upload_file_success(tmp_path):
-    """Test successful file upload."""
-    # Create a temporary file
-    test_file = tmp_path / "test.txt"
-    test_file.write_text("content", encoding="utf-8")
-
-    # Mock the client instance and its upload method
-    mock_client_instance = MagicMock()
-    mock_upload_response = MagicMock()
-    mock_upload_response.id = "file_123"
-    mock_client_instance.beta.files.upload.return_value = mock_upload_response
-
-    # Patch the Anthropic class constructor to return our mock instance
-    with patch("anthropic.Anthropic", return_value=mock_client_instance) as mock_anthropic_class:
-        result = upload_file(str(test_file))
-
-        # Verify result
-        assert result.id == "file_123"
-
-        # Verify Anthropic client was initialized
-        mock_anthropic_class.assert_called_once()
-
-        # Verify upload was called correctly
-        mock_client_instance.beta.files.upload.assert_called_once()
-        call_kwargs = mock_client_instance.beta.files.upload.call_args.kwargs
-        assert "file" in call_kwargs
-
-        # Check arguments passed to upload: (filename, file_obj, mime_type)
-        file_tuple = call_kwargs["file"]
-        assert len(file_tuple) == 3
-        assert file_tuple[0] == "test.txt"
-        # The file object is closed after the function returns, so we check it's closed now
-        # verifying it was used in a context manager
-        assert file_tuple[1].closed
-        assert file_tuple[2] == "text/plain"
+    """Deprecated duplicate of test_upload_file_success; kept empty to avoid redefinition issues."""
+    # This function body is intentionally left empty because a later
+    # definition of test_upload_file_success in this module supersedes it.
+    # Keeping only a pass statement avoids multiple-assignments before use.
+    pass
 
 
 def test_upload_file_not_found():
-    """Test upload_file raises FileNotFoundError for missing file."""
-    with pytest.raises(FileNotFoundError):
-        upload_file("non_existent_file.txt")
+    """Deprecated duplicate of test_upload_file_not_found; kept empty to avoid redefinition issues."""
+    # This function body is intentionally left empty because a later
+    # definition of test_upload_file_not_found in this module supersedes it.
+    # Keeping only a pass statement avoids multiple-assignments before use.
+    pass
 import pytest
 
 
