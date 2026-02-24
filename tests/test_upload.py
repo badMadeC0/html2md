@@ -103,7 +103,7 @@ def test_main_api_error(capsys):
 
         captured = capsys.readouterr()
         # Check stderr for error message
-        assert "Error:" in captured.err
+        assert "API error:" in captured.err
 
 def test_main_no_args(capsys):
     """Test main function exits when no file is provided."""
