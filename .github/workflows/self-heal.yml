@@ -40,10 +40,29 @@ jobs:
         continue-on-error: true
         run: python scripts/healthcheck.py | tee selfheal-pre.txt
 
-      - name: Attempt self-heal repairs
-        run: python scripts/self_heal.py | tee selfheal-repair.txt
-        continue-on-error: true
+        run: |
+          $output = python scripts/healthcheck.py 2>&1
+          $exitCode = $LASTEXITCODE
+          $output | Tee-Object selfheal-pre.txt
+          exit $exitCode
 
+      - name: Attempt self-heal repairs
+        continue-on-error: true
+        run: |
+          $output = python scripts/self_heal.py 2>&1
+          $exitCode = $LASTEXITCODE
+          $output | Tee-Object selfheal-repair.txt
+          exit $exitCode
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        if: always()
+        run: |
+          $output = python scripts/healthcheck.py 2>&1
+          $exitCode = $LASTEXITCODE
+          $output | Tee-Object selfheal-post.txt
+          exit $exitCode
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
