@@ -2,6 +2,9 @@ import sys
 import pytest
 from unittest.mock import MagicMock, patch
 
+class MockAPIError(Exception):
+    pass
+
 def test_upload_file():
     mock_anthropic = MagicMock()
     with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
