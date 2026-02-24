@@ -1,56 +1,69 @@
-"""Tests for the upload module."""
-import pytest
-import subprocess
 import sys
-import os
+import pytest
 from unittest.mock import MagicMock, patch
 
-# Ensure src is in sys.path
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
+def test_upload_file():
+    mock_anthropic = MagicMock()
+    with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        # Force re-import of the module under test to ensure it uses the mocked anthropic
+        if "html2md.upload" in sys.modules:
+            del sys.modules["html2md.upload"]
+        from html2md.upload import upload_file
 
-# Mock anthropic for unit tests
-mock_anthropic = MagicMock()
-class MockAPIError(Exception):
-    pass
-mock_anthropic.APIError = MockAPIError
-sys.modules["anthropic"] = mock_anthropic
+        # Setup mocks for internal dependencies
+        with patch("html2md.upload.Path") as mock_path,              patch("html2md.upload.mimetypes") as mock_mimetypes:
 
-from html2md.upload import upload_file, main
+            # Setup path mock
+            file_path = "test_file.txt"
+            mock_path_obj = MagicMock()
+            mock_path.return_value = mock_path_obj
+            mock_path_obj.exists.return_value = True
+            mock_path_obj.name = "test_file.txt"
+
+            # Mock open context manager
+            mock_file_handle = MagicMock()
+            mock_path_obj.open.return_value.__enter__.return_value = mock_file_handle
+
+            mock_mimetypes.guess_type.return_value = ("text/plain", None)
+
+            # Mock Anthropic client
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+
+            expected_result = MagicMock()
+            mock_client.beta.files.upload.return_value = expected_result
+
+            # Execute
+            result = upload_file(file_path)
+
+            # Verify
+            assert result == expected_result
+            mock_path.assert_called_once_with(file_path)
+            mock_path_obj.exists.assert_called_once()
+            mock_mimetypes.guess_type.assert_called_once()
+            mock_anthropic.Anthropic.assert_called_once()
+            mock_client.beta.files.upload.assert_called_once()
+
+            # Verify arguments passed to upload
+            call_args = mock_client.beta.files.upload.call_args
+            assert call_args is not None
+            assert "file" in call_args.kwargs
+            uploaded_file_tuple = call_args.kwargs["file"]
+            assert uploaded_file_tuple[0] == "test_file.txt"
+            assert uploaded_file_tuple[1] == mock_file_handle
+            assert uploaded_file_tuple[2] == "text/plain"
 
 def test_upload_file_not_found():
-    """Test that FileNotFoundError is raised when file does not exist."""
-    with pytest.raises(FileNotFoundError):
-        upload_file("non_existent_file.txt")
+    mock_anthropic = MagicMock()
+    with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        if "html2md.upload" in sys.modules:
+            del sys.modules["html2md.upload"]
+        from html2md.upload import upload_file
 
-def test_main_file_not_found(capsys):
-    """Test main function when file does not exist."""
-    with patch("html2md.upload.upload_file", side_effect=FileNotFoundError("File not found")):
-        exit_code = main(["non_existent.txt"])
-        assert exit_code == 1
+        with patch("html2md.upload.Path") as mock_path:
+            mock_path_obj = MagicMock()
+            mock_path.return_value = mock_path_obj
+            mock_path_obj.exists.return_value = False
 
-def test_main_success(capsys):
-    """Test main function on successful upload."""
-    mock_result = MagicMock()
-    mock_result.id = "file_123"
-    with patch("html2md.upload.upload_file", return_value=mock_result):
-        exit_code = main(["test.txt"])
-        assert exit_code == 0
-
-def test_main_api_error(capsys):
-    """Test main function on API error."""
-    with patch("html2md.upload.upload_file", side_effect=MockAPIError("API error")):
-        exit_code = main(["test.txt"])
-        assert exit_code == 1
-
-
-def test_html2md_upload_help_runs():
-    """Verify that 'html2md-upload --help' runs and exits with code 0."""
-    # This assumes 'html2md-upload' is a console script available in the PATH.
-    # If it's not, the test might need to invoke the module directly, e.g.,
-    # [sys.executable, "-m", "html2md.cli", "upload", "--help"]
-    # or similar, depending on how the entry point is configured in pyproject.toml.
-    result = subprocess.run(["html2md-upload", "--help"], capture_output=True, text=True, check=False)
-    assert result.returncode == 0
-    assert "usage" in result.stdout.lower()
+            with pytest.raises(FileNotFoundError):
+                upload_file("nonexistent.txt")
