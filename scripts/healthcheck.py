@@ -42,11 +42,8 @@ def main(argv=None) -> int:
     # 4. Lint with ruff (if available)
     ruff_label = "Lint (ruff check)"
 def check_tool_exists(cmd: list[str]) -> bool:
-    """Check if a command exists and is executable."""
-    result = subprocess.run(cmd, capture_output=True)
-    return result.returncode == 0
-        ok &= run(
-            [sys.executable, "-m", "ruff", "check", "src/", "tests/"],
+    # 4. Lint with ruff (if available)
+    ruff_label = "Lint (ruff check)"
             ruff_label,
         )
     else:
