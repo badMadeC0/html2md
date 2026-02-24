@@ -56,7 +56,9 @@ def test_logging_output_subprocess():
     """Test that logs go to stderr and output goes to stdout (via subprocess failure case)."""
     # This test ensures logging configuration works in a real subprocess environment.
 
-    cmd = [sys.executable, "-m", "html2md", "--url", "http://nonexistent.test"]
+    # Use a local, non-routable address to ensure a deterministic connection refusal
+    # and add a timeout to prevent the test from hanging indefinitely.
+    cmd = [sys.executable, "-m", "html2md", "--url", "http://127.0.0.1:12345"]
 
     # Ensure src is in PYTHONPATH
     env = os.environ.copy()
@@ -70,6 +72,7 @@ def test_logging_output_subprocess():
         cmd,
         capture_output=True,
         text=True,
+        timeout=5, # Added timeout to prevent hanging
         env=env
     )
 
