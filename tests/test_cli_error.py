@@ -9,12 +9,15 @@ if src_path not in sys.path:
 
 import html2md.cli
 
+
 def test_cli_conversion_request_failure(capsys):
     """Test that requests.get failure is caught and printed."""
 
     # Create mocks
     mock_requests = MagicMock()
     mock_markdownify = MagicMock()
+    mock_bs4 = MagicMock()
+    mock_reportlab = MagicMock()
 
     # Configure requests mock to fail
     mock_session = MagicMock()
@@ -23,9 +26,19 @@ def test_cli_conversion_request_failure(capsys):
 
     # We must patch sys.modules so that the 'import requests' inside main() gets our mock
     # We also mock markdownify since it's imported in the same block
-    with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+    with patch.dict(
+        sys.modules,
+        {
+            "requests": mock_requests,
+            "markdownify": mock_markdownify,
+            "bs4": mock_bs4,
+            "reportlab": mock_reportlab,
+            "reportlab.platypus": MagicMock(),
+            "reportlab.lib.styles": MagicMock(),
+        },
+    ):
         # Run main
-        exit_code = html2md.cli.main(['--url', 'http://example.com'])
+        exit_code = html2md.cli.main(["--url", "http://example.com"])
 
     # Verify exit code
     assert exit_code == 0
@@ -43,6 +56,8 @@ def test_cli_conversion_markdownify_failure(capsys):
     # Create mocks
     mock_requests = MagicMock()
     mock_markdownify = MagicMock()
+    mock_bs4 = MagicMock()
+    mock_reportlab = MagicMock()
 
     # Configure requests mock to succeed
     mock_session = MagicMock()
@@ -57,8 +72,18 @@ def test_cli_conversion_markdownify_failure(capsys):
     # So we need to ensure the attribute raises exception when called.
     mock_markdownify.markdownify.side_effect = Exception("Parse error")
 
-    with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-        exit_code = html2md.cli.main(['--url', 'http://example.com'])
+    with patch.dict(
+        sys.modules,
+        {
+            "requests": mock_requests,
+            "markdownify": mock_markdownify,
+            "bs4": mock_bs4,
+            "reportlab": mock_reportlab,
+            "reportlab.platypus": MagicMock(),
+            "reportlab.lib.styles": MagicMock(),
+        },
+    ):
+        exit_code = html2md.cli.main(["--url", "http://example.com"])
 
     assert exit_code == 0
 
