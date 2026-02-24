@@ -1,19 +1,74 @@
 """Tests for the upload module."""
+import subprocess
 import sys
 from unittest.mock import MagicMock, patch
+
 import pytest
 
-# 1. Mock the 'anthropic' module before importing anything that uses it.
-# We need to ensure that anthropic.APIError is a valid exception class
-# because it will be used in an 'except' block.
-mock_anthropic = MagicMock()
-class MockAPIError(Exception):
-    pass
-mock_anthropic.APIError = MockAPIError
-sys.modules["anthropic"] = mock_anthropic
+import anthropic
 
-# Now import the module under test
 from html2md.upload import main, upload_file
+
+def test_upload_file_success(tmp_path):
+    """Deprecated duplicate of test_upload_file_success; kept empty to avoid redefinition issues."""
+    # This function body is intentionally left empty because a later
+    # definition of test_upload_file_success in this module supersedes it.
+    # Keeping only a pass statement avoids multiple-assignments before use.
+    pass
+
+
+def test_upload_file_not_found():
+    """Deprecated duplicate of test_upload_file_not_found; kept empty to avoid redefinition issues."""
+    # This function body is intentionally left empty because a later
+    # definition of test_upload_file_not_found in this module supersedes it.
+    # Keeping only a pass statement avoids multiple-assignments before use.
+    pass
+import pytest
+
+
+def test_main_success(capsys):
+    """Test main function successful execution."""
+    mock_result = MagicMock()
+    mock_result.id = "file_123"
+
+    # We mock upload_file to isolate main logic
+    with patch("html2md.upload.upload_file", return_value=mock_result) as mock_upload:
+        # Mock sys.argv if needed, or pass arguments explicitly
+        ret = main(["test.txt"])
+
+        assert ret == 0
+        mock_upload.assert_called_once_with("test.txt")
+
+        captured = capsys.readouterr()
+        # Check stdout for success message
+        assert "File uploaded successfully. ID: file_123" in captured.out
+
+
+def test_main_file_not_found_error(capsys):
+    """Test main function handles FileNotFoundError gracefully."""
+    with patch("html2md.upload.upload_file", side_effect=FileNotFoundError("Missing file")):
+        ret = main(["missing.txt"])
+
+        assert ret == 1
+
+        captured = capsys.readouterr()
+        # Check stderr for error message
+        assert "Error: Missing file" in captured.err
+
+
+def test_main_api_error(capsys):
+    """Test main function handles APIError gracefully."""
+    mock_request = MagicMock()
+    error_instance = anthropic.APIError(message="Something went wrong with API", request=mock_request, body={})
+
+    with patch("html2md.upload.upload_file", side_effect=error_instance):
+        ret = main(["test.txt"])
+
+        assert ret == 1
+
+        captured = capsys.readouterr()
+        # Check stderr for error message
+        assert "API error: Something went wrong with API" in captured.err
 
 def test_upload_file_success(tmp_path):
     """Test successful file upload."""
@@ -135,3 +190,15 @@ def test_main_no_args(capsys):
 
     captured = capsys.readouterr()
     assert "usage: html2md-upload" in captured.err
+
+
+def test_upload_help_runs():
+    """Verify html2md-upload --help exits with code 0."""
+    result = subprocess.run(
+        [sys.executable, "-m", "html2md.upload", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "usage: html2md-upload" in result.stdout
