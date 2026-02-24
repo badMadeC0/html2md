@@ -1,0 +1,76 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run healthcheck (pre-repair)
+        id: pre-check
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-pre.txt
+
+      - name: Attempt self-heal repairs
+        id: repair
+        continue-on-error: true
+        run: python scripts/self_heal.py | tee selfheal-repair.txt
+
+      - name: Run healthcheck (post-repair)
+        id: post-check
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-post.txt
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post-check.outcome == 'success'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: self-heal fixes (formatting/deps)"
+          title: "chore: self-heal fixes"
+          body: |
+            Self-healing workflow triggered by CI failure.
+            Repairs applied:
+            - Formatting (black)
+
+            Logs attached in artifacts.
+          branch: self-heal/auto-fix
+          delete-branch: true
