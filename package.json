@@ -1,0 +1,13 @@
+{
+  "name": "html2md-cli",
+  "version": "0.11.6",
+  "scripts": {
+    "postinstall": "pip install -e . && pip install pytest ruff",
+    "test": "pytest",
+    "lint": "ruff check .",
+    "format": "ruff format .",
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "self:heal": "node scripts/self-heal.mjs"
+  },
+  "devDependencies": {}
+}

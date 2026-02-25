@@ -17,57 +17,56 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure')
-    runs-on: windows-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: '3.x'
+          cache: 'pip'
 
-      - name: Install package and dev tools
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install deps (best-effort frozen)
+        id: install_try_frozen
         run: |
-          python -m pip install --upgrade pip wheel setuptools
-          pip install -e .
-          pip install pytest ruff
+          set -euxo pipefail
+          # pnpm install will run postinstall (pip install)
+          pnpm install --frozen-lockfile || echo "FROZEN_FAILED=1" >> $GITHUB_OUTPUT
+
+      - name: Install deps (fallback non-frozen)
+        if: steps.install_try_frozen.outputs.FROZEN_FAILED == '1'
+        run: |
+          set -euxo pipefail
+          pnpm install
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: python scripts/healthcheck.py | tee selfheal-pre.txt
-
-        run: |
-          $output = python scripts/healthcheck.py 2>&1
-          $exitCode = $LASTEXITCODE
-          $output | Tee-Object selfheal-pre.txt
-          exit $exitCode
+        run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
-        continue-on-error: true
-        run: |
-          $output = python scripts/self_heal.py 2>&1
-          $exitCode = $LASTEXITCODE
-          $output | Tee-Object selfheal-repair.txt
-          exit $exitCode
+        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
-        if: always()
-        run: |
-          $output = python scripts/healthcheck.py 2>&1
-          $exitCode = $LASTEXITCODE
-          $output | Tee-Object selfheal-post.txt
-          exit $exitCode
-      - name: Run healthcheck (post-repair)
-        id: post
-        continue-on-error: true
-        if: always()
-        run: python scripts/healthcheck.py | tee selfheal-post.txt
+        run: node scripts/healthcheck.mjs | tee selfheal-post.txt
+
       - name: Collect logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,24 +79,15 @@ jobs:
 
       - name: Create PR with fixes
         if: steps.post.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git diff --quiet && echo "No changes to commit" && exit 0
-          $branch = "auto/self-heal-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-          git checkout -b $branch
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: self-heal auto-repairs`n`nApplied by .github/workflows/self-heal.yml"
-          git push -u origin $branch
-          gh pr create --title "fix: self-heal auto-repairs" --body @"
-          ## Self-heal auto-fix
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: self-heal fixes (formatting, dependencies)"
+          title: "chore: self-heal fixes"
+          body: |
+            Automated self-healing fixes triggered by CI failure.
 
-          This PR was created automatically by the self-heal workflow after CI failure.
-
-          **Repairs attempted:** see attached artifact ``selfheal-logs`` for details.
-
-          - Pre-repair healthcheck: ``selfheal-pre.txt``
-          "@
-          --label "self-heal"
+            Logs attached in artifacts.
+          branch: self-heal/auto-fix
+          delete-branch: true
+          labels: self-heal
