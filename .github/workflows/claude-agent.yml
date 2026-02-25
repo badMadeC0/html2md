@@ -23,7 +23,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@1.0.0
+
+      - name: Validate configuration
+        run: |
+          if [[ -z "${{ vars.CLAUDE_COMMAND }}" ]]; then
+            echo "::error::CLAUDE_COMMAND repository variable is not set. Configure it in Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
 
       - uses: anthropics/claude-code-action@8f904b1f4c5d6c6e86b32a7b1e3a2cf3c2f9d123 # v1
         with:

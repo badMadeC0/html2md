@@ -6,17 +6,16 @@ import argparse
 import mimetypes
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import anthropic
 
+if TYPE_CHECKING:
+    from anthropic.types.beta import BetaFile
 
-def upload_file(file_path: str, client: anthropic.Anthropic | None = None) -> "anthropic.types.File":
-    """Upload a file to the Anthropic API.
 
-    Note: As of SDK v0.83.0, file uploads are only available via the beta API.
-    Once a stable `client.files.upload` exists, this should be updated.
-    """
+def upload_file(file_path: str) -> BetaFile:
+    """Upload a file to the Anthropic API."""
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -25,10 +24,8 @@ def upload_file(file_path: str, client: anthropic.Anthropic | None = None) -> "a
     if mime_type is None:
         mime_type = "application/octet-stream"
 
-    if client is None:
-        client = anthropic.Anthropic()
+    client = anthropic.Anthropic()
     with path.open("rb") as file_data:
-        # Use beta API for file uploads (no stable alternative yet)
         result = client.beta.files.upload(
             file=(path.name, file_data, mime_type),
         )
