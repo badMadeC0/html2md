@@ -1,31 +1,25 @@
 name: claude-agent
 
 on:
-  workflow_dispatch:
   issue_comment:
     types: [created]
   pull_request_review_comment:
     types: [created]
 
 jobs:
-  run-claude-agent:
+  claude:
     if: >
-      github.event_name == 'workflow_dispatch' ||
       ((github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR') &&
-       (contains(github.event.comment.body, '@claude-agent') ||
-        contains(github.event.comment.body, '@claude[bot]') ||
-        contains(github.event.comment.body, '@codex[agent]') ||
-        contains(github.event.comment.body, '@Claude') ||
-        contains(github.event.comment.body, '@claude')))
+       (contains(github.event.comment.body, '@claude') ||
+        contains(github.event.comment.body, '@Claude')))
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       issues: write
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,10 +38,6 @@ jobs:
             false
           fi
 
-      - name: Run Claude agent
-        env:
-          CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISABLE_MEMORY: "true"
-          SKIP_MEMORY_FETCH: "true"
-        run: .github/scripts/run_claude_agent.sh
+      - uses: anthropics/claude-code-action@8f904b1f4c5d6c6e86b32a7b1e3a2cf3c2f9d123 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
