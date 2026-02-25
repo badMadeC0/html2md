@@ -23,8 +23,7 @@ def test_cli_conversion_request_failure(capsys, caplog):
     # Configure requests mock to fail
     mock_session = MagicMock()
     mock_requests.Session.return_value = mock_session
-    class MockRequestException(Exception): pass
-    mock_requests.exceptions.RequestException = MockRequestException
+    mock_requests.exceptions.RequestException = type('RequestException', (Exception,), {})
     mock_session.get.side_effect = mock_requests.exceptions.RequestException("Network failure")
 
     # We must patch sys.modules so that the 'import requests' inside main() gets our mock
@@ -85,7 +84,7 @@ def test_cli_conversion_file_error(capsys, caplog):
             'reportlab.lib.styles': mock_reportlab_styles,
         }):
              with patch("builtins.open", side_effect=OSError("Permission denied")):
-                 with patch("os.path.exists", return_value=False), patch("os.makedirs"):
+                 with patch("os.path.exists", return_value=False),                       patch("os.makedirs"):
                     exit_code = html2md.cli.main(['--url', 'http://example.com', '--outdir', 'output'])
 
     assert exit_code == 0
