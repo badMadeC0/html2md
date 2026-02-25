@@ -25,8 +25,7 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $argsList = @("--url", "$url", "--outdir", "$outDir")
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -346,7 +345,7 @@ $ConvertBtn.Add_Click({
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+        #$optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         # Sanitize inputs for single-quoted string interpolation in PowerShell
         $safeUrl = $url -replace "'", "''"
@@ -356,11 +355,11 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
     }
     
