@@ -1,21 +1,11 @@
 """Tests for the upload module."""
+
+import os
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import anthropic
-
-from html2md.upload import main, upload_file
-
-
-class MockAPIError(anthropic.APIError):
-    """Minimal APIError subclass for tests that raise anthropic.APIError."""
-
-    def __init__(self, message: str):
-        super().__init__(message=message, request=MagicMock(), body={})
-
 import pytest
 
 from html2md.upload import main, upload_file
@@ -64,9 +54,9 @@ def test_upload_file_default_mime_type(tmp_path):
     mock_client_instance = MagicMock()
     mock_client_instance.beta.files.upload.return_value = MagicMock()
 
-    with patch("mimetypes.guess_type", return_value=(None, None)) as mock_guess_type, \
-         patch("anthropic.Anthropic", return_value=mock_client_instance):
-
+    with patch("mimetypes.guess_type", return_value=(None, None)) as mock_guess_type, patch(
+        "anthropic.Anthropic", return_value=mock_client_instance
+    ):
         upload_file(str(test_file))
 
         mock_guess_type.assert_called_once_with(str(test_file))
@@ -101,14 +91,13 @@ def test_main_file_not_found_error(capsys):
         assert ret == 1
 
         captured = capsys.readouterr()
-        assert "Error: Missing file" in captured.err
+        assert captured.err.strip() == "Error: Missing file"
 
 
 def test_main_api_error(capsys):
     """Test main function handles APIError gracefully."""
     error_instance = anthropic.APIError.__new__(anthropic.APIError)
     error_instance.args = ("Something went wrong with API",)
-    # Some implementations may also use a `message` attribute.
     error_instance.message = "Something went wrong with API"
 
     with patch("html2md.upload.upload_file", side_effect=error_instance):
@@ -117,23 +106,7 @@ def test_main_api_error(capsys):
         assert ret == 1
 
         captured = capsys.readouterr()
-        assert captured.err.strip() == "Error: Missing file"
-
-
-def test_main_api_error(capsys):
-    """Test main function handles APIError gracefully."""
-    mock_request = MagicMock()
-    error_instance = anthropic.APIError(
-        message="Something went wrong with API", request=mock_request, body={}
-    )
-
-    with patch("html2md.upload.upload_file", side_effect=error_instance):
-        ret = main(["test.txt"])
-
-        assert ret == 1
-
-        captured = capsys.readouterr()
-        assert captured.err.strip() == "API error: Something went wrong with API"
+        assert captured.err.strip() == "Error: Something went wrong with API"
 
 
 def test_main_no_args(capsys):
@@ -149,11 +122,16 @@ def test_main_no_args(capsys):
 
 def test_upload_help_runs():
     """Verify html2md-upload --help exits with code 0."""
+    env = os.environ.copy()
+    src_path = os.path.join(os.getcwd(), "src")
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
+
     result = subprocess.run(
         [sys.executable, "-m", "html2md.upload", "--help"],
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
     assert result.returncode == 0
     assert "usage: html2md-upload" in result.stdout
