@@ -27,7 +27,7 @@ def test_logging_not_on_stdout_success(capsys, caplog, cli_mocks):
     cli_mocks["markdownify"].markdownify.return_value = "# Hello"
 
     with caplog.at_level(logging.INFO):
-        exit_code = html2md.cli.main(["--url", "http://example.com"])
+        exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
     assert exit_code == 0
 

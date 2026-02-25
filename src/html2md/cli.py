@@ -187,10 +187,8 @@ def main(argv=None):
 
             except RequestException as e:
                 logging.error("Network error: %s", e)
-                return False
             except OSError as e:
                 logging.error("File error: %s", e)
-                return False
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logging.error("Conversion failed: %s", e)
                 return False
