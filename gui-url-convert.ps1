@@ -278,7 +278,7 @@ $ConvertBtn.Add_Click({
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        $StatusText.Text = "Error: Invalid characters in output directory."
+if ($outdir -match '[&|;<>^"()\\\\]' -or $outdir -match '%') {
         $StatusText.Foreground = "Red"
         $ProgressBar.IsIndeterminate = $false
         return
