@@ -17,7 +17,7 @@ if ($BatchFile) {
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
     $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
+    $pyScript = Join-Path $scriptDir "src\html2md\cli.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
@@ -292,6 +292,9 @@ $ConvertBtn.Add_Click({
         $scriptDir = (Get-Location).Path
     }
 
+    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $scriptDir "src\html2md\cli.py"
+
     # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
     try {
         $fso = New-Object -ComObject Scripting.FileSystemObject
@@ -359,14 +362,6 @@ $ConvertBtn.Add_Click({
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
             $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        else {
-            $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
         }
     }
     
