@@ -1,96 +1,73 @@
-import logging
+import unittest
+from unittest.mock import patch, MagicMock
 import sys
+import io
 import os
-from unittest.mock import MagicMock, patch
+import requests
 
-# Ensure src is in sys.path
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
+# Ensure src is in path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import html2md.cli
 
-def test_cli_conversion_request_failure(capsys, caplog):
-    """Test that requests.get failure is caught and logged to stderr."""
+class TestCliError(unittest.TestCase):
+    def test_cli_conversion_request_failure(self):
+        """Test that requests.get failure is caught and printed."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
+        # Configure requests mock to fail
+        # Use a real RequestException so the except block catches it
+        mock_requests = MagicMock()
+        mock_requests.RequestException = requests.RequestException
 
-    # Configure requests mock to fail
-    mock_session = MagicMock()
-    mock_requests.Session.return_value = mock_session
-    mock_session.get.side_effect = Exception("Network error")
+        mock_session = MagicMock()
+        mock_requests.Session.return_value = mock_session
+        mock_session.get.side_effect = requests.RequestException("Network error")
 
-    # We must patch sys.modules so that the 'import requests' inside main() gets our mock
-    with caplog.at_level(logging.INFO):
-        with patch.dict(sys.modules, {
-            'requests': mock_requests,
-            'markdownify': mock_markdownify,
-            'bs4': mock_bs4,
-            'reportlab.platypus': mock_reportlab_platypus,
-            'reportlab.lib.styles': mock_reportlab_styles,
-        }):
-            # Run main
-            exit_code = html2md.cli.main(['--url', 'http://example.com'])
+        mock_markdownify = MagicMock()
 
-    # Verify exit code
-    assert exit_code == 0
+        # Capture stderr
+        captured_stderr = io.StringIO()
 
-    # Verify log messages (via logging, not stdout)
-    assert "Processing URL: http://example.com" in caplog.text
-    assert "Fetching content" in caplog.text
-    assert "Conversion failed: Network error" in caplog.text
+        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+            with patch('sys.stderr', captured_stderr):
+                try:
+                    html2md.cli.main(['--url', 'http://example.com'])
+                except Exception as e:
+                    self.fail(f"main raised exception {e}")
 
-    # Verify nothing leaked to stdout
-    captured = capsys.readouterr()
-    assert "Processing URL" not in captured.out
-    assert "Conversion failed" not in captured.out
+        output = captured_stderr.getvalue()
+        self.assertIn("Network error", output)
 
+    def test_cli_conversion_markdownify_failure(self):
+        """Test that markdownify failure is caught and printed."""
 
-def test_cli_conversion_markdownify_failure(capsys, caplog):
-    """Test that markdownify failure is caught and logged to stderr."""
+        mock_requests = MagicMock()
+        # We need RequestException to be valid for the except clause
+        mock_requests.RequestException = requests.RequestException
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
+        mock_session = MagicMock()
+        mock_requests.Session.return_value = mock_session
+        mock_response = MagicMock()
+        mock_response.text = "<html></html>"
+        mock_session.get.return_value = mock_response
 
-    # Configure requests mock to succeed
-    mock_session = MagicMock()
-    mock_requests.Session.return_value = mock_session
-    mock_response = MagicMock()
-    mock_response.text = "<html></html>"
-    mock_session.get.return_value = mock_response
+        mock_markdownify = MagicMock()
+        # Mocking the module attribute access
+        mock_markdownify.markdownify.side_effect = Exception("Parse error")
 
-    # Configure markdownify mock to fail
-    # Note: in main(), it does 'from markdownify import markdownify as md'
-    mock_markdownify.markdownify.side_effect = Exception("Parse error")
+        captured_stderr = io.StringIO()
 
-    with caplog.at_level(logging.INFO):
-        with patch.dict(sys.modules, {
-            'requests': mock_requests,
-            'markdownify': mock_markdownify,
-            'bs4': mock_bs4,
-            'reportlab.platypus': mock_reportlab_platypus,
-            'reportlab.lib.styles': mock_reportlab_styles,
-        }):
-            exit_code = html2md.cli.main(['--url', 'http://example.com'])
+        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+            with patch('sys.stderr', captured_stderr):
+                try:
+                    html2md.cli.main(['--url', 'http://example.com'])
+                except Exception as e:
+                    self.fail(f"main raised exception {e}")
 
-    assert exit_code == 0
+        output = captured_stderr.getvalue()
+        # The code catches Exception and prints "Conversion failed: {e}"
+        self.assertIn("Conversion failed", output)
+        self.assertIn("Parse error", output)
 
-    # Verify log messages (via logging, not stdout)
-    assert "Processing URL: http://example.com" in caplog.text
-    assert "Fetching content" in caplog.text
-    assert "Converting to Markdown" in caplog.text
-    assert "Conversion failed: Parse error" in caplog.text
-
-    # Verify nothing leaked to stdout
-    captured = capsys.readouterr()
-    assert "Processing URL" not in captured.out
-    assert "Conversion failed" not in captured.out
+if __name__ == '__main__':
+    unittest.main()

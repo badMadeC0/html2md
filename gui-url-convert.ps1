@@ -84,7 +84,7 @@ $xaml = @"
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
+            <Label Content="_URLs to Convert:" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
                 <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
@@ -254,27 +254,34 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    # --- Security Validation ---
+    # --- Security Validation & Sanitization ---
+    $validatedList = @()
     foreach ($url in $urlList) {
         try {
             $uriObj = [System.Uri]$url
             if ($uriObj.Scheme -notmatch '^https?$') {
-                throw "Invalid scheme for URL: $url"
+                throw "Invalid scheme"
             }
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+            $validatedList += $uriObj.AbsoluteUri
         } catch {
-            [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL. One or more URLs are invalid.","Invalid URL","OK","Error") | Out-Null
+            $StatusText.Text = "Error: Invalid HTTP/HTTPS URL."
+            $StatusText.Foreground = "Red"
             $ProgressBar.IsIndeterminate = $false
             return
         }
     }
-    # ---------------------------
+    $urlList = $validatedList
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $StatusText.Text = "Error: Invalid characters in output directory."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
-    
+    # ---------------------------
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
@@ -284,9 +291,6 @@ $ConvertBtn.Add_Click({
     if (-not $scriptDir) {
         $scriptDir = (Get-Location).Path
     }
-
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "src\html2md\cli.py"
 
     # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
     try {
@@ -314,7 +318,8 @@ $ConvertBtn.Add_Click({
     #    to ensure all internal quotes are preserved and arguments are correctly delimited.
     # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
+    $psi.FileName = "cmd.exe"
+    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
