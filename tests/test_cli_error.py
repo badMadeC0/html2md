@@ -85,7 +85,7 @@ def test_cli_conversion_file_error(capsys, caplog):
             'reportlab.lib.styles': mock_reportlab_styles,
         }):
              with patch("builtins.open", side_effect=OSError("Permission denied")):
-                 with patch("os.path.exists", return_value=False),                       patch("os.makedirs"):
+                 with patch("os.path.exists", return_value=False), patch("os.makedirs"):
                     exit_code = html2md.cli.main(['--url', 'http://example.com', '--outdir', 'output'])
 
     assert exit_code == 0
