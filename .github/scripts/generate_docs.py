@@ -1,4 +1,3 @@
-
 import os
 
 def get_project_structure():
@@ -16,18 +15,34 @@ def get_project_structure():
 
         level = root.replace(".", "").count(os.sep)
         indent = " " * 4 * (level)
-        structure += f"{indent}{os.path.basename(root)}/
-"
+        structure += f"{indent}{os.path.basename(root)}/\n"
         sub_indent = " " * 4 * (level + 1)
         for f in files:
-            structure += f"{sub_indent}{f}
-"
+            structure += f"{sub_indent}{f}\n"
     return structure
 
 def get_file_content(filepath):
     """Gets the content of a file."""
     with open(filepath, "r", encoding="utf-8") as f:
         return f.read()
+
+def get_markdown_files():
+    """Gets all markdown files in the repository."""
+    markdown_files = []
+    for root, dirs, files in os.walk("."):
+        if ".git" in dirs:
+            dirs.remove(".git")
+        if ".venv" in dirs:
+            dirs.remove(".venv")
+        if ".mypy_cache" in dirs:
+            dirs.remove(".mypy_cache")
+        if ".pytest_cache" in dirs:
+            dirs.remove(".pytest_cache")
+
+        for f in files:
+            if f.endswith(".md"):
+                markdown_files.append(os.path.join(root, f))
+    return markdown_files
 
 def generate_gemini_md():
     """Generates the GEMINI.md file."""
@@ -37,6 +52,7 @@ def generate_gemini_md():
     cli_content = get_file_content("src/html2md/cli.py")
     log_export_content = get_file_content("src/html2md/log_export.py")
     upload_content = get_file_content("src/html2md/upload.py")
+    markdown_files = get_markdown_files()
 
     gemini_md_content = f"""
 # `html2md` Code Project
@@ -55,7 +71,7 @@ To set up the development environment, create a virtual environment and install 
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+.venv\\Scripts\\activate
 pip install -e .
 ```
 
@@ -126,6 +142,10 @@ pytest
 -   The code includes type hints and is checked with `mypy`.
 -   The CLI tools include help messages and command-line argument parsing using Python's `argparse` module.
 -   The project includes helper scripts for Windows users, demonstrating a focus on cross-platform usability.
+
+## Documentation Files
+
+{"\n".join(f"- {f}" for f in markdown_files)}
 
 ## Project Structure
 
