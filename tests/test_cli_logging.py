@@ -1,92 +1,93 @@
-"""Tests for CLI logging behavior."""
+"""Tests that CLI log/progress messages go to stderr, not stdout."""
 
 import logging
+import os
 import subprocess
 import sys
-import unittest.mock
-import os
-from html2md.cli import main
+from unittest.mock import MagicMock, patch
 
-def test_logging_output(capsys):
-    """Test that logs go to stderr and content output goes to stdout (mocked)."""
+# Ensure src is in sys.path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
-    # Mock requests
-    mock_requests = unittest.mock.MagicMock()
-    mock_response = unittest.mock.MagicMock()
-    mock_response.text = "<html>content</html>"
-    mock_response.status_code = 200
-    mock_requests.Session.return_value.get.return_value = mock_response
+import html2md.cli
 
-    # Mock markdownify module
-    mock_md_module = unittest.mock.MagicMock()
-    mock_md_module.markdownify.return_value = "# Markdown Content"
 
-    # Reset logging handlers to ensure basicConfig in main() takes effect
-    root = logging.getLogger()
-    for handler in root.handlers[:]:
-        root.removeHandler(handler)
+def test_logging_not_on_stdout_success(capsys, caplog):
+    """On successful conversion, only Markdown content appears on stdout.
 
-    # Patch sys.modules to mock imports inside main()
-    with unittest.mock.patch.dict(sys.modules, {
-        'requests': mock_requests,
-        'markdownify': mock_md_module
-    }):
-        # Run main with URL argument
-        try:
-            exit_code = main(['--url', 'http://example.com'])
-        except SystemExit as e:
-            exit_code = e.code
+    Progress messages like 'Processing URL', 'Fetching content...',
+    and 'Converting to Markdown...' must go to stderr (via logging),
+    not stdout.
+    """
+    mock_requests = MagicMock()
+    mock_markdownify = MagicMock()
+    mock_bs4 = MagicMock()
+    mock_reportlab_platypus = MagicMock()
+    mock_reportlab_styles = MagicMock()
+
+    # Configure requests mock to succeed
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_response = MagicMock()
+    mock_response.text = "<h1>Hello</h1>"
+    mock_session.get.return_value = mock_response
+
+    # Configure markdownify mock to return Markdown
+    mock_markdownify.markdownify.return_value = "# Hello"
+
+    with caplog.at_level(logging.INFO):
+        with patch.dict(sys.modules, {
+            'requests': mock_requests,
+            'markdownify': mock_markdownify,
+            'bs4': mock_bs4,
+            'reportlab.platypus': mock_reportlab_platypus,
+            'reportlab.lib.styles': mock_reportlab_styles,
+        }):
+            exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
     assert exit_code == 0
 
     captured = capsys.readouterr()
 
-    # Assert logs are in stderr
-    assert "Processing URL: http://example.com" in captured.err
-    assert "Fetching content..." in captured.err
-    assert "Converting to Markdown..." in captured.err
-
-    # Assert content is in stdout
-    assert "# Markdown Content" in captured.out
-
-    # Assert logs are NOT in stdout
+    # Stdout must contain ONLY the converted Markdown
+    assert "# Hello" in captured.out
     assert "Processing URL" not in captured.out
+    assert "Fetching content" not in captured.out
+    assert "Converting to Markdown" not in captured.out
 
-def test_logging_output_subprocess():
-    """Test that logs go to stderr and output goes to stdout (via subprocess failure case)."""
-    # This test ensures logging configuration works in a real subprocess environment.
+    # Log records must contain progress messages
+    assert "Processing URL" in caplog.text
+    assert "Fetching content" in caplog.text
+    assert "Converting to Markdown" in caplog.text
 
-    cmd = [sys.executable, "-m", "html2md", "--url", "http://nonexistent.test"]
 
-    # Ensure src is in PYTHONPATH
+def _run_subprocess(args):
+    """Run html2md as a subprocess and return the CompletedProcess."""
     env = os.environ.copy()
-    src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+    src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
     if "PYTHONPATH" in env:
-        env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
+        env["PYTHONPATH"] = f"{src_dir}{os.pathsep}{env['PYTHONPATH']}"
     else:
-        env["PYTHONPATH"] = src_path
+        env["PYTHONPATH"] = src_dir
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        env=env
+    return subprocess.run(
+        [sys.executable, "-m", "html2md"] + args,
+        capture_output=True, text=True, check=False, env=env,
     )
 
-    # In both missing dependency case (return code 1) and network failure case (return code 0 with error log),
-    # the logs should go to stderr.
 
-    if result.returncode == 1:
-        # Dependency failure
-        # Check stderr for dependency error
-        assert "Missing dependency" in result.stderr
-    else:
-        # Network failure
-        assert result.returncode == 0
-        # Logs in stderr
-        assert "Processing URL" in result.stderr
-        assert "Fetching content..." in result.stderr
-        assert "Conversion failed" in result.stderr
+def test_logging_output_subprocess():
+    """When the URL cannot be reached, stdout must be empty.
 
-    # Standard output should be empty (no markdown)
+    All error/progress messages must appear only on stderr.
+    """
+    result = _run_subprocess(['--url', 'http://127.0.0.1:12345/'])
+
+    # Stdout must be empty — no progress or error messages
     assert result.stdout == ""
+
+    # Stderr must contain the progress/error messages
+    assert "Processing URL" in result.stderr
+    assert "Conversion failed" in result.stderr

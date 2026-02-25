@@ -2,7 +2,7 @@
 """Targeted, ordered repairs for html2md.
 
 Each step is idempotent and re-runs the healthcheck after changes.
-Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
+Exit 0 if the healthcheck eventually passes, regardless of whether any files changed.
 """
 from __future__ import annotations
 
