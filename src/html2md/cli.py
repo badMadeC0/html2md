@@ -52,6 +52,7 @@ def main(argv=None):
     if args.url or args.batch:
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
+            from requests import RequestException  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
             from bs4 import BeautifulSoup # pylint: disable=import-outside-toplevel
             from reportlab.platypus import SimpleDocTemplate, Paragraph # pylint: disable=import-outside-toplevel
@@ -156,8 +157,12 @@ def main(argv=None):
                 else:
                     print(md_content)
 
+            except RequestException as e:
+                logging.error("Network error processing %s: %s", target_url, e)
+            except OSError as e:
+                logging.error("File I/O error: %s", e)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logging.error("Conversion failed: %s", e)
+                logging.exception("Unexpected error processing %s: %s", target_url, e)
 
         if args.url:
             process_url(args.url)
