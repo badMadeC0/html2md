@@ -212,7 +212,7 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
         
         # Relaunch this script in batch mode
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$($outdir -replace '"', '\\"')`""
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
@@ -224,11 +224,11 @@ $ConvertBtn.Add_Click({
         
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$($url -replace "'", "''")' --outdir '$($outdir -replace "'", "''")' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$($url -replace "'", "''")' --outdir '$($outdir -replace "'", "''")' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
