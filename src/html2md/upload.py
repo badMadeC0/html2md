@@ -9,6 +9,8 @@ from typing import Any
 
 import anthropic
 
+_CLIENT: anthropic.Anthropic | None = None
+
 
 def upload_file(file_path: str) -> Any:
     """Upload a file to the Anthropic API."""
@@ -20,9 +22,12 @@ def upload_file(file_path: str) -> Any:
     if mime_type is None:
         mime_type = "application/octet-stream"
 
-    client = anthropic.Anthropic()
+    global _CLIENT
+    if _CLIENT is None:
+        _CLIENT = anthropic.Anthropic()
+
     with path.open("rb") as file_data:
-        result = client.beta.files.upload(
+        result = _CLIENT.beta.files.upload(
             file=(path.name, file_data, mime_type),
         )
     return result
