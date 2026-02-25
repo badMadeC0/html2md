@@ -258,7 +258,7 @@ $ConvertBtn.Add_Click({
     foreach ($url in $urlList) {
         try {
             $uriObj = [System.Uri]$url
-            if ($uriObj.Scheme -notmatch '^https?$') {
+            if ($uriObj.Scheme -notmatch '^(?i:https?)$') {
                 throw "Invalid scheme for URL: $url"
             }
         } catch {
