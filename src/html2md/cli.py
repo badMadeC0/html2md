@@ -156,8 +156,12 @@ def main(argv=None):
                 else:
                     print(md_content)
 
+            except requests.RequestException as e:
+                logging.error("Network error: %s", e)
+            except OSError as e:
+                logging.error("File error: %s", e)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logging.error("Conversion failed: %s", e)
+                logging.error("Unexpected conversion error: %s", e)
 
         if args.url:
             process_url(args.url)

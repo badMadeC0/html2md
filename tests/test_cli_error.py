@@ -10,11 +10,17 @@ if src_path not in sys.path:
 
 import html2md.cli
 
+class MockRequestException(Exception):
+    """Mock for requests.RequestException"""
+    pass
+
 def test_cli_conversion_request_failure(capsys, caplog):
     """Test that requests.get failure is caught and logged to stderr."""
 
     # Create mocks
     mock_requests = MagicMock()
+    mock_requests.RequestException = MockRequestException
+
     mock_markdownify = MagicMock()
     mock_bs4 = MagicMock()
     mock_reportlab_platypus = MagicMock()
@@ -23,7 +29,7 @@ def test_cli_conversion_request_failure(capsys, caplog):
     # Configure requests mock to fail
     mock_session = MagicMock()
     mock_requests.Session.return_value = mock_session
-    mock_session.get.side_effect = Exception("Network error")
+    mock_session.get.side_effect = MockRequestException("Network error")
 
     # We must patch sys.modules so that the 'import requests' inside main() gets our mock
     with caplog.at_level(logging.INFO):
@@ -43,12 +49,14 @@ def test_cli_conversion_request_failure(capsys, caplog):
     # Verify log messages (via logging, not stdout)
     assert "Processing URL: http://example.com" in caplog.text
     assert "Fetching content" in caplog.text
-    assert "Conversion failed: Network error" in caplog.text
+    # Updated expectation
+    assert "Network error: Network error" in caplog.text
 
     # Verify nothing leaked to stdout
     captured = capsys.readouterr()
     assert "Processing URL" not in captured.out
     assert "Conversion failed" not in captured.out
+    assert "Network error" not in captured.out
 
 
 def test_cli_conversion_markdownify_failure(capsys, caplog):
@@ -56,6 +64,9 @@ def test_cli_conversion_markdownify_failure(capsys, caplog):
 
     # Create mocks
     mock_requests = MagicMock()
+    # We need RequestException defined because the except clause will reference it
+    mock_requests.RequestException = MockRequestException
+
     mock_markdownify = MagicMock()
     mock_bs4 = MagicMock()
     mock_reportlab_platypus = MagicMock()
@@ -88,9 +99,11 @@ def test_cli_conversion_markdownify_failure(capsys, caplog):
     assert "Processing URL: http://example.com" in caplog.text
     assert "Fetching content" in caplog.text
     assert "Converting to Markdown" in caplog.text
-    assert "Conversion failed: Parse error" in caplog.text
+    # Updated expectation
+    assert "Unexpected conversion error: Parse error" in caplog.text
 
     # Verify nothing leaked to stdout
     captured = capsys.readouterr()
     assert "Processing URL" not in captured.out
     assert "Conversion failed" not in captured.out
+    assert "Unexpected conversion error" not in captured.out
