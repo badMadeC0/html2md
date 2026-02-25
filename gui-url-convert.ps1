@@ -363,7 +363,14 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            # Clear any previously set arguments and populate ArgumentList for direct execution
+            $psi.ArgumentList.Clear()
+            $psi.ArgumentList.Add("--url")
+            $psi.ArgumentList.Add($safeUrl)
+            $psi.ArgumentList.Add("--outdir")
+            $psi.ArgumentList.Add($safeOutDir)
+            $psi.ArgumentList.Add("--all-formats")
+            if ($optArg) { $psi.ArgumentList.Add($optArg.Trim()) }
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
