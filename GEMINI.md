@@ -407,6 +407,7 @@ import argparse
 import csv
 import json
 from pathlib import Path
+from typing import List, Set, Tuple
 
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
@@ -420,11 +421,11 @@ def _sanitize_formula(value: str) -> str:
     return value
 
 
-def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
+def _unique_fieldnames(fields: List[str]) -> Tuple[List[str], List[Tuple[str, str]]]:
     """Return deduplicated/sanitized CSV headers and original->output mapping."""
-    used: set[str] = set()
-    out_fields: list[str] = []
-    mapping: list[tuple[str, str]] = []
+    used: Set[str] = set()
+    out_fields: List[str] = []
+    mapping: List[Tuple[str, str]] = []
 
     for field in fields:
         base = _sanitize_formula(field)
