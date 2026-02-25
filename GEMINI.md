@@ -23,19 +23,19 @@ pip install -e .
 
 The main entry point for the CLI is `html2md`. You can run it directly or through the Python module:
 
--   **Convert a single URL:**
+- **Convert a single URL:**
 
     ```bash
     html2md --url "http://example.com" --outdir "output"
     ```
 
--   **Convert a batch of URLs from a file:**
+- **Convert a batch of URLs from a file:**
 
     ```bash
     html2md --batch "urls.txt" --outdir "output"
     ```
 
--   **Run as a module:**
+- **Run as a module:**
 
     ```bash
     python -m html2md --url "http://example.com"
@@ -81,11 +81,11 @@ pytest
 
 ## Development Conventions
 
--   The project follows a standard Python project structure with `src` and `tests` directories.
--   It uses `pyproject.toml` for build configuration and dependency management, following modern Python packaging standards (PEP 517/518).
--   The code includes type hints and is checked with `mypy`.
--   The CLI tools include help messages and command-line argument parsing using Python's `argparse` module.
--   The project includes helper scripts for Windows users, demonstrating a focus on cross-platform usability.
+- The project follows a standard Python project structure with `src` and `tests` directories.
+- It uses `pyproject.toml` for build configuration and dependency management, following modern Python packaging standards (PEP 517/518).
+- The code includes type hints and is checked with `mypy`.
+- The CLI tools include help messages and command-line argument parsing using Python's `argparse` module.
+- The project includes helper scripts for Windows users, demonstrating a focus on cross-platform usability.
 
 ## Documentation Files
 
@@ -100,9 +100,10 @@ pytest
 ## License
 
 MIT License
+
 ## Project Structure
 
-```
+```txt
 ./
     run-gui.bat
     run-html2md.bat
