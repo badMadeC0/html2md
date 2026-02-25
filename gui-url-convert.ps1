@@ -17,7 +17,7 @@ if ($BatchFile) {
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
     $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
+    $pyScript = Join-Path $scriptDir "src\html2md\cli.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
@@ -25,8 +25,7 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $argsList = @("--url", "$url", "--outdir", "$outDir")
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -84,7 +83,7 @@ $xaml = @"
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
+            <Label Content="_URLs to Convert:" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
                 <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
@@ -254,27 +253,34 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    # --- Security Validation ---
+    # --- Security Validation & Sanitization ---
+    $validatedList = @()
     foreach ($url in $urlList) {
         try {
             $uriObj = [System.Uri]$url
             if ($uriObj.Scheme -notmatch '^https?$') {
-                throw "Invalid scheme for URL: $url"
+                throw "Invalid scheme"
             }
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+            $validatedList += $uriObj.AbsoluteUri
         } catch {
-            [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL. One or more URLs are invalid.","Invalid URL","OK","Error") | Out-Null
+            $StatusText.Text = "Error: Invalid HTTP/HTTPS URL."
+            $StatusText.Foreground = "Red"
             $ProgressBar.IsIndeterminate = $false
             return
         }
     }
-    # ---------------------------
+    $urlList = $validatedList
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $StatusText.Text = "Error: Invalid characters in output directory."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
-    
+    # ---------------------------
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
@@ -339,7 +345,7 @@ $ConvertBtn.Add_Click({
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+        #$optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         # Sanitize inputs for single-quoted string interpolation in PowerShell
         $safeUrl = $url -replace "'", "''"
@@ -349,19 +355,11 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        else {
-            $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
     }
     
