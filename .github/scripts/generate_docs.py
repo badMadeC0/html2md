@@ -1,3 +1,4 @@
+"""This script generates the GEMINI.md file."""
 import os
 
 def get_project_structure():
