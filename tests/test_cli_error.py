@@ -10,11 +10,16 @@ if src_path not in sys.path:
 
 import html2md.cli
 
+# Helper to mock RequestException since it must be an exception class
+class MockRequestException(Exception):
+    pass
+
 def test_cli_conversion_request_failure(capsys, caplog):
     """Test that requests.get failure is caught and logged to stderr."""
 
     # Create mocks
     mock_requests = MagicMock()
+    mock_requests.RequestException = MockRequestException # Assign valid exception class
     mock_markdownify = MagicMock()
     mock_bs4 = MagicMock()
     mock_reportlab_platypus = MagicMock()
@@ -23,7 +28,7 @@ def test_cli_conversion_request_failure(capsys, caplog):
     # Configure requests mock to fail
     mock_session = MagicMock()
     mock_requests.Session.return_value = mock_session
-    mock_session.get.side_effect = Exception("Network error")
+    mock_session.get.side_effect = MockRequestException("Network error")
 
     # We must patch sys.modules so that the 'import requests' inside main() gets our mock
     with caplog.at_level(logging.INFO):
@@ -51,11 +56,12 @@ def test_cli_conversion_request_failure(capsys, caplog):
     assert "Conversion failed" not in captured.out
 
 
-def test_cli_conversion_markdownify_failure(capsys, caplog):
-    """Test that markdownify failure is caught and logged to stderr."""
+def test_cli_conversion_os_error_failure(capsys, caplog):
+    """Test that OSError (e.g. file write failure) is caught and logged to stderr."""
 
     # Create mocks
     mock_requests = MagicMock()
+    mock_requests.RequestException = MockRequestException
     mock_markdownify = MagicMock()
     mock_bs4 = MagicMock()
     mock_reportlab_platypus = MagicMock()
@@ -68,10 +74,10 @@ def test_cli_conversion_markdownify_failure(capsys, caplog):
     mock_response.text = "<html></html>"
     mock_session.get.return_value = mock_response
 
-    # Configure markdownify mock to fail
-    # Note: in main(), it does 'from markdownify import markdownify as md'
-    mock_markdownify.markdownify.side_effect = Exception("Parse error")
+    # Configure markdownify to succeed
+    mock_markdownify.markdownify.return_value = "# Markdown Content"
 
+    # We mock os.makedirs to raise OSError
     with caplog.at_level(logging.INFO):
         with patch.dict(sys.modules, {
             'requests': mock_requests,
@@ -80,15 +86,18 @@ def test_cli_conversion_markdownify_failure(capsys, caplog):
             'reportlab.platypus': mock_reportlab_platypus,
             'reportlab.lib.styles': mock_reportlab_styles,
         }):
-            exit_code = html2md.cli.main(['--url', 'http://example.com'])
+            # We also need to patch os.makedirs in html2md.cli
+            with patch('html2md.cli.os.makedirs', side_effect=OSError("Permission denied")):
+                 # We must provide --outdir to trigger file operations
+                exit_code = html2md.cli.main(['--url', 'http://example.com', '--outdir', '/tmp/output'])
 
     assert exit_code == 0
 
-    # Verify log messages (via logging, not stdout)
+    # Verify log messages
     assert "Processing URL: http://example.com" in caplog.text
     assert "Fetching content" in caplog.text
     assert "Converting to Markdown" in caplog.text
-    assert "Conversion failed: Parse error" in caplog.text
+    assert "Conversion failed: Permission denied" in caplog.text
 
     # Verify nothing leaked to stdout
     captured = capsys.readouterr()
