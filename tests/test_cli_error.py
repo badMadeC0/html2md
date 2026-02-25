@@ -1,7 +1,7 @@
 import logging
 import sys
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Ensure src is in sys.path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
@@ -10,15 +10,9 @@ if src_path not in sys.path:
 
 import html2md.cli
 
-def test_cli_conversion_request_failure(capsys, caplog):
-    """Test that requests.get failure is caught and logged to stderr."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
+def test_cli_conversion_request_failure(capsys, caplog, cli_mocks):
+    """Test that requests.get failure is caught and logged to stderr."""
 
     # Configure requests mock to fail
     mock_session = MagicMock()
@@ -26,7 +20,6 @@ def test_cli_conversion_request_failure(capsys, caplog):
     mock_requests.exceptions.RequestException = type('RequestException', (Exception,), {})
     mock_session.get.side_effect = mock_requests.exceptions.RequestException("Network failure")
 
-    # We must patch sys.modules so that the 'import requests' inside main() gets our mock
     with caplog.at_level(logging.INFO):
         with patch.dict(sys.modules, {
             'requests': mock_requests,
@@ -94,12 +87,6 @@ def test_cli_conversion_file_error(capsys, caplog):
 def test_cli_conversion_markdownify_failure(capsys, caplog):
     """Test that markdownify failure is caught and logged to stderr."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
 
     # Configure requests mock to succeed
     mock_session = MagicMock()
@@ -109,9 +96,7 @@ def test_cli_conversion_markdownify_failure(capsys, caplog):
     mock_response.text = "<html></html>"
     mock_session.get.return_value = mock_response
 
-    # Configure markdownify mock to fail
-    # Note: in main(), it does 'from markdownify import markdownify as md'
-    mock_markdownify.markdownify.side_effect = Exception("Parse error")
+    cli_mocks["markdownify"].markdownify.side_effect = Exception("Parse error")
 
     with caplog.at_level(logging.INFO):
         with patch.dict(sys.modules, {

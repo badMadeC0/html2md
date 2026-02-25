@@ -274,7 +274,7 @@ $ConvertBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
         return
     }
-    
+
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
