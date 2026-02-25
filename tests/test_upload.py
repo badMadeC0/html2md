@@ -106,7 +106,7 @@ def test_main_api_error(capsys):
         assert ret == 1
 
         captured = capsys.readouterr()
-        assert captured.err.strip() == "Error: Something went wrong with API"
+        assert captured.err.strip() == "API error: Something went wrong with API"
 
 
 def test_main_no_args(capsys):
