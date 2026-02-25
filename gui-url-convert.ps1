@@ -340,10 +340,18 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        # Use AbsoluteUri for proper percent-encoding
-        try {
-            $url = ([System.Uri]$url).AbsoluteUri
-        } catch {}
+        # Use AbsoluteUri for proper percent-encoding; validate before proceeding
+        $uri = $null
+        if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
+            $url = $uri.AbsoluteUri
+        }
+        else {
+            $LogBox.AppendText("ERROR: Invalid URL: $url`r`n")
+            $StatusText.Text = "Error: Invalid URL."
+            $StatusText.Foreground = "Red"
+            $ProgressBar.IsIndeterminate = $false
+            return
+        }
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
