@@ -9,6 +9,13 @@ import anthropic
 
 from html2md.upload import main, upload_file
 
+
+class MockAPIError(anthropic.APIError):
+    """Minimal APIError subclass for tests that raise anthropic.APIError."""
+
+    def __init__(self, message: str):
+        super().__init__(message=message, request=MagicMock(), body={})
+
 def test_upload_file_success(tmp_path):
     """Deprecated duplicate of test_upload_file_success; kept empty to avoid redefinition issues."""
     # This function body is intentionally left empty because a later
