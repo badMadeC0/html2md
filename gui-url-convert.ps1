@@ -270,8 +270,8 @@ $ConvertBtn.Add_Click({
     # ---------------------------
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+    if (($outdir -match '[&|;<>^%()]') -or ($outdir -like '*..*')) {
+        [System.Windows.MessageBox]::Show("Invalid characters or path traversal sequences (`..`) detected in output directory.","Security Warning","OK","Warning") | Out-Null
         $ProgressBar.IsIndeterminate = $false
         return
     }
