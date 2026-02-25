@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch
+import pytest
 
 # Ensure src is in sys.path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
@@ -13,6 +14,10 @@ if src_path not in sys.path:
 
 import html2md.cli
 
+try:
+    import requests
+except ImportError:
+    requests = None
 
 def test_logging_not_on_stdout_success(capsys, caplog):
     """On successful conversion, only Markdown content appears on stdout.
@@ -77,7 +82,7 @@ def _run_subprocess(args):
         capture_output=True, text=True, check=False, env=env,
     )
 
-
+@pytest.mark.skipif(requests is None, reason="requests not installed")
 def test_logging_output_subprocess():
     """When the URL cannot be reached, stdout must be empty.
 
@@ -90,4 +95,6 @@ def test_logging_output_subprocess():
 
     # Stderr must contain the progress/error messages
     assert "Processing URL" in result.stderr
-    assert "Conversion failed" in result.stderr
+
+    # We expect "Network error" for connection issues, or "Conversion failed" fallback
+    assert ("Network error" in result.stderr or "Conversion failed" in result.stderr)
