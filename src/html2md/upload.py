@@ -1,21 +1,16 @@
 """Upload utility for html2md."""
-
 from __future__ import annotations
 
 import argparse
 import mimetypes
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 import anthropic
 
-DEFAULT_MIME_TYPE = "application/octet-stream"
-if TYPE_CHECKING:
-    from anthropic.types.beta import BetaFile
 
-
-def upload_file(file_path: str) -> BetaFile:
+def upload_file(file_path: str) -> Any:
     """Upload a file to the Anthropic API."""
     path = Path(file_path)
     if not path.exists():
@@ -23,7 +18,7 @@ def upload_file(file_path: str) -> BetaFile:
 
     mime_type, _ = mimetypes.guess_type(str(path))
     if mime_type is None:
-        mime_type = DEFAULT_MIME_TYPE
+        mime_type = "application/octet-stream"
 
     client = anthropic.Anthropic()
     with path.open("rb") as file_data:
@@ -49,7 +44,7 @@ def main(argv=None):
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except anthropic.APIError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(f"API error: {exc}", file=sys.stderr)
         return 1
     return 0
 
