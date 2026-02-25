@@ -5,6 +5,29 @@ import argparse
 import logging
 import os
 import sys
+import urllib.parse
+
+def _redact_url(url: str) -> str:
+    """Redact credentials from URL for safe logging."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.password:
+            # Reconstruct netloc manually to handle malformed ports safely
+            netloc = parsed.netloc
+            if '@' in netloc:
+                auth, host_part = netloc.rsplit('@', 1)
+                if ':' in auth:
+                    user, _ = auth.split(':', 1)
+                    new_auth = f"{user}:***"
+                else:
+                    new_auth = "***"
+
+                new_netloc = f"{new_auth}@{host_part}"
+                parsed = parsed._replace(netloc=new_netloc)
+                return urllib.parse.urlunparse(parsed)
+    except Exception:
+        pass
+    return url
 
 def get_unique_filepath(filepath: str) -> str:
     """
@@ -90,7 +113,7 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            logging.info("Processing URL: %s", target_url)
+            logging.info("Processing URL: %s", _redact_url(target_url))
 
             try:
                 logging.info("Fetching content...")

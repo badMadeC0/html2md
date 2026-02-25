@@ -16,3 +16,8 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Vulnerability:** Constructing PowerShell commands via string interpolation (e.g., `-Command "..."`) is risky. While `Start-Process -ArgumentList` is preferred, it may not support all use cases (like keeping the window open with `-NoExit` easily without wrapper scripts).
 **Learning:** When using `-Command` is unavoidable, wrapping arguments in single quotes and escaping existing single quotes by doubling them (`' -> ''`) provides a robust defense against injection.
 **Prevention:** Always sanitize variables before interpolating them into a command string. For single-quoted strings in PowerShell, replace `'` with `''`.
+
+## 2024-10-25 - Credential Exposure in CLI Logs
+**Vulnerability:** The CLI tool logged full URLs provided by users, including credentials (e.g., `http://user:pass@host`), to standard error. This exposed sensitive information in logs.
+**Learning:** Libraries like `requests` may handle authentication securely during transport, but application-level logging often inadvertently captures sensitive input data before it reaches the library.
+**Prevention:** Always implement a redaction helper for URLs or sensitive data before passing them to logging functions.
