@@ -90,4 +90,6 @@ def test_logging_output_subprocess():
 
     # Stderr must contain the progress/error messages
     assert "Processing URL" in result.stderr
-    assert "Conversion failed" in result.stderr
+
+    # Updated to match the new error message format for network errors
+    assert "Network error processing" in result.stderr
