@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import os
 import requests
 from html2md.cli import main
 
