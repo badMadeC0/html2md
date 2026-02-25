@@ -49,23 +49,16 @@ def test_cli_conversion_request_failure(capsys, caplog, cli_mocks):
 def test_cli_conversion_file_error(capsys, caplog):
     """Test that OSError (e.g. file permission) is caught and logged."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
-
-    # Configure requests to succeed
-    mock_session = MagicMock()
-    mock_requests.exceptions.RequestException = type('RequestException', (Exception,), {})
-    mock_requests.Session.return_value = mock_session
-    mock_response = MagicMock()
-    mock_response.text = "<html></html>"
-    mock_session.get.return_value = mock_response
-
-    # Configure markdownify to succeed
-    mock_markdownify.markdownify.return_value = "Markdown Content"
+    # Use the fixture for common mock setup
+    (
+        mock_requests,
+        mock_markdownify,
+        mock_bs4,
+        mock_reportlab_platypus,
+        mock_reportlab_styles,
+        mock_session,
+        mock_response,
+    ) = successful_conversion_mocks
 
     with caplog.at_level(logging.INFO):
         with patch.dict(sys.modules, {
