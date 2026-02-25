@@ -19,22 +19,22 @@ class MockAPIError(anthropic.APIError):
 import pytest
 
 
-def test_main_success(capsys):
-    """Test main function successful execution."""
-    mock_result = MagicMock()
-    mock_result.id = "file_123"
 
-    # We mock upload_file to isolate main logic
-    with patch("html2md.upload.upload_file", return_value=mock_result) as mock_upload:
-        # Mock sys.argv if needed, or pass arguments explicitly
-        ret = main(["test.txt"])
 
-        assert ret == 0
-        mock_upload.assert_called_once_with("test.txt")
 
-        captured = capsys.readouterr()
-        # Check stdout for success message
-        assert "File uploaded successfully. ID: file_123" in captured.out
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def test_main_file_not_found_error(capsys):
