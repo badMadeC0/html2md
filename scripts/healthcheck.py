@@ -18,6 +18,15 @@ def run(cmd: list[str], label: str) -> bool:
     return True
 
 
+def check_tool_exists(cmd: list[str]) -> bool:
+    """Return True if the given command can be executed successfully."""
+    try:
+        result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except FileNotFoundError:
+        return False
+    return result.returncode == 0
+
+
 def main(argv=None) -> int:
     ok = True
 
@@ -41,9 +50,9 @@ def main(argv=None) -> int:
 
     # 4. Lint with ruff (if available)
     ruff_label = "Lint (ruff check)"
-    if check_tool_exists([sys.executable, "-m", "ruff"]):
+    if check_tool_exists(["ruff", "--version"]):
         ok &= run(
-            [sys.executable, "-m", "ruff", "check", "src/", "tests/"],
+            [sys.executable, "-m", "ruff", "check", "."],
             ruff_label,
         )
     else:
