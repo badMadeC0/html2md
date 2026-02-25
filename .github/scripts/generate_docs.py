@@ -1,20 +1,23 @@
 """This script generates the GEMINI.md file."""
 import os
 
-def get_project_structure():
+# Determine the project root relative to this script
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+EXCLUDED_DIRS = {".git", ".venv", ".mypy_cache", ".pytest_cache", "__pycache__"}
+
+def get_project_structure(root_path):
     """Gets the project structure."""
     structure = ""
-    for root, dirs, files in os.walk("."):
-        if ".git" in dirs:
-            dirs.remove(".git")
-        if ".venv" in dirs:
-            dirs.remove(".venv")
-        if ".mypy_cache" in dirs:
-            dirs.remove(".mypy_cache")
-        if ".pytest_cache" in dirs:
-            dirs.remove(".pytest_cache")
+    for root, dirs, files in os.walk(root_path):
+        dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
 
-        level = root.replace(".", "").count(os.sep)
+        rel_path = os.path.relpath(root, root_path)
+        if rel_path == ".":
+            level = 0
+        else:
+            level = rel_path.count(os.sep) + 1
+
         indent = " " * 4 * (level)
         structure += f"{indent}{os.path.basename(root)}/\n"
         sub_indent = " " * 4 * (level + 1)
@@ -27,33 +30,26 @@ def get_file_content(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
         return f.read()
 
-def get_markdown_files():
+def get_markdown_files(root_path):
     """Gets all markdown files in the repository."""
     markdown_files = []
-    for root, dirs, files in os.walk("."):
-        if ".git" in dirs:
-            dirs.remove(".git")
-        if ".venv" in dirs:
-            dirs.remove(".venv")
-        if ".mypy_cache" in dirs:
-            dirs.remove(".mypy_cache")
-        if ".pytest_cache" in dirs:
-            dirs.remove(".pytest_cache")
-
+    for root, dirs, files in os.walk(root_path):
+        dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS]
         for f in files:
             if f.endswith(".md"):
-                markdown_files.append(os.path.join(root, f))
+                full_path = os.path.join(root, f)
+                markdown_files.append(os.path.relpath(full_path, root_path))
     return markdown_files
 
 def generate_gemini_md():
     """Generates the GEMINI.md file."""
-    project_structure = get_project_structure()
-    readme_content = get_file_content("README.md")
-    pyproject_content = get_file_content("pyproject.toml")
-    cli_content = get_file_content("src/html2md/cli.py")
-    log_export_content = get_file_content("src/html2md/log_export.py")
-    upload_content = get_file_content("src/html2md/upload.py")
-    markdown_files = get_markdown_files()
+    project_structure = get_project_structure(PROJECT_ROOT)
+    readme_content = get_file_content(os.path.join(PROJECT_ROOT, "README.md"))
+    pyproject_content = get_file_content(os.path.join(PROJECT_ROOT, "pyproject.toml"))
+    cli_content = get_file_content(os.path.join(PROJECT_ROOT, "src/html2md/cli.py"))
+    log_export_content = get_file_content(os.path.join(PROJECT_ROOT, "src/html2md/log_export.py"))
+    upload_content = get_file_content(os.path.join(PROJECT_ROOT, "src/html2md/upload.py"))
+    markdown_files = get_markdown_files(PROJECT_ROOT)
     markdown_files_str = "\n".join(f"- {f}" for f in markdown_files)
 
     gemini_md_content = f"""
@@ -191,7 +187,7 @@ MIT License
 ```
 """
 
-    with open("GEMINI.md", "w", encoding="utf-8") as f:
+    with open(os.path.join(PROJECT_ROOT, "GEMINI.md"), "w", encoding="utf-8") as f:
         f.write(gemini_md_content)
 
 if __name__ == "__main__":
