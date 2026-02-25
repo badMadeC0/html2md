@@ -255,10 +255,16 @@ $ConvertBtn.Add_Click({
     }
 
     # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+    foreach ($url in $urlList) {
+        try {
+            $uriObj = [System.Uri]$url
+            if ($uriObj.Scheme -notmatch '^https?$') {
+                throw "Invalid scheme for URL: $url"
+            }
+        } catch {
+            [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL. One or more URLs are invalid.","Invalid URL","OK","Error") | Out-Null
+            $ProgressBar.IsIndeterminate = $false
+            return
         }
         # AbsoluteUri is properly percent-encoded, preventing quote-based injection
         $url = $uriObj.AbsoluteUri
@@ -268,6 +274,7 @@ $ConvertBtn.Add_Click({
         $ProgressBar.IsIndeterminate = $false
         return
     }
+    # ---------------------------
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
@@ -276,8 +283,7 @@ $ConvertBtn.Add_Click({
         $ProgressBar.IsIndeterminate = $false
         return
     }
-    # ---------------------------
-
+    
     if (-not (Test-Path $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
@@ -287,6 +293,9 @@ $ConvertBtn.Add_Click({
     if (-not $scriptDir) {
         $scriptDir = (Get-Location).Path
     }
+
+    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $scriptDir "src\html2md\cli.py"
 
     # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
     try {
@@ -314,8 +323,7 @@ $ConvertBtn.Add_Click({
     #    to ensure all internal quotes are preserved and arguments are correctly delimited.
     # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
+    $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
