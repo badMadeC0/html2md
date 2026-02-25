@@ -1,7 +1,7 @@
 import logging
 import sys
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Ensure src is in sys.path
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
@@ -11,44 +11,15 @@ if src_path not in sys.path:
 import html2md.cli
 
 
-def test_cli_conversion_request_failure(capsys, caplog):
+def test_cli_conversion_request_failure(capsys, caplog, cli_mocks):
     """Test that requests.get failure is caught and logged to stderr."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_requests.RequestException = RealRequestException  # Make it a catchable exception class
+    cli_mocks["session"].get.side_effect = cli_mocks["requests_exceptions"].RequestException(
+        "Network failure"
+    )
 
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
-
-    # Configure requests mock to fail
-    mock_session = MagicMock()
-    mock_requests.Session.return_value = mock_session
-
-    mock_requests_exceptions = MagicMock()
-    MockRequestException = type("RequestException", (Exception,), {})
-    mock_requests_exceptions.RequestException = MockRequestException
-    mock_requests.exceptions = mock_requests_exceptions
-
-    mock_session.get.side_effect = MockRequestException("Network failure")
-
-    # We must patch sys.modules so that the 'import requests' inside main() gets our mock
     with caplog.at_level(logging.INFO):
-        with patch.dict(
-            sys.modules,
-            {
-                "requests": mock_requests,
-                "requests.exceptions": mock_requests_exceptions,
-                "markdownify": mock_markdownify,
-                "bs4": mock_bs4,
-                "reportlab.platypus": mock_reportlab_platypus,
-                "reportlab.lib.styles": mock_reportlab_styles,
-            },
-        ):
-            # Run main
-            exit_code = html2md.cli.main(["--url", "http://example.com"])
+        exit_code = html2md.cli.main(["--url", "http://example.com"])
 
     # Verify exit code
     assert exit_code == 0
@@ -64,94 +35,27 @@ def test_cli_conversion_request_failure(capsys, caplog):
     assert "Conversion failed" not in captured.out
 
 
-def test_cli_conversion_file_error(capsys, caplog):
+def test_cli_conversion_file_error(capsys, caplog, cli_mocks):
     """Test that OSError (e.g. file permission) is caught and logged."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
-
-    # Configure requests to succeed
-    mock_session = MagicMock()
-    mock_requests.Session.return_value = mock_session
-    mock_requests_exceptions = MagicMock()
-    mock_requests_exceptions.RequestException = type(
-        "RequestException", (Exception,), {}
-    )
-    mock_requests.exceptions = mock_requests_exceptions
-    mock_response = MagicMock()
-    mock_response.text = "<html></html>"
-    mock_session.get.return_value = mock_response
-
-    # Configure markdownify to succeed
-    mock_markdownify.markdownify.return_value = "Markdown Content"
-
     with caplog.at_level(logging.INFO):
-        with patch.dict(
-            sys.modules,
-            {
-                "requests": mock_requests,
-                "requests.exceptions": mock_requests_exceptions,
-                "markdownify": mock_markdownify,
-                "bs4": mock_bs4,
-                "reportlab.platypus": mock_reportlab_platypus,
-                "reportlab.lib.styles": mock_reportlab_styles,
-            },
-        ):
-            with patch("builtins.open", side_effect=OSError("Permission denied")):
-                with patch("os.path.exists", return_value=False), patch("os.makedirs"):
-                    exit_code = html2md.cli.main(
-                        ["--url", "http://example.com", "--outdir", "output"]
-                    )
+        with patch("builtins.open", side_effect=OSError("Permission denied")):
+            with patch("os.path.exists", return_value=False), patch("os.makedirs"):
+                exit_code = html2md.cli.main(
+                    ["--url", "http://example.com", "--outdir", "output"]
+                )
 
     assert exit_code == 0
     assert "File error: Permission denied" in caplog.text
 
 
-def test_cli_conversion_markdownify_failure(capsys, caplog):
+def test_cli_conversion_markdownify_failure(capsys, caplog, cli_mocks):
     """Test that markdownify failure is caught and logged to stderr."""
 
-    # Create mocks
-    mock_requests = MagicMock()
-    mock_requests.RequestException = RealRequestException
-
-    mock_markdownify = MagicMock()
-    mock_bs4 = MagicMock()
-    mock_reportlab_platypus = MagicMock()
-    mock_reportlab_styles = MagicMock()
-
-    # Configure requests mock to succeed
-    mock_session = MagicMock()
-    mock_requests.Session.return_value = mock_session
-    mock_requests_exceptions = MagicMock()
-    mock_requests_exceptions.RequestException = type(
-        "RequestException", (Exception,), {}
-    )
-    mock_requests.exceptions = mock_requests_exceptions
-    mock_response = MagicMock()
-    mock_response.text = "<html></html>"
-    mock_session.get.return_value = mock_response
-
-    # Configure markdownify mock to fail
-    # Note: in main(), it does 'from markdownify import markdownify as md'
-    mock_markdownify.markdownify.side_effect = Exception("Parse error")
+    cli_mocks["markdownify"].markdownify.side_effect = Exception("Parse error")
 
     with caplog.at_level(logging.INFO):
-        with patch.dict(
-            sys.modules,
-            {
-                "requests": mock_requests,
-                "requests.exceptions": mock_requests_exceptions,
-                "markdownify": mock_markdownify,
-                "bs4": mock_bs4,
-                "reportlab.platypus": mock_reportlab_platypus,
-                "reportlab.lib.styles": mock_reportlab_styles,
-            },
-        ):
-            exit_code = html2md.cli.main(["--url", "http://example.com"])
+        exit_code = html2md.cli.main(["--url", "http://example.com"])
 
     assert exit_code == 0
 
