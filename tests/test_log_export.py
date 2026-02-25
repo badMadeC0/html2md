@@ -201,3 +201,35 @@ def test_log_export_sanitizes_leading_whitespace_formula(tmp_path):
         rows = list(reader)
         assert len(rows) == 1
         assert rows[0]['safe'] == "'\t=1+1"
+
+
+def test_log_export_mixed_types(tmp_path):
+    """Test handling of mixed types (int, bool, float) in JSON values."""
+    input_file = tmp_path / "mixed.jsonl"
+    output_file = tmp_path / "mixed.csv"
+
+    data = [
+        {"id": 1, "active": True, "score": 99.5, "name": "test"},
+        {"id": 2, "active": False, "score": 0.0, "name": "=bad"}
+    ]
+
+    with open(input_file, "w", encoding="utf-8") as f:
+        for item in data:
+            f.write(json.dumps(item) + "\n")
+
+    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'id,active,score,name']
+    main(argv)
+
+    with open(output_file, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        assert len(rows) == 2
+        assert rows[0]['id'] == "1"
+        assert rows[0]['active'] == "True"
+        assert rows[0]['score'] == "99.5"
+        assert rows[0]['name'] == "test"
+
+        assert rows[1]['id'] == "2"
+        assert rows[1]['active'] == "False"
+        assert rows[1]['score'] == "0.0"
+        assert rows[1]['name'] == "'=bad"
