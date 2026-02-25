@@ -201,3 +201,34 @@ def test_log_export_sanitizes_leading_whitespace_formula(tmp_path):
         rows = list(reader)
         assert len(rows) == 1
         assert rows[0]['safe'] == "'\t=1+1"
+
+
+def test_log_export_safe_strings_fast_path(tmp_path):
+    """Test safe strings pass through without modification (fast path)."""
+    input_file = tmp_path / "safe.jsonl"
+    output_file = tmp_path / "safe.csv"
+
+    data = [
+        {"val": "http://example.com"},
+        {"val": "just text"},
+        {"val": "1234"},
+        {"val": " foo"},  # leading space, but safe char
+        {"val": "'quoted'"}  # starts with quote, safe
+    ]
+
+    with open(input_file, "w", encoding="utf-8") as f:
+        for item in data:
+            f.write(json.dumps(item) + "\n")
+
+    argv = ['--in', str(input_file), '--out', str(output_file), '--fields', 'val']
+    main(argv)
+
+    with open(output_file, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+        assert len(rows) == 5
+        assert rows[0]['val'] == "http://example.com"
+        assert rows[1]['val'] == "just text"
+        assert rows[2]['val'] == "1234"
+        assert rows[3]['val'] == " foo"
+        assert rows[4]['val'] == "'quoted'"
