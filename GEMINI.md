@@ -89,13 +89,13 @@ pytest
 
 ## Documentation Files
 
-- ./README.md
-- ./GEMINI.md
-- ./CLAUDE.md
-- ./.jules/palette.md
-- ./.jules/sentinel.md
-- ./docs/ml/00-overview.md
-- ./.github/copilot-instructions.md
+- README.md
+- GEMINI.md
+- CLAUDE.md
+- .jules/palette.md
+- .jules/sentinel.md
+- docs/ml/00-overview.md
+- .github/copilot-instructions.md
 
 ## License
 
@@ -103,7 +103,7 @@ MIT License
 ## Project Structure
 
 ```
-./
+html2md/
     MANIFEST.in
     run-html2md.bat
     README.md
