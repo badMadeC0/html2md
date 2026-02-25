@@ -1,6 +1,6 @@
-import pytest
-
 """Tests that CLI log/progress messages go to stderr, not stdout."""
+
+import pytest
 
 import logging
 import os
