@@ -27,15 +27,7 @@ def test_logging_not_on_stdout_success(capsys, caplog, cli_mocks):
     cli_mocks["markdownify"].markdownify.return_value = "# Hello"
 
     with caplog.at_level(logging.INFO):
-        with patch.dict(sys.modules, {
-            'requests': mock_requests,
-            'requests.exceptions': mock_requests.exceptions,
-            'markdownify': mock_markdownify,
-            'bs4': mock_bs4,
-            'reportlab.platypus': mock_reportlab_platypus,
-            'reportlab.lib.styles': mock_reportlab_styles,
-        }):
-            exit_code = html2md.cli.main(['--url', 'http://example.com'])
+        exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
     assert exit_code == 0
 
