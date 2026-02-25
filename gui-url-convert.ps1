@@ -277,7 +277,7 @@ $ConvertBtn.Add_Click({
     }
     # ---------------------------
 
-    if (-not (Test-Path $outdir)) {
+    if (-not (Test-Path -LiteralPath $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
     }
