@@ -16,6 +16,8 @@ def test_cli_conversion_request_failure(capsys, caplog):
 
     # Create mocks
     mock_requests = MagicMock()
+    mock_requests.RequestException = RealRequestException  # Make it a catchable exception class
+
     mock_markdownify = MagicMock()
     mock_bs4 = MagicMock()
     mock_reportlab_platypus = MagicMock()
@@ -114,6 +116,8 @@ def test_cli_conversion_markdownify_failure(capsys, caplog):
 
     # Create mocks
     mock_requests = MagicMock()
+    mock_requests.RequestException = RealRequestException
+
     mock_markdownify = MagicMock()
     mock_bs4 = MagicMock()
     mock_reportlab_platypus = MagicMock()
