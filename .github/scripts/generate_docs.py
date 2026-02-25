@@ -53,6 +53,7 @@ def generate_gemini_md():
     log_export_content = get_file_content("src/html2md/log_export.py")
     upload_content = get_file_content("src/html2md/upload.py")
     markdown_files = get_markdown_files()
+    markdown_files_str = "\n".join(f"- {f}" for f in markdown_files)
 
     gemini_md_content = f"""
 # `html2md` Code Project
@@ -145,7 +146,7 @@ pytest
 
 ## Documentation Files
 
-{"\n".join(f"- {f}" for f in markdown_files)}
+{markdown_files_str}
 
 ## License
 
