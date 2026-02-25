@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 
 def get_unique_filepath(filepath: str) -> str:
     """
@@ -27,7 +28,11 @@ def get_unique_filepath(filepath: str) -> str:
 def main(argv=None):
     """Run the CLI."""
     # Configure logging to stderr
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(levelname)s: %(message)s',
+        stream=sys.stderr,
+    )
 
     ap = argparse.ArgumentParser(
         prog='html2md',
@@ -87,18 +92,15 @@ def main(argv=None):
 
             processing_msg = f"Processing URL: {target_url}"
             logging.info(processing_msg)
-            print(processing_msg)
 
             try:
                 fetch_msg = "Fetching content..."
                 logging.info(fetch_msg)
-                print(fetch_msg)
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
                 convert_msg = "Converting to Markdown..."
                 logging.info(convert_msg)
-                print(convert_msg)
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
@@ -118,14 +120,13 @@ def main(argv=None):
                     md_out_path = get_unique_filepath(md_out_path)
                     with open(md_out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
-                    logging.info(f"Success! Saved to: {out_path}")
+                    logging.info(f"Success! Saved to: {md_out_path}")
                 else:
                     print(md_content)
 
             except Exception as e:  # pylint: disable=broad-exception-caught
                 error_msg = f"Conversion failed: {e}"
                 logging.error(error_msg)
-                print(error_msg)
 
         if args.url:
             process_url(args.url)
