@@ -20,9 +20,9 @@ def main(argv=None):
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         w = csv.DictWriter(fo, fieldnames=fields, extrasaction='ignore', restval='')
         w.writeheader()
+        writer_row = w.writerow
         for line in fi:
-            line = line.strip()
-            if not line:
+            if line.isspace():
                 continue
             try:
                 rec = json.loads(line)
@@ -30,7 +30,7 @@ def main(argv=None):
                 continue
             if not isinstance(rec, dict):
                 continue
-            w.writerow(rec)
+            writer_row(rec)
     return 0
 
 if __name__=='__main__':
