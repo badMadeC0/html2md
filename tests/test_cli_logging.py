@@ -92,7 +92,13 @@ def _run_subprocess(args):
     )
 
 
-import importlib.util
+    return subprocess.run(
+        [sys.executable, "-m", "html2md"] + args,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
 
 requests_missing = importlib.util.find_spec("requests") is None
 
