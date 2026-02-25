@@ -145,6 +145,14 @@ $LogBox = $window.FindName("LogBox")
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
 
+# --- Button state logic ---
+$UpdateState = {
+    $hasText = -not [string]::IsNullOrWhiteSpace($UrlBox.Text)
+    $ConvertBtn.IsEnabled = $hasText
+}
+$UrlBox.Add_TextChanged($UpdateState)
+& $UpdateState
+
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -225,7 +233,6 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
         $StatusText.Foreground = "Red"
     }
 })
