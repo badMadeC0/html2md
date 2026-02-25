@@ -98,12 +98,15 @@ def main(argv=None):
                 response.raise_for_status()
 
                 html_content = response.text
+                # Optimization: reuse soup object to avoid re-parsing for TXT/PDF generation
+                soup = None
                 if args.main_content:
                     logging.info("Extracting main content...")
                     soup = BeautifulSoup(html_content, 'html.parser')
                     main_tag = soup.find('main')
                     if main_tag:
                         html_content = str(main_tag)
+                        soup = main_tag
                     else:
                         logging.warning("<main> tag not found, converting entire <body>.")
 
@@ -131,7 +134,8 @@ def main(argv=None):
 
                     if args.all_formats:
                         # --- Save TXT file ---
-                        soup = BeautifulSoup(html_content, 'html.parser')
+                        if soup is None:
+                            soup = BeautifulSoup(html_content, 'html.parser')
                         text_content = soup.get_text(separator='\n', strip=True)
                         txt_out_path = os.path.join(args.outdir, f"{base_filename}.txt")
                         txt_out_path = get_unique_filepath(txt_out_path)
