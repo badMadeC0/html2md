@@ -23,19 +23,19 @@ pip install -e .
 
 The main entry point for the CLI is `html2md`. You can run it directly or through the Python module:
 
-- **Convert a single URL:**
+-   **Convert a single URL:**
 
     ```bash
     html2md --url "http://example.com" --outdir "output"
     ```
 
-- **Convert a batch of URLs from a file:**
+-   **Convert a batch of URLs from a file:**
 
     ```bash
     html2md --batch "urls.txt" --outdir "output"
     ```
 
-- **Run as a module:**
+-   **Run as a module:**
 
     ```bash
     python -m html2md --url "http://example.com"
@@ -81,87 +81,86 @@ pytest
 
 ## Development Conventions
 
-- The project follows a standard Python project structure with `src` and `tests` directories.
-- It uses `pyproject.toml` for build configuration and dependency management, following modern Python packaging standards (PEP 517/518).
-- The code includes type hints and is checked with `mypy`.
-- The CLI tools include help messages and command-line argument parsing using Python's `argparse` module.
-- The project includes helper scripts for Windows users, demonstrating a focus on cross-platform usability.
+-   The project follows a standard Python project structure with `src` and `tests` directories.
+-   It uses `pyproject.toml` for build configuration and dependency management, following modern Python packaging standards (PEP 517/518).
+-   The code includes type hints and is checked with `mypy`.
+-   The CLI tools include help messages and command-line argument parsing using Python's `argparse` module.
+-   The project includes helper scripts for Windows users, demonstrating a focus on cross-platform usability.
 
 ## Documentation Files
 
-- ./GEMINI.md
 - ./README.md
+- ./GEMINI.md
 - ./CLAUDE.md
-- ./.github/copilot-instructions.md
-- ./docs/ml/00-overview.md
-- ./.jules/sentinel.md
 - ./.jules/palette.md
+- ./.jules/sentinel.md
+- ./docs/ml/00-overview.md
+- ./.github/copilot-instructions.md
 
 ## License
 
 MIT License
-
 ## Project Structure
 
-```txt
+```
 ./
-    run-gui.bat
-    run-html2md.bat
-    GEMINI.md
-    gui-url-convert.ps1
-    .gitignore
-    README.md
-    pyproject.toml
-    setup-html2md.ps1
     MANIFEST.in
+    run-html2md.bat
+    README.md
+    run-gui.bat
+    pyproject.toml
+    GEMINI.md
+    .gitignore
     CLAUDE.md
-    .github/
-        copilot-instructions.md
-        dependabot.yml
-        CODEOWNERS
-        scripts/
-            run_claude_agent.sh
-            generate_docs.py
-        workflows/
-            claude-agent.yml
-            copilot-setup-steps.yml
-            ci.yml
-            update-docs.yml
-            request-jules-review.yml
-    html2md/
-        pyproject.toml
-        .mypy.ini
-        tests/
-            test_cli.py
-            __init__.py
+    gui-url-convert.ps1
+    setup-html2md.ps1
+    tests/
+        test_app.py
+        test_csv_security.py
+        test_log_export.py
+        test_cli_smoke.py
+        test_cli_error.py
+        test_cli_exceptions.py
+    .jules/
+        palette.md
+        sentinel.md
     docs/
         ml/
             00-overview.md
-    .jules/
-        sentinel.md
-        palette.md
-    tests/
-        test_cli_smoke.py
-        test_app.py
-        test_cli_error.py
-        test_csv_security.py
-        test_cli_exceptions.py
-        test_log_export.py
+    .github/
+        CODEOWNERS
+        copilot-instructions.md
+        dependabot.yml
+        workflows/
+            update-docs.yml
+            copilot-setup-steps.yml
+            ci.yml
+            claude-agent.yml
+            request-jules-review.yml
+        scripts/
+            generate_docs.py
+            run_claude_agent.sh
+    html2md/
+        .mypy.ini
+        pyproject.toml
+        tests/
+            __init__.py
+            test_cli.py
     src/
         html2md_cli.egg-info/
-            entry_points.txt
-            top_level.txt
-            requires.txt
             dependency_links.txt
-            PKG-INFO
+            requires.txt
             SOURCES.txt
+            top_level.txt
+            PKG-INFO
+            entry_points.txt
         html2md/
-            cli.py
+            __init__.py
             upload.py
+            cli.py
+            app.py
             log_export.py
             __main__.py
-            app.py
-            __init__.py
 
 ```
 
