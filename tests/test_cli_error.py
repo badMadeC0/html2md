@@ -35,7 +35,7 @@ def test_cli_conversion_request_failure(capsys, caplog):
     # Configure requests mock to fail
     mock_session = MagicMock()
     mock_requests.Session.return_value = mock_session
-    mock_session.get.side_effect = RealRequestException("Network error")
+    mock_session.get.side_effect = RealRequestException("Connection timeout")
 
     # We must patch sys.modules so that the 'import requests' inside main() gets our mock
     with caplog.at_level(logging.INFO):
@@ -55,7 +55,7 @@ def test_cli_conversion_request_failure(capsys, caplog):
     # Verify log messages (via logging, not stdout)
     assert "Processing URL: http://example.com" in caplog.text
     assert "Fetching content" in caplog.text
-    assert "Network error: Network error" in caplog.text
+    assert "Network error: Connection timeout" in caplog.text
 
     # Verify nothing leaked to stdout
     captured = capsys.readouterr()
