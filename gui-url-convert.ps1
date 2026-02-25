@@ -258,7 +258,7 @@ $ConvertBtn.Add_Click({
     foreach ($url in $urlList) {
         try {
             $uriObj = [System.Uri]$url
-            if ($uriObj.Scheme -notmatch '^https?$') {
+            if ($uriObj.Scheme -notmatch '^(?i:https?)$') {
                 throw "Invalid scheme for URL: $url"
             }
         } catch {
@@ -270,12 +270,14 @@ $ConvertBtn.Add_Click({
     # ---------------------------
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+    if (($outdir -match '[&|;<>^%()]') -or ($outdir -like '*..*')) {
+        [System.Windows.MessageBox]::Show("Invalid characters or path traversal sequences (`..`) detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $ProgressBar.IsIndeterminate = $false
         return
     }
-    
-    if (-not (Test-Path $outdir)) {
+    # ---------------------------
+
+    if (-not (Test-Path -LiteralPath $outdir)) {
         try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
         catch {}
     }
@@ -338,6 +340,18 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
+        # Use AbsoluteUri for proper percent-encoding; validate before proceeding
+        $uri = $null
+        if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri)) {
+            $url = $uri.AbsoluteUri
+        }
+        else {
+            $LogBox.AppendText("ERROR: Invalid URL: $url`r`n")
+            $StatusText.Text = "Error: Invalid URL."
+            $StatusText.Foreground = "Red"
+            $ProgressBar.IsIndeterminate = $false
+            return
+        }
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
@@ -349,11 +363,27 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
+            # Clear any previously set arguments and populate ArgumentList for direct execution
+            $psi.ArgumentList.Clear()
+            $psi.ArgumentList.Add("--url")
+            $psi.ArgumentList.Add($safeUrl)
+            $psi.ArgumentList.Add("--outdir")
+            $psi.ArgumentList.Add($safeOutDir)
+            $psi.ArgumentList.Add("--all-formats")
+            if ($optArg) { $psi.ArgumentList.Add($optArg.Trim()) }
+        }
+        elseif (Test-Path -LiteralPath $pyScript) {
+            $LogBox.AppendText("Found Python script: $pyScript`r`n")
+        $safePyScript = $pyScript -replace "'", "''"
+        $safePyCmd = $pyCmd -replace "'", "''"
+
+        if (Test-Path -LiteralPath $venvExe) {
+            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
             $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $safePyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
