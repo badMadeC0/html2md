@@ -71,7 +71,7 @@ To set up the development environment, create a virtual environment and install 
 
 ```bash
 python -m venv .venv
-.venv\\Scripts\\activate
+.venv/Scripts/activate
 pip install -e .
 ```
 
