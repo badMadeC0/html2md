@@ -106,10 +106,10 @@ def test_main_file_not_found_error(capsys):
 
 def test_main_api_error(capsys):
     """Test main function handles APIError gracefully."""
-    mock_request = MagicMock()
-    error_instance = anthropic.APIError(
-        message="Something went wrong with API", request=mock_request, body={}
-    )
+    error_instance = anthropic.APIError.__new__(anthropic.APIError)
+    error_instance.args = ("Something went wrong with API",)
+    # Some implementations may also use a `message` attribute.
+    error_instance.message = "Something went wrong with API"
 
     with patch("html2md.upload.upload_file", side_effect=error_instance):
         ret = main(["test.txt"])
