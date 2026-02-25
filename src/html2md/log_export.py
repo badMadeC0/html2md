@@ -9,15 +9,24 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
-    inp = Path(args.inp); out = Path(args.out)
+    inp = Path(args.inp)
+    out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fields); w.writeheader()
+        w = csv.DictWriter(fo, fieldnames=fields)
+        w.writeheader()
         for line in fi:
-            line=line.strip();
-            if not line: continue
-            try: rec=json.loads(line)
-            except: continue
-            w.writerow({k:rec.get(k,'') for k in fields})
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            if not isinstance(rec, dict):
+                continue
+
+            w.writerow({k: rec.get(k, '') for k in fields})
     return 0
 
 if __name__=='__main__':
