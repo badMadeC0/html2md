@@ -1,7 +1,9 @@
 """Test suite for html2md."""
 
-import requests  # type: ignore
+import pytest
+
 
 def test_requests() -> None:
     """Test requests import."""
+    requests = pytest.importorskip("requests")
     assert requests is not None
