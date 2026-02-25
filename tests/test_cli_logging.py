@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import sys
+import pytest
 from unittest.mock import MagicMock, patch
 
 # Ensure src is in sys.path
@@ -12,6 +13,13 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 import html2md.cli
+
+try:
+    import requests
+
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 
 def test_logging_not_on_stdout_success(capsys, caplog):
@@ -38,14 +46,18 @@ def test_logging_not_on_stdout_success(capsys, caplog):
     mock_markdownify.markdownify.return_value = "# Hello"
 
     with caplog.at_level(logging.INFO):
-        with patch.dict(sys.modules, {
-            'requests': mock_requests,
-            'markdownify': mock_markdownify,
-            'bs4': mock_bs4,
-            'reportlab.platypus': mock_reportlab_platypus,
-            'reportlab.lib.styles': mock_reportlab_styles,
-        }):
-            exit_code = html2md.cli.main(['--url', 'http://example.com'])
+        with patch.dict(
+            sys.modules,
+            {
+                "requests": mock_requests,
+                "requests.exceptions": mock_requests.exceptions,
+                "markdownify": mock_markdownify,
+                "bs4": mock_bs4,
+                "reportlab.platypus": mock_reportlab_platypus,
+                "reportlab.lib.styles": mock_reportlab_styles,
+            },
+        ):
+            exit_code = html2md.cli.main(["--url", "http://example.com"])
 
     assert exit_code == 0
 
@@ -74,16 +86,20 @@ def _run_subprocess(args):
 
     return subprocess.run(
         [sys.executable, "-m", "html2md"] + args,
-        capture_output=True, text=True, check=False, env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
     )
 
 
+@pytest.mark.skipif(not HAS_REQUESTS, reason="requires requests")
 def test_logging_output_subprocess():
     """When the URL cannot be reached, stdout must be empty.
 
     All error/progress messages must appear only on stderr.
     """
-    result = _run_subprocess(['--url', 'http://127.0.0.1:12345/'])
+    result = _run_subprocess(["--url", "http://127.0.0.1:12345/"])
 
     # Stdout must be empty — no progress or error messages
     assert result.stdout == ""
