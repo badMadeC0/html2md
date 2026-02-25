@@ -117,7 +117,23 @@ def test_main_api_error(capsys):
         assert ret == 1
 
         captured = capsys.readouterr()
-        assert "API error: Something went wrong with API" in captured.err
+        assert captured.err.strip() == "Error: Missing file"
+
+
+def test_main_api_error(capsys):
+    """Test main function handles APIError gracefully."""
+    mock_request = MagicMock()
+    error_instance = anthropic.APIError(
+        message="Something went wrong with API", request=mock_request, body={}
+    )
+
+    with patch("html2md.upload.upload_file", side_effect=error_instance):
+        ret = main(["test.txt"])
+
+        assert ret == 1
+
+        captured = capsys.readouterr()
+        assert captured.err.strip() == "API error: Something went wrong with API"
 
 
 def test_main_no_args(capsys):
