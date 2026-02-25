@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 import anthropic
 
+DEFAULT_MIME_TYPE = "application/octet-stream"
 if TYPE_CHECKING:
     from anthropic.types.beta import BetaFile
 
@@ -22,7 +23,7 @@ def upload_file(file_path: str) -> BetaFile:
 
     mime_type, _ = mimetypes.guess_type(str(path))
     if mime_type is None:
-        mime_type = "application/octet-stream"
+        mime_type = DEFAULT_MIME_TYPE
 
     client = anthropic.Anthropic()
     with path.open("rb") as file_data:

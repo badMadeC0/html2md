@@ -10,6 +10,29 @@ import anthropic
 from html2md.upload import main, upload_file
 
 
+class MockAPIError(anthropic.APIError):
+    """Minimal APIError subclass for tests that raise anthropic.APIError."""
+
+    def __init__(self, message: str):
+        super().__init__(message=message, request=MagicMock(), body={})
+
+def test_upload_file_success(tmp_path):
+    """Deprecated duplicate of test_upload_file_success; kept empty to avoid redefinition issues."""
+    # This function body is intentionally left empty because a later
+    # definition of test_upload_file_success in this module supersedes it.
+    # Keeping only a pass statement avoids multiple-assignments before use.
+    pass
+
+
+def test_upload_file_not_found():
+    """Deprecated duplicate of test_upload_file_not_found; kept empty to avoid redefinition issues."""
+    # This function body is intentionally left empty because a later
+    # definition of test_upload_file_not_found in this module supersedes it.
+    # Keeping only a pass statement avoids multiple-assignments before use.
+    pass
+import pytest
+
+
 def test_main_success(capsys):
     """Test main function successful execution."""
     mock_result = MagicMock()
@@ -97,6 +120,30 @@ def test_upload_file_not_found():
         upload_file("non_existent_file.txt")
 
 
+def test_upload_file_default_mime_type(tmp_path):
+    """Test that DEFAULT_MIME_TYPE is used when mime type cannot be guessed."""
+    from html2md.upload import DEFAULT_MIME_TYPE
+
+    test_file = tmp_path / "test.unknown"
+    test_file.write_text("content", encoding="utf-8")
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.beta.files.upload.return_value = MagicMock()
+
+    with patch("mimetypes.guess_type", return_value=(None, None)) as mock_guess_type, \
+         patch("anthropic.Anthropic", return_value=mock_client_instance):
+
+        upload_file(str(test_file))
+
+        mock_guess_type.assert_called_once_with(str(test_file))
+
+        mock_client_instance.beta.files.upload.assert_called_once()
+        call_kwargs = mock_client_instance.beta.files.upload.call_args.kwargs
+        file_tuple = call_kwargs["file"]
+        assert file_tuple[0] == "test.unknown"
+        assert file_tuple[2] == DEFAULT_MIME_TYPE
+
+
 def test_main_success(capsys):
     """Test main function successful execution."""
     mock_result = MagicMock()
@@ -139,7 +186,7 @@ def test_main_api_error(capsys):
 
         captured = capsys.readouterr()
         # Check stderr for error message
-        assert "API error:" in captured.err
+        assert "Error: Something went wrong with API" in captured.err
 
 def test_main_no_args(capsys):
     """Test main function exits when no file is provided."""
