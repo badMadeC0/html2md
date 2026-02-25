@@ -9,22 +9,6 @@ import anthropic
 
 from html2md.upload import main, upload_file
 
-def test_upload_file_success(tmp_path):
-    """Deprecated duplicate of test_upload_file_success; kept empty to avoid redefinition issues."""
-    # This function body is intentionally left empty because a later
-    # definition of test_upload_file_success in this module supersedes it.
-    # Keeping only a pass statement avoids multiple-assignments before use.
-    pass
-
-
-def test_upload_file_not_found():
-    """Deprecated duplicate of test_upload_file_not_found; kept empty to avoid redefinition issues."""
-    # This function body is intentionally left empty because a later
-    # definition of test_upload_file_not_found in this module supersedes it.
-    # Keeping only a pass statement avoids multiple-assignments before use.
-    pass
-import pytest
-
 
 def test_main_success(capsys):
     """Test main function successful execution."""
