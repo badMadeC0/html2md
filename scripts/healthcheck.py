@@ -20,8 +20,11 @@ def run(cmd: list[str], label: str) -> bool:
 
 def check_tool_exists(cmd: list[str]) -> bool:
     """Return True if a command can be executed successfully."""
-    result = subprocess.run(cmd, capture_output=True)
-    return result.returncode == 0
+    try:
+        subprocess.run(cmd, capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+    return True
 
 
 def main(argv=None) -> int:
