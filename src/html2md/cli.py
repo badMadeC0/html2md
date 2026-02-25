@@ -85,14 +85,20 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            logging.info(f"Processing URL: {target_url}")
+            processing_msg = f"Processing URL: {target_url}"
+            logging.info(processing_msg)
+            print(processing_msg)
 
             try:
-                logging.info("Fetching content...")
+                fetch_msg = "Fetching content..."
+                logging.info(fetch_msg)
+                print(fetch_msg)
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
-                logging.info("Converting to Markdown...")
+                convert_msg = "Converting to Markdown..."
+                logging.info(convert_msg)
+                print(convert_msg)
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
@@ -117,7 +123,9 @@ def main(argv=None):
                     print(md_content)
 
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logging.error(f"Conversion failed: {e}")
+                error_msg = f"Conversion failed: {e}"
+                logging.error(error_msg)
+                print(error_msg)
 
         if args.url:
             process_url(args.url)
