@@ -1,9 +1,21 @@
 """Tests for the upload module."""
-from __future__ import annotations
-
+import subprocess
+import sys
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import anthropic
+
+from html2md.upload import main, upload_file
+
+
+class MockAPIError(anthropic.APIError):
+    """Minimal APIError subclass for tests that raise anthropic.APIError."""
+
+    def __init__(self, message: str):
+        super().__init__(message=message, request=MagicMock(), body={})
+
 import pytest
 
 from html2md.upload import main, upload_file
@@ -43,7 +55,9 @@ def test_upload_file_not_found():
 
 
 def test_upload_file_default_mime_type(tmp_path):
-    """Test that 'application/octet-stream' is used as a default mime type."""
+    """Test that DEFAULT_MIME_TYPE is used when mime type cannot be guessed."""
+    from html2md.upload import DEFAULT_MIME_TYPE
+
     test_file = tmp_path / "test.unknown"
     test_file.write_text("content", encoding="utf-8")
 
@@ -61,7 +75,7 @@ def test_upload_file_default_mime_type(tmp_path):
         call_kwargs = mock_client_instance.beta.files.upload.call_args.kwargs
         file_tuple = call_kwargs["file"]
         assert file_tuple[0] == "test.unknown"
-        assert file_tuple[2] == "application/octet-stream"
+        assert file_tuple[2] == DEFAULT_MIME_TYPE
 
 
 def test_main_success(capsys):
@@ -115,3 +129,15 @@ def test_main_no_args(capsys):
 
     captured = capsys.readouterr()
     assert "usage: html2md-upload" in captured.err
+
+
+def test_upload_help_runs():
+    """Verify html2md-upload --help exits with code 0."""
+    result = subprocess.run(
+        [sys.executable, "-m", "html2md.upload", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "usage: html2md-upload" in result.stdout
