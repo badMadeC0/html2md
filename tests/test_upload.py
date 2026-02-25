@@ -1,22 +1,22 @@
 import sys
-import pytest
 from unittest.mock import MagicMock, patch
 
-class MockAPIError(Exception):
-    pass
-
 def test_upload_file():
+    # Create a mock anthropic module
     mock_anthropic = MagicMock()
+    # We need to mock the module structure so that 'from anthropic.types.beta import BetaFile' works or is ignored
+    # But since we are mocking the whole module, any attribute access returns a MagicMock by default.
+
     with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-        # Force re-import of the module under test to ensure it uses the mocked anthropic
+        # Ensure html2md.upload is not in sys.modules so it imports our mocked anthropic
         if "html2md.upload" in sys.modules:
             del sys.modules["html2md.upload"]
+
         from html2md.upload import upload_file
 
-        # Setup mocks for internal dependencies
+        # Setup mocks
         with patch("html2md.upload.Path") as mock_path,              patch("html2md.upload.mimetypes") as mock_mimetypes:
 
-            # Setup path mock
             file_path = "test_file.txt"
             mock_path_obj = MagicMock()
             mock_path.return_value = mock_path_obj
@@ -57,6 +57,7 @@ def test_upload_file():
             assert uploaded_file_tuple[2] == "text/plain"
 
 def test_upload_file_not_found():
+    # Similar setup for not found case
     mock_anthropic = MagicMock()
     with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
         if "html2md.upload" in sys.modules:
@@ -66,7 +67,12 @@ def test_upload_file_not_found():
         with patch("html2md.upload.Path") as mock_path:
             mock_path_obj = MagicMock()
             mock_path.return_value = mock_path_obj
+            mock_path.return_value = mock_path_obj
             mock_path_obj.exists.return_value = False
 
-            with pytest.raises(FileNotFoundError):
+            try:
                 upload_file("nonexistent.txt")
+            except FileNotFoundError:
+                pass
+            else:
+                assert False, "Should have raised FileNotFoundError"

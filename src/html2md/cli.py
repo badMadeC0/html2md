@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import argparse
+import logging
 import os
 
 def get_unique_filepath(filepath: str) -> str:
@@ -25,6 +26,9 @@ def get_unique_filepath(filepath: str) -> str:
 
 def main(argv=None):
     """Run the CLI."""
+    # Configure logging to stderr
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     ap = argparse.ArgumentParser(
         prog='html2md',
         description='Convert HTML URL to Markdown.'
@@ -50,8 +54,7 @@ def main(argv=None):
             from reportlab.platypus import SimpleDocTemplate, Paragraph # pylint: disable=import-outside-toplevel
             from reportlab.lib.styles import getSampleStyleSheet # pylint: disable=import-outside-toplevel
         except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify beautifulsoup4 reportlab")
+            logging.error(f"Missing dependency {e.name}. Please run: pip install requests markdownify")
             return 1
 
         session = requests.Session()
@@ -82,25 +85,21 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            print(f"Processing URL: {target_url}")
+            processing_msg = f"Processing URL: {target_url}"
+            logging.info(processing_msg)
+            print(processing_msg)
 
             try:
-                print("Fetching content...")
+                fetch_msg = "Fetching content..."
+                logging.info(fetch_msg)
+                print(fetch_msg)
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
-                html_content = response.text
-                if args.main_content:
-                    print("Extracting main content...")
-                    soup = BeautifulSoup(html_content, 'html.parser')
-                    main_tag = soup.find('main')
-                    if main_tag:
-                        html_content = str(main_tag)
-                    else:
-                        print("Warning: <main> tag not found, converting entire <body>.")
-
-                print("Converting to Markdown...")
-                md_content = md(html_content, heading_style="ATX")
+                convert_msg = "Converting to Markdown..."
+                logging.info(convert_msg)
+                print(convert_msg)
+                md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
@@ -119,44 +118,21 @@ def main(argv=None):
                     md_out_path = get_unique_filepath(md_out_path)
                     with open(md_out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
-                    print(f"Success! Saved Markdown to: {md_out_path}")
-
-                    if args.all_formats:
-                        # --- Save TXT file ---
-                        soup = BeautifulSoup(html_content, 'html.parser')
-                        text_content = soup.get_text(separator='\n', strip=True)
-                        txt_out_path = os.path.join(args.outdir, f"{base_filename}.txt")
-                        txt_out_path = get_unique_filepath(txt_out_path)
-                        with open(txt_out_path, 'w', encoding='utf-8') as f:
-                            f.write(text_content)
-                        print(f"Success! Saved TXT to: {txt_out_path}")
-
-                        # --- Save PDF file ---
-                        pdf_out_path = os.path.join(args.outdir, f"{base_filename}.pdf")
-                        pdf_out_path = get_unique_filepath(pdf_out_path)
-                        doc = SimpleDocTemplate(pdf_out_path)
-                        styles = getSampleStyleSheet()
-                        style = styles['Normal']
-                        
-                        paragraphs = [Paragraph(p, style) for p in text_content.split('\n') if p.strip()]
-                        if not paragraphs:
-                            paragraphs = [Paragraph("No content found.", style)]
-                        
-                        doc.build(paragraphs)
-                        print(f"Success! Saved PDF to: {pdf_out_path}")
-
+                    logging.info(f"Success! Saved to: {out_path}")
                 else:
                     print(md_content)
 
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}")
+                error_msg = f"Conversion failed: {e}"
+                logging.error(error_msg)
+                print(error_msg)
 
         if args.url:
             process_url(args.url)
 
         if args.batch:
             if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}")
+                logging.error(f"Batch file not found: {args.batch}")
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
