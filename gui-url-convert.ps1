@@ -321,8 +321,7 @@ $ConvertBtn.Add_Click({
     #    to ensure all internal quotes are preserved and arguments are correctly delimited.
     # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
+    $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
