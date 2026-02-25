@@ -255,19 +255,23 @@ $ConvertBtn.Add_Click({
     }
 
     # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+    $validatedUrls = @()
+    foreach ($url in $urlList) {
+        try {
+            $uriObj = [System.Uri]$url
+            if ($uriObj.Scheme -notmatch '^https?$') {
+                throw "Invalid scheme"
+            }
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+            $validatedUrls += $uriObj.AbsoluteUri
+        } catch {
+            $StatusText.Text = "Error: Invalid HTTP/HTTPS URL."
+            $StatusText.Foreground = "Red"
+            $ProgressBar.IsIndeterminate = $false
+            return
         }
-        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-        $url = $uriObj.AbsoluteUri
-    } catch {
-        $StatusText.Text = "Error: Invalid HTTP/HTTPS URL."
-        $StatusText.Foreground = "Red"
-        $ProgressBar.IsIndeterminate = $false
-        return
     }
+    $urlList = $validatedUrls
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
