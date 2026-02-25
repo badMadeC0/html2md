@@ -4,7 +4,6 @@ import argparse
 import csv
 import json
 from pathlib import Path
-from typing import List, Set, Tuple
 
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
@@ -18,11 +17,11 @@ def _sanitize_formula(value: str) -> str:
     return value
 
 
-def _unique_fieldnames(fields: List[str]) -> Tuple[List[str], List[Tuple[str, str]]]:
+def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
     """Return deduplicated/sanitized CSV headers and original->output mapping."""
-    used: Set[str] = set()
-    out_fields: List[str] = []
-    mapping: List[Tuple[str, str]] = []
+    used: set[str] = set()
+    out_fields: list[str] = []
+    mapping: list[tuple[str, str]] = []
 
     for field in fields:
         base = _sanitize_formula(field)
@@ -51,26 +50,32 @@ def _sanitize_value(value: object) -> object:
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
-        prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
+        prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument('--in', dest='inp', required=True)
-    ap.add_argument('--out', dest='out', required=True)
-    ap.add_argument('--fields', default='ts,input,output,status,reason')
+    ap.add_argument("--in", dest="inp", required=True)
+    ap.add_argument("--out", dest="out", required=True)
+    ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
 
-    fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    fields = [f.strip() for f in args.fields.split(",") if f.strip()]
     fieldnames, mapping = _unique_fieldnames(fields)
 
     inp = Path(args.inp)
     out = Path(args.out)
-    with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
+
+    # Optimization: Pre-calculate input names to avoid tuple unpacking in the loop
+    input_names = [m[0] for m in mapping]
+
+    with inp.open("r", encoding="utf-8") as fi, out.open(
+        "w", newline="", encoding="utf-8"
+    ) as fo:
         # Optimization: Use csv.writer instead of DictWriter to avoid per-row dictionary overhead
         w = csv.writer(fo)
         w.writerow(fieldnames)
 
         for line in fi:
-            line = line.strip()
-            if not line:
+            # Optimization: Check for empty/whitespace lines without allocating new string with strip()
+            if not line or line.isspace():
                 continue
 
             try:
@@ -81,14 +86,11 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            row = [
-                _sanitize_value(rec.get(input_name, ""))
-                for input_name, _ in mapping
-            ]
+            row = [_sanitize_value(rec.get(name, "")) for name in input_names]
             w.writerow(row)
 
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

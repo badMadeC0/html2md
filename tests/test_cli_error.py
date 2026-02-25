@@ -1,73 +1,153 @@
-import unittest
-from unittest.mock import patch, MagicMock
+import logging
 import sys
-import io
 import os
-import requests
+from unittest.mock import MagicMock, patch
 
-# Ensure src is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+# Ensure src is in sys.path
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
 import html2md.cli
 
-class TestCliError(unittest.TestCase):
-    def test_cli_conversion_request_failure(self):
-        """Test that requests.get failure is caught and printed."""
+# Define a mock RequestException in case requests is not installed in the test env
+class MockRequestException(Exception):
+    pass
 
-        # Configure requests mock to fail
-        # Use a real RequestException so the except block catches it
-        mock_requests = MagicMock()
-        mock_requests.RequestException = requests.RequestException
+try:
+    import requests
+    RealRequestException = requests.RequestException
+except ImportError:
+    RealRequestException = MockRequestException
 
-        mock_session = MagicMock()
-        mock_requests.Session.return_value = mock_session
-        mock_session.get.side_effect = requests.RequestException("Network error")
+def test_cli_conversion_request_failure(capsys, caplog):
+    """Test that requests.get failure is caught and logged to stderr."""
 
-        mock_markdownify = MagicMock()
+    # Create mocks
+    mock_requests = MagicMock()
+    mock_requests.RequestException = RealRequestException  # Make it a catchable exception class
 
-        # Capture stderr
-        captured_stderr = io.StringIO()
+    mock_markdownify = MagicMock()
+    mock_bs4 = MagicMock()
+    mock_reportlab_platypus = MagicMock()
+    mock_reportlab_styles = MagicMock()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except Exception as e:
-                    self.fail(f"main raised exception {e}")
+    # Configure requests mock to fail
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_session.get.side_effect = RealRequestException("Network error")
 
-        output = captured_stderr.getvalue()
-        self.assertIn("Network error", output)
+    # We must patch sys.modules so that the 'import requests' inside main() gets our mock
+    with caplog.at_level(logging.INFO):
+        with patch.dict(sys.modules, {
+            'requests': mock_requests,
+            'markdownify': mock_markdownify,
+            'bs4': mock_bs4,
+            'reportlab.platypus': mock_reportlab_platypus,
+            'reportlab.lib.styles': mock_reportlab_styles,
+        }):
+            # Run main
+            exit_code = html2md.cli.main(['--url', 'http://example.com'])
 
-    def test_cli_conversion_markdownify_failure(self):
-        """Test that markdownify failure is caught and printed."""
+    # Verify exit code
+    assert exit_code == 0
 
-        mock_requests = MagicMock()
-        # We need RequestException to be valid for the except clause
-        mock_requests.RequestException = requests.RequestException
+    # Verify log messages (via logging, not stdout)
+    assert "Processing URL: http://example.com" in caplog.text
+    assert "Fetching content" in caplog.text
+    assert "Network error: Network error" in caplog.text
 
-        mock_session = MagicMock()
-        mock_requests.Session.return_value = mock_session
-        mock_response = MagicMock()
-        mock_response.text = "<html></html>"
-        mock_session.get.return_value = mock_response
+    # Verify nothing leaked to stdout
+    captured = capsys.readouterr()
+    assert "Processing URL" not in captured.out
+    assert "Conversion failed" not in captured.out
 
-        mock_markdownify = MagicMock()
-        # Mocking the module attribute access
-        mock_markdownify.markdownify.side_effect = Exception("Parse error")
 
-        captured_stderr = io.StringIO()
+def test_cli_conversion_file_error(capsys, caplog):
+    """Test that OSError is caught and logged as File error."""
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except Exception as e:
-                    self.fail(f"main raised exception {e}")
+    # Create mocks
+    mock_requests = MagicMock()
+    mock_requests.RequestException = RealRequestException
 
-        output = captured_stderr.getvalue()
-        # The code catches Exception and prints "Conversion failed: {e}"
-        self.assertIn("Conversion failed", output)
-        self.assertIn("Parse error", output)
+    mock_markdownify = MagicMock()
+    mock_bs4 = MagicMock()
+    mock_reportlab_platypus = MagicMock()
+    mock_reportlab_styles = MagicMock()
 
-if __name__ == '__main__':
-    unittest.main()
+    # Configure requests mock to succeed
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_response = MagicMock()
+    mock_response.text = "<html></html>"
+    mock_session.get.return_value = mock_response
+
+    mock_markdownify.markdownify.return_value = "# Header"
+
+    # We patch os.makedirs to fail.
+    # Since html2md.cli imports os at top level, we can patch 'html2md.cli.os.makedirs'
+    # BUT, the code does 'if not os.path.exists(args.outdir): os.makedirs(args.outdir)'
+    # So we need to ensure exists returns false, then makedirs raises OSError
+
+    with caplog.at_level(logging.INFO):
+        with patch.dict(sys.modules, {
+            'requests': mock_requests,
+            'markdownify': mock_markdownify,
+            'bs4': mock_bs4,
+            'reportlab.platypus': mock_reportlab_platypus,
+            'reportlab.lib.styles': mock_reportlab_styles,
+        }):
+            # Patch os inside the module
+            with patch('html2md.cli.os.makedirs', side_effect=OSError("Permission denied")):
+                with patch('html2md.cli.os.path.exists', return_value=False):
+                    exit_code = html2md.cli.main(['--url', 'http://example.com', '--outdir', '/fail'])
+
+    assert exit_code == 0
+    assert "File error: Permission denied" in caplog.text
+
+
+def test_cli_conversion_markdownify_failure(capsys, caplog):
+    """Test that markdownify failure is caught and logged to stderr."""
+
+    # Create mocks
+    mock_requests = MagicMock()
+    mock_requests.RequestException = RealRequestException
+
+    mock_markdownify = MagicMock()
+    mock_bs4 = MagicMock()
+    mock_reportlab_platypus = MagicMock()
+    mock_reportlab_styles = MagicMock()
+
+    # Configure requests mock to succeed
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_response = MagicMock()
+    mock_response.text = "<html></html>"
+    mock_session.get.return_value = mock_response
+
+    # Configure markdownify mock to fail
+    # Note: in main(), it does 'from markdownify import markdownify as md'
+    mock_markdownify.markdownify.side_effect = Exception("Parse error")
+
+    with caplog.at_level(logging.INFO):
+        with patch.dict(sys.modules, {
+            'requests': mock_requests,
+            'markdownify': mock_markdownify,
+            'bs4': mock_bs4,
+            'reportlab.platypus': mock_reportlab_platypus,
+            'reportlab.lib.styles': mock_reportlab_styles,
+        }):
+            exit_code = html2md.cli.main(['--url', 'http://example.com'])
+
+    assert exit_code == 0
+
+    # Verify log messages (via logging, not stdout)
+    assert "Processing URL: http://example.com" in caplog.text
+    assert "Fetching content" in caplog.text
+    assert "Converting to Markdown" in caplog.text
+    assert "Conversion failed: Parse error" in caplog.text
+
+    # Verify nothing leaked to stdout
+    captured = capsys.readouterr()
+    assert "Processing URL" not in captured.out
+    assert "Conversion failed" not in captured.out
