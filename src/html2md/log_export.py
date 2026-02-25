@@ -10,11 +10,9 @@ _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
-        return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
-        return f"'{value}"
-    return value
+    # Delegate to _sanitize_value which now contains the optimized logic.
+    # _sanitize_value returns object, but for str input it returns str.
+    return str(_sanitize_value(value))
 
 
 def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
@@ -42,8 +40,25 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if isinstance(value, str):
-        return _sanitize_formula(value)
+
+    if not isinstance(value, str):
+        return value
+
+    # Optimization: Check for empty string early
+    if not value:
+        return value
+
+    # Optimization: Fast path for safe strings (common case)
+    # Avoids lstrip() allocation and startswith overhead if first char is safe
+    first_char = value[0]
+    if first_char not in _DANGEROUS_PREFIXES and not first_char.isspace():
+        return value
+
+    # Fallback for potential formulas or whitespace-prefixed strings
+    if value.startswith("'"):
+        return value
+    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+        return f"'{value}"
     return value
 
 
