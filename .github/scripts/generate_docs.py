@@ -147,6 +147,9 @@ pytest
 
 {"\n".join(f"- {f}" for f in markdown_files)}
 
+## License
+
+MIT License
 ## Project Structure
 
 ```
