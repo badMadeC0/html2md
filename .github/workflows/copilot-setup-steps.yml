@@ -15,5 +15,4 @@ jobs:
       SKIP_MEMORY_FETCH: "true"
     steps:
       - name: Prepare environment for Copilot agents
-        run: |
-          echo "Copilot setup applied: memory fetch disabled."
+        run: 'echo "Copilot setup applied: memory fetch disabled."'
