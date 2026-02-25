@@ -9,6 +9,13 @@ import anthropic
 
 from html2md.upload import main, upload_file
 
+
+class MockAPIError(anthropic.APIError):
+    """Simple APIError subclass with a minimal constructor for tests."""
+
+    def __init__(self, message):
+        super().__init__(message=message, request=MagicMock(), body={})
+
 def test_upload_file_success(tmp_path):
     """Deprecated duplicate of test_upload_file_success; kept empty to avoid redefinition issues."""
     # This function body is intentionally left empty because a later
@@ -68,7 +75,7 @@ def test_main_api_error(capsys):
 
         captured = capsys.readouterr()
         # Check stderr for error message
-        assert "API error: Something went wrong with API" in captured.err
+        assert "Error: Something went wrong with API" in captured.err
 
 def test_upload_file_success(tmp_path):
     """Test successful file upload."""
@@ -179,7 +186,7 @@ def test_main_api_error(capsys):
 
         captured = capsys.readouterr()
         # Check stderr for error message
-        assert "API error: Something went wrong with API" in captured.err
+        assert "Error: Something went wrong with API" in captured.err
 
 def test_main_no_args(capsys):
     """Test main function exits when no file is provided."""
