@@ -8,6 +8,23 @@ WPF GUI for html2md
 
 param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
 
+function Get-UniquePath {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $Path }
+    
+    $dir = Split-Path -Parent $Path
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($Path)
+    $ext = [System.IO.Path]::GetExtension($Path)
+    $count = 1
+    
+    do {
+        $newPath = Join-Path $dir "${name}_${count}${ext}"
+        $count++
+    } while (Test-Path -LiteralPath $newPath)
+    
+    return $newPath
+}
+
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
         Write-Error "Batch file not found: $BatchFile"
@@ -24,17 +41,31 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
+            $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
-            } elseif (Test-Path -LiteralPath $pyScript) {
-                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                $argsList = @("$pyScript") + $argsList
-                & $pyCmd $argsList
-            } else {
-                Write-Error "Could not find html2md executable or script."
+            # Default to main content unless BatchWholePage is set
+            $argsList = @("--url", "$url", "--outdir", "$tempDir")
+
+            try {
+                if (Test-Path -LiteralPath $venvExe) {
+                    & $venvExe $argsList
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    $argsList = @("$pyScript") + $argsList
+                    & $pyCmd $argsList
+                } else {
+                    Write-Error "Could not find html2md executable or script."
+                }
+
+                Get-ChildItem -Path $tempDir | ForEach-Object {
+                    $dest = Join-Path $outDir $_.Name
+                    $final = Get-UniquePath $dest
+                    Move-Item -LiteralPath $_.FullName -Destination $final -Force
+                    Write-Host "Saved to: $final"
+                }
+            } finally {
+                if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
             }
         }
     }
@@ -278,9 +309,12 @@ $ConvertBtn.Add_Click({
         $failureCount = 0
     
         foreach ($url in $urlList) {
+            $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+
             try {
                 $StatusText.Text = "Converting: $url"
-                $argsList = @("--url", $url, "--outdir", $outdir)
+                $argsList = @("--url", $url, "--outdir", $tempDir)
     
                 if ($WholePageChk.IsChecked) {
                     $argsList += "--whole-page"
@@ -294,12 +328,21 @@ $ConvertBtn.Add_Click({
                 } else {
                     throw "Could not find html2md executable or script."
                 }
+
+                Get-ChildItem -Path $tempDir | ForEach-Object {
+                    $dest = Join-Path $outdir $_.Name
+                    $final = Get-UniquePath $dest
+                    Move-Item -LiteralPath $_.FullName -Destination $final -Force
+                    $LogBox.AppendText("Saved to: $final`r`n")
+                }
     
                 $successCount++
-                $LogBox.AppendText("✓ Completed: $url`r`n")
+                $LogBox.AppendText("[OK] Completed: $url`r`n")
             } catch {
                 $failureCount++
-                $LogBox.AppendText("✗ Failed: $url`r`n  Error: $_`r`n")
+                $LogBox.AppendText("[Error] Failed: $url`r`n  Error: $_`r`n")
+            } finally {
+                if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
             }
         }
     
