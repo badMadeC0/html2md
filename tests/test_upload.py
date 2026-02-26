@@ -4,15 +4,10 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Mock anthropic before import
-mock_anthropic = MagicMock()
-# Ensure APIError is an exception class we can raise/catch
-class MockAPIError(Exception):
-    pass
-mock_anthropic.APIError = MockAPIError
-sys.modules["anthropic"] = mock_anthropic
-
-from html2md.upload import upload_file, main
-
+import sys
+from unittest.mock import MagicMock, patch
+import pytest
+import importlib
 def test_upload_file_success(tmp_path):
     """Test successful file upload."""
     test_file = tmp_path / "test.txt"
