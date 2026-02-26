@@ -33,7 +33,7 @@ try {
       try {
         // Only try build if package.json exists in subdir
         if (existsSync(join(dir, "package.json"))) {
-             execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
+          execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
         }
       } catch (e) {
         console.error(`[healthcheck] build failed in ${dir}`);
