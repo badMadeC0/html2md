@@ -35,12 +35,8 @@ def test_upload_file_success(tmp_path):
 def test_upload_file_not_found():
     """Test error raised when file not found."""
     with patch("pathlib.Path.exists", return_value=False):
-        try:
+        with pytest.raises(FileNotFoundError, match="File not found"):
             upload_file("nonexistent.txt")
-        except FileNotFoundError as e:
-            assert "File not found" in str(e)
-        else:
-            assert False, "Should have raised FileNotFoundError"
 
 def test_upload_file_default_mime_type(tmp_path):
     """Test fallback to default mime type."""
