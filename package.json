@@ -6,8 +6,8 @@
     "test": "pytest",
     "lint": "ruff check .",
     "format": "ruff format .",
-    "healthcheck": "node scripts/healthcheck.mjs",
-    "self:heal": "node scripts/self-heal.mjs"
+    "healthcheck": "python scripts/healthcheck.py",
+    "self:heal": "python scripts/self_heal.py"
   },
   "devDependencies": {}
 }
