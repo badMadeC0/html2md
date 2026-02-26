@@ -46,22 +46,19 @@ def test_upload_file_not_found():
 
 def test_upload_file_default_mime_type(tmp_path):
     """Test default mime type is used when detection fails."""
-    # Create a temporary file with an unknown extension
     test_file = tmp_path / "unknown_file.xyz"
     test_file.write_text("content", encoding="utf-8")
 
-    # Mock the client instance
     mock_client_instance = MagicMock()
     mock_upload_response = MagicMock()
     mock_upload_response.id = "file_123"
     mock_client_instance.beta.files.upload.return_value = mock_upload_response
 
-    with patch("mimetypes.guess_type", return_value=(None, None)) as mock_guess_type, patch(
+    with patch("mimetypes.guess_type", return_value=(None, None)), patch(
         "anthropic.Anthropic", return_value=mock_client_instance
     ):
         upload_file(str(test_file))
 
-        # Verify upload was called with default mime type
         mock_client_instance.beta.files.upload.assert_called_once()
         call_kwargs = mock_client_instance.beta.files.upload.call_args.kwargs
         file_tuple = call_kwargs["file"]
