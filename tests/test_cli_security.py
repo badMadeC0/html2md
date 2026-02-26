@@ -62,7 +62,10 @@ class TestSecurityFix(unittest.TestCase):
 
     def test_ftp_url_blocked(self):
         """Verify FTP URLs are rejected."""
-        with patch('builtins.print'):
+        with self.assertLogs(level='ERROR') as cm:
+            main(['--url', 'ftp://example.com'])
+        self.assertTrue(any("Invalid URL scheme" in o for o in cm.output))
+        self.mock_session.get.assert_not_called()
              with self.assertLogs(level='ERROR') as cm:
                  main(['--url', 'ftp://example.com'])
              self.assertTrue(any("Invalid URL scheme" in o for o in cm.output))
