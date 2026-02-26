@@ -10,21 +10,27 @@ def run(cmd: list[str], label: str) -> bool:
     """Run a command, print its label, return True if it succeeds."""
     print(f"\n==> {label}")
     print(f"    $ {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=False)
-    if result.returncode != 0:
-        print(f"    FAILED (exit {result.returncode})")
+    try:
+        result = subprocess.run(cmd, capture_output=False)
+        if result.returncode != 0:
+            print(f"    FAILED (exit {result.returncode})")
+            return False
+        print(f"    OK")
+        return True
+    except FileNotFoundError:
+        print(f"    FAILED (command not found)")
         return False
-    print(f"    OK")
-    return True
 
 
-def check_tool_exists(cmd: list[str]) -> bool:
+def check_tool_runnable(cmd: list[str]) -> bool:
     """Return True if the given command can be executed successfully."""
     try:
-        result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        return result.returncode == 0
     except FileNotFoundError:
         return False
-    return result.returncode == 0
 
 
 def main(argv=None) -> int:
@@ -43,21 +49,27 @@ def main(argv=None) -> int:
     )
 
     # 3. Run the test suite
-    ok &= run(
-        [sys.executable, "-m", "pytest", "-q"],
-        "Test suite (pytest)",
-    )
+    if check_tool_runnable([sys.executable, "-m", "pytest", "--version"]):
+        ok &= run(
+            [sys.executable, "-m", "pytest", "-q"],
+            "Test suite (pytest)",
+        )
+    else:
+        print("\n==> Test suite (pytest)")
+        print("    pytest not found, skipping tests (FAIL).")
+        ok = False
 
     # 4. Lint with ruff (if available)
     ruff_label = "Lint (ruff check)"
-    if check_tool_exists(["ruff", "--version"]):
+    if check_tool_runnable([sys.executable, "-m", "ruff", "--version"]):
         ok &= run(
             [sys.executable, "-m", "ruff", "check", "."],
             ruff_label,
         )
     else:
         print(f"\n==> {ruff_label}")
-        print("    Ruff not found, skipping linting.")
+        print("    Ruff not found, skipping linting (FAIL).")
+        ok = False
 
     # 5. Verify package builds
     ok &= run(

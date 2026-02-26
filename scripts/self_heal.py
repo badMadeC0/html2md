@@ -23,54 +23,80 @@ def has_changes() -> bool:
         ["git", "status", "--porcelain"],
         capture_output=True,
         text=True,
-        check=True,
     )
     return bool(result.stdout.strip())
 
 
 def passes_healthcheck() -> bool:
     """Return True if scripts/healthcheck.py exits 0."""
+    # We call the healthcheck script using the same python interpreter
     result = subprocess.run([sys.executable, "scripts/healthcheck.py"])
     return result.returncode == 0
 
 
+def fix_dependencies() -> bool:
+    """Install/upgrade dependencies and dev tools."""
+    ok = True
+    ok &= sh([sys.executable, "-m", "pip", "install", "-e", "."], "editable install")
+    ok &= sh([sys.executable, "-m", "pip", "install", "pytest", "ruff"], "install dev tools")
+    return ok
+
+
+def fix_lint() -> bool:
+    """Run ruff linting and formatting fixes."""
+    ok = True
+    # We target src/ and tests/ explicitly to match typical usage,
+    # but "." is also fine if ruff defaults are set.
+    # Using "." to catch everything including scripts/.
+    ok &= sh([sys.executable, "-m", "ruff", "check", "--fix", "."], "ruff fix")
+    ok &= sh([sys.executable, "-m", "ruff", "format", "."], "ruff format")
+    return ok
+
+
+def fix_install(force: bool = False) -> bool:
+    """Force reinstall if needed."""
+    flags = ["--upgrade"]
+    if force:
+        flags.append("--force-reinstall")
+    return sh(
+        [sys.executable, "-m", "pip", "install"] + flags + ["-e", "."],
+        "reinstall deps" if force else "upgrade deps",
+    )
+
+
 def main() -> int:
     """Run repair steps sequentially, but stop if healthcheck starts passing."""
-    if not passes_healthcheck():
-        print("\n=== Step 1: Re-install package ===")
-        sh([sys.executable, "-m", "pip", "install", "-e", "."], "editable install")
-        sh([sys.executable, "-m", "pip", "install", "pytest", "ruff"], "dev deps")
-
-    if not passes_healthcheck():
-        print("\n=== Step 2: Lint/format auto-fix ===")
-        sh([sys.executable, "-m", "ruff", "check", "--fix", "src/", "tests/"], "ruff fix")
-        sh([sys.executable, "-m", "ruff", "format", "src/", "tests/"], "ruff format")
-
-    if not passes_healthcheck():
-        print("\n=== Step 3: Dependency upgrade ===")
-        sh(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "-e", "."],
-            "upgrade deps",
-        )
-
-    if not passes_healthcheck():
-        print("\n=== Step 4: Clean reinstall ===")
-        sh(
-            [sys.executable, "-m", "pip", "install", "--force-reinstall", "-e", "."],
-            "force reinstall",
-        )
-
-    # If nothing worked, report failure
-    if not passes_healthcheck():
-        print("\n=== Self-heal could not fix all issues. ===", file=sys.stderr)
-        return 1
-
-    if not has_changes():
-        print("\n=== Healthcheck passes but no file changes to commit. ===")
+    if passes_healthcheck():
+        print("\n=== Healthcheck already passes. ===")
         return 0
 
-    print("\n=== Repairs applied successfully. ===")
-    return 0
+    print("\n=== Step 1: Install Dependencies ===")
+    fix_dependencies()
+    if passes_healthcheck():
+        print("\n=== Fixed by installing dependencies. ===")
+        # If fixed, we exit 0 regardless of changes
+        return 0
+
+    print("\n=== Step 2: Lint/Format Auto-fix ===")
+    fix_lint()
+    if passes_healthcheck():
+        print("\n=== Fixed by linting/formatting. ===")
+        return 0
+
+    print("\n=== Step 3: Upgrade Dependencies ===")
+    fix_install(force=False)
+    if passes_healthcheck():
+        print("\n=== Fixed by upgrading dependencies. ===")
+        return 0
+
+    print("\n=== Step 4: Force Reinstall ===")
+    fix_install(force=True)
+    if passes_healthcheck():
+        print("\n=== Fixed by force reinstall. ===")
+        return 0
+
+    print("\n=== Self-heal could not fix all issues. ===", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

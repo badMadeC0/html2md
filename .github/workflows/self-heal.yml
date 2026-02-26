@@ -17,11 +17,11 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure')
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -38,36 +38,27 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: python scripts/healthcheck.py | tee selfheal-pre.txt
-
+        shell: bash
         run: |
-          $output = python scripts/healthcheck.py 2>&1
-          $exitCode = $LASTEXITCODE
-          $output | Tee-Object selfheal-pre.txt
-          exit $exitCode
+          set -o pipefail
+          python scripts/healthcheck.py | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
         continue-on-error: true
+        shell: bash
         run: |
-          $output = python scripts/self_heal.py 2>&1
-          $exitCode = $LASTEXITCODE
-          $output | Tee-Object selfheal-repair.txt
-          exit $exitCode
+          set -o pipefail
+          python scripts/self_heal.py | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
         if: always()
+        shell: bash
         run: |
-          $output = python scripts/healthcheck.py 2>&1
-          $exitCode = $LASTEXITCODE
-          $output | Tee-Object selfheal-post.txt
-          exit $exitCode
-      - name: Run healthcheck (post-repair)
-        id: post
-        continue-on-error: true
-        if: always()
-        run: python scripts/healthcheck.py | tee selfheal-post.txt
+          set -o pipefail
+          python scripts/healthcheck.py | tee selfheal-post.txt
+
       - name: Collect logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,22 +73,24 @@ jobs:
         if: steps.post.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          git diff --quiet && echo "No changes to commit" && exit 0
-          $branch = "auto/self-heal-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-          git checkout -b $branch
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          branch="auto/self-heal-$(date +'%Y%m%d-%H%M%S')"
+          git checkout -b "$branch"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix: self-heal auto-repairs`n`nApplied by .github/workflows/self-heal.yml"
-          git push -u origin $branch
-          gh pr create --title "fix: self-heal auto-repairs" --body @"
-          ## Self-heal auto-fix
+          git commit -m "fix: self-heal auto-repairs" -m "Applied by .github/workflows/self-heal.yml"
+          git push -u origin "$branch"
+
+          gh pr create --title "fix: self-heal auto-repairs" --body "## Self-heal auto-fix
 
           This PR was created automatically by the self-heal workflow after CI failure.
 
-          **Repairs attempted:** see attached artifact ``selfheal-logs`` for details.
+          **Repairs attempted:** see attached artifact \`selfheal-logs\` for details.
 
-          - Pre-repair healthcheck: ``selfheal-pre.txt``
-          "@
-          --label "self-heal"
+          - Pre-repair healthcheck: \`selfheal-pre.txt\`" --label "self-heal"
