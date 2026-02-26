@@ -2,7 +2,7 @@
   "name": "html2md-cli",
   "version": "0.11.6",
   "scripts": {
-    "postinstall": "pip install -e . && pip install pytest ruff",
+    "postinstall": "pip install -e . pytest ruff",
     "test": "pytest",
     "lint": "ruff check .",
     "format": "ruff format .",
