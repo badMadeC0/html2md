@@ -1,6 +1,5 @@
 """Tests for upload functionality."""
 import sys
-import unittest.mock
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
