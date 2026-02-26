@@ -8,6 +8,11 @@ WPF GUI for html2md
 
 param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
 
+function Sanitize-Arg([string]$arg) {
+    # Escape single quotes by doubling them, suitable for single-quoted PowerShell strings
+    return $arg -replace "'", "''"
+}
+
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
         Write-Error "Batch file not found: $BatchFile"
@@ -205,30 +210,39 @@ $ConvertBtn.Add_Click({
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
+    # Sanitize paths and arguments for safe interpolation in single-quoted strings
+    $sOutDir = Sanitize-Arg $outdir
+    $sVenvExe = Sanitize-Arg $venvExe
+    $sPyScript = Sanitize-Arg $pyScript
+    $sPSCommandPath = Sanitize-Arg $PSCommandPath
+
     if ($urlList.Count -gt 1) {
         # --- BATCH MODE ---
         $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
+        $sTempFile = Sanitize-Arg $tempFile
 
         # Relaunch this script in batch mode
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$sPSCommandPath' -BatchFile '$sTempFile' -BatchOutDir '$sOutDir'"
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
+        $sUrl = Sanitize-Arg $url
+
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$sVenvExe' --url '$sUrl' --outdir '$sOutDir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$sPyScript' --url '$sUrl' --outdir '$sOutDir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
