@@ -253,7 +253,61 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    # --- Security Validation ---
-    foreach ($url in $urlList) {
-        try {
+        # --- Security Validation ---
+        foreach ($url in $urlList) {
+            try {
+                if (-not ($url -match '^https?://')) {
+                    throw "URL must start with http:// or https://"
+                }
+            } catch {
+                $StatusText.Text = "Invalid URL: $_"
+                $StatusText.Foreground = "Red"
+                $ProgressBar.IsIndeterminate = $false
+                return
+            }
+        }
+    
+        # --- Execute Conversion ---
+        $scriptDir = Split-Path -Parent $PSCommandPath
+        if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+    
+        $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+        $pyScript = Join-Path $scriptDir "html2md.py"
+    
+        $successCount = 0
+        $failureCount = 0
+    
+        foreach ($url in $urlList) {
+            try {
+                $StatusText.Text = "Converting: $url"
+                $argsList = @("--url", $url, "--outdir", $outdir)
+    
+                if ($WholePageChk.IsChecked) {
+                    $argsList += "--whole-page"
+                }
+    
+                if (Test-Path -LiteralPath $venvExe) {
+                    & $venvExe $argsList 2>&1 | ForEach-Object { $LogBox.AppendText("$_`r`n") }
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    & $pyCmd $pyScript $argsList 2>&1 | ForEach-Object { $LogBox.AppendText("$_`r`n") }
+                } else {
+                    throw "Could not find html2md executable or script."
+                }
+    
+                $successCount++
+                $LogBox.AppendText("✓ Completed: $url`r`n")
+            } catch {
+                $failureCount++
+                $LogBox.AppendText("✗ Failed: $url`r`n  Error: $_`r`n")
+            }
+        }
+    
+        $ProgressBar.IsIndeterminate = $false
+        $StatusText.Text = "Complete: $successCount succeeded, $failureCount failed"
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+    })
+    
+    # --- Show window ---
+    $window.ShowDialog() | Out-Null
  
