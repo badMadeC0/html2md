@@ -18,30 +18,33 @@ const tryRun = (name, cmd) => {
 };
 
 try {
-  // Root-level checks (best-effort if scripts exist)
-  if (hasScript("typecheck")) tryRun("Typecheck", "pnpm run typecheck");
-  if (hasScript("lint")) tryRun("Lint", "pnpm run lint");
-  if (hasScript("test")) tryRun("Unit tests", "pnpm run test");
+  // Delegate to the Python healthcheck which matches this project's structure.
+  const commands = [
+    "python scripts/healthcheck.py",
+    "python3 scripts/healthcheck.py",
+  ];
 
-  // Workspace smoke builds (apps/* and packages/* if build exists)
-  const roots = ["apps", "packages"];
-  for (const base of roots) {
-    if (!existsSync(base)) continue;
-    for (const name of readdirSync(base)) {
-      const dir = join(base, name);
-      if (!statSync(dir).isDirectory()) continue;
-      try {
-        // Only try build if package.json exists in subdir
-        if (existsSync(join(dir, "package.json"))) {
-          execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
-        }
-      } catch (e) {
-        console.error(`[healthcheck] build failed in ${dir}`);
-        process.exitCode = 1;
-      }
+  let succeeded = false;
+
+  for (const cmd of commands) {
+    try {
+      console.log(`\n==> Running project healthcheck via: ${cmd}`);
+      run(cmd);
+      succeeded = true;
+      break;
+    } catch (e) {
+      // Try the next interpreter; remember that a failure occurred.
+      console.error(`[healthcheck] Failed with "${cmd}": ${e.message || e}`);
+      process.exitCode = 1;
     }
   }
-  process.exit(process.exitCode ?? 0);
+
+  if (!succeeded) {
+    console.error("[healthcheck] Unable to run Python healthcheck.");
+    process.exit(process.exitCode ?? 1);
+  } else {
+    process.exit(process.exitCode ?? 0);
+  }
 } catch (e) {
   console.error(e);
   process.exit(1);
