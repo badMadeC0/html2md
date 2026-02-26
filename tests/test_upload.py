@@ -7,13 +7,10 @@ from unittest.mock import MagicMock, patch
 try:
     import anthropic
 except ImportError:
-    anthropic = MagicMock()
-
-    class APIError(Exception):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args)
+    pass
 
 from html2md import upload
+
 
 
 @patch("html2md.upload.anthropic.Anthropic")
