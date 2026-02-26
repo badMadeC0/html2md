@@ -20,4 +20,4 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 ## 2024-10-24 - Stored XSS in Markdown Output
 **Vulnerability:** The `html2md` tool converted HTML to Markdown without sanitization, preserving dangerous tags like `<script>`, `<style>`, and `<iframe>`. If the generated Markdown is viewed in a viewer that supports raw HTML, this could lead to Stored XSS.
 **Learning:** Markdown converters often preserve raw HTML by default to support features not present in Markdown. Always check if the converter has options to strip dangerous tags.
-**Prevention:** Configure `markdownify` (or similar tools) with `strip=['script', 'style', 'iframe', 'object', 'embed']` to remove these tags during conversion.
+**Prevention:** Configure `markdownify` (or similar tools) with `strip=['script', 'style', 'iframe', 'object', 'embed', 'link', 'meta']` to remove these tags during conversion.
