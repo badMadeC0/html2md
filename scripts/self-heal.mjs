@@ -29,22 +29,7 @@ if (passHealth()) fixed = fixed || changed();
 
 // 2) Snapshot updates (Skipped for Python/pytest as -u is not standard)
 
-// 3) Type acquisition (Node)
-if (!passHealth()) {
-  trySh("pnpm dlx typesync --save-dev");
-  trySh("pnpm install");
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 4) Lockfile repair (Node)
-if (!passHealth()) {
-  trySh("pnpm install");
-  if (!passHealth()) {
-    trySh("pnpm up --latest --interactive=false");
-  }
-  if (passHealth()) fixed = fixed || changed();
-}
-
+// 3) Node-specific dependency repairs (typesync / pnpm up) skipped for this Python project
 // 5) Known generators
 if (!passHealth()) {
   if (existsSync("scripts/update-icon-docs.mjs")) {
