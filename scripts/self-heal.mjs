@@ -25,7 +25,7 @@ let fixed = false;
 // 1) Lint/format (Python via pnpm scripts)
 trySh("pnpm run lint -- --fix");
 trySh("pnpm run format");
-if (passHealth()) fixed = fixed || changed();
+if (passHealth()) fixed = changed();
 
 // 2) Snapshot updates (Skipped for Python/pytest as -u is not standard)
 
