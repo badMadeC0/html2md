@@ -25,8 +25,7 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $argsList = @("--url", "$url", "--outdir", "$outDir")
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -252,124 +251,65 @@ $ConvertBtn.Add_Click({
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
-    # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+        # --- Security Validation ---
+        foreach ($url in $urlList) {
+            try {
+                if (-not ($url -match '^https?://')) {
+                    throw "URL must start with http:// or https://"
+                }
+            } catch {
+                $StatusText.Text = "Invalid URL: $_"
+                $StatusText.Foreground = "Red"
+                $ProgressBar.IsIndeterminate = $false
+                return
+            }
         }
-        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-        $url = $uriObj.AbsoluteUri
-    } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
-        return
-    }
-
-    # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
-        return
-    }
-    # ---------------------------
-
-    if (-not (Test-Path $outdir)) {
-        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
-        catch {}
-    }
-
-    $scriptDir = Split-Path -Parent $PSCommandPath
-    if (-not $scriptDir) {
-        $scriptDir = (Get-Location).Path
-    }
-
-    # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
-    try {
-        $fso = New-Object -ComObject Scripting.FileSystemObject
-        $short = $fso.GetFolder($scriptDir).ShortPath
-        if ($short) { $scriptDir = $short }
-    } catch {}
-
-    # Check for Python executable
-    $pyCmd = "python"
-    if (-not (Get-Command $pyCmd -ErrorAction SilentlyContinue)) {
-        if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
-        else {
-            $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
-
-    # Use a robust way to launch the process:
-    # 1. Revert to ProcessStartInfo for precise control over the command line.
-    # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
-    #    to ensure all internal quotes are preserved and arguments are correctly delimited.
-    # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
-    $psi.WorkingDirectory = $scriptDir
-    $psi.UseShellExecute = $true
-
-    if ($urlList.Count -gt 1) {
-        # --- BATCH MODE ---
-        $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        $urlList | Set-Content -Path $tempFile
-
-        # Sanitize for -File arguments (escape single quotes)
-        $safeCommandPath = $PSCommandPath -replace "'", "''"
-        $safeTempFile = $tempFile -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-
-        # Relaunch this script in batch mode
-        # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
-        if ($WholePageChk.IsChecked) {
-            $psi.Arguments += " -BatchWholePage"
-        }
-    } else {
-        # --- SINGLE URL MODE ---
-        $url = $urlList[0]
-        # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
-
-        # Sanitize inputs for single-quoted string interpolation in PowerShell
-        $safeUrl = $url -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-        $safeVenvExe = $venvExe -replace "'", "''"
-        $safePyScript = $pyScript -replace "'", "''"
-
-        if (Test-Path -LiteralPath $venvExe) {
-            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        else {
-            $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
     
-    $LogBox.AppendText("Executing process...`r`n")
-    [Diagnostics.Process]::Start($psi) | Out-Null
-
-    $StatusText.Text = "Conversion started in a new console."
-    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
-    $ProgressBar.IsIndeterminate = $false
-})
-
-# --- Show window ---
-$window.ShowDialog() | Out-Null
+        # --- Execute Conversion ---
+        $scriptDir = Split-Path -Parent $PSCommandPath
+        if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+    
+        $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+        $pyScript = Join-Path $scriptDir "html2md.py"
+    
+        $successCount = 0
+        $failureCount = 0
+    
+        foreach ($url in $urlList) {
+            try {
+                $StatusText.Text = "Converting: $url"
+                $argsList = @("--url", $url, "--outdir", $outdir)
+    
+                if ($WholePageChk.IsChecked) {
+                    $argsList += "--whole-page"
+                }
+    
+                if (Test-Path -LiteralPath $venvExe) {
+                    & $venvExe $argsList 2>&1 | ForEach-Object { $LogBox.AppendText("$_`r`n") }
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    & $pyCmd $pyScript $argsList 2>&1 | ForEach-Object { $LogBox.AppendText("$_`r`n") }
+                } else {
+                    throw "Could not find html2md executable or script."
+                }
+    
+                $successCount++
+                $LogBox.AppendText("✓ Completed: $url`r`n")
+            } catch {
+                $failureCount++
+                $LogBox.AppendText("✗ Failed: $url`r`n  Error: $_`r`n")
+            }
+        }
+    
+        $ProgressBar.IsIndeterminate = $false
+        $StatusText.Text = "Complete: $successCount succeeded, $failureCount failed"
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+    })
+    
+    # --- Show window ---
+    $window.ShowDialog() | Out-Null
+ 
