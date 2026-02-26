@@ -1,9 +1,15 @@
 """Tests for upload functionality."""
 import sys
+import unittest.mock
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Mock anthropic before import
 mock_anthropic = MagicMock()
+# Ensure APIError is an exception class we can raise/catch
+class MockAPIError(Exception):
+    pass
+mock_anthropic.APIError = MockAPIError
 sys.modules["anthropic"] = mock_anthropic
 
 from html2md.upload import upload_file, main
@@ -35,8 +41,12 @@ def test_upload_file_success(tmp_path):
 def test_upload_file_not_found():
     """Test error raised when file not found."""
     with patch("pathlib.Path.exists", return_value=False):
-        with pytest.raises(FileNotFoundError, match="File not found"):
+        try:
             upload_file("nonexistent.txt")
+        except FileNotFoundError as e:
+            assert "File not found" in str(e)
+        else:
+            assert False, "Should have raised FileNotFoundError"
 
 def test_upload_file_default_mime_type(tmp_path):
     """Test fallback to default mime type."""
@@ -75,9 +85,6 @@ def test_main_file_not_found(capsys):
 
 def test_main_api_error(capsys):
     """Test CLI handles API errors."""
-    # We need to ensure APIError is available on the mock
-    mock_anthropic.APIError = Exception
-
     with patch("html2md.upload.upload_file", side_effect=mock_anthropic.APIError("API Error")):
         ret = main(["test.txt"])
 
