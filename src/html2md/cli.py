@@ -50,7 +50,7 @@ response = session.get(target_url, timeout=30, allow_redirects=False)
                 f.write(md_content)
             logger.info("Success! Saved to: %s", out_path)
         else:
-            print(md_content)
+logger.info(md_content)
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Conversion failed: %s", e)
