@@ -80,7 +80,9 @@ $xaml = @"
         </Grid.RowDefinitions>
 
         <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"
+                 AutomationProperties.Name="URLs to convert"
+                 ToolTip="Enter one or more URLs, one per line."/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
@@ -94,13 +96,16 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
+                ToolTip="Start conversion process (opens new window)"
+                AutomationProperties.HelpText="Starts the conversion in a separate console window."
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"
+                 AutomationProperties.Name="Log Output"
+                 ToolTip="Conversion log output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
