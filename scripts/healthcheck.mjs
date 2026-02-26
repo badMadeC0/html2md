@@ -9,12 +9,7 @@ import { join } from "node:path";
 
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 
-const hasScript = (name) => {
-  try {
-    const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-    return !!pkg.scripts?.[name];
-  } catch { return false; }
-};
+const hasScript = (name) => !!pkg.scripts?.[name];
 
 const tryRun = (name, cmd) => {
   if (!cmd) return;
