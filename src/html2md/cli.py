@@ -27,11 +27,7 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
 
         # Validate URL scheme (Security Fix)
         parsed = urlparse(target_url)
-        if parsed.scheme != 'https':
-            raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only HTTPS is allowed.")
-
-        logger.info("Fetching content...")
-        response = session.get(target_url, timeout=30)
+response = session.get(target_url, timeout=30, allow_redirects=False)
         response.raise_for_status()
 
         logger.info("Converting to Markdown...")
