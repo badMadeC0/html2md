@@ -45,7 +45,7 @@ if ($BatchFile) {
             New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$tempDir")
+            $argsList = @("--url", "$url", "--outdir", "$tempDir", "--all-formats")
 
             try {
                 if (Test-Path -LiteralPath $venvExe) {
@@ -314,17 +314,25 @@ $ConvertBtn.Add_Click({
 
             try {
                 $StatusText.Text = "Converting: $url"
-                $argsList = @("--url", $url, "--outdir", $tempDir)
+                $argsList = @("--url", $url, "--outdir", $tempDir, "--all-formats")
     
                 if ($WholePageChk.IsChecked) {
                     $argsList += "--whole-page"
                 }
     
                 if (Test-Path -LiteralPath $venvExe) {
-                    & $venvExe $argsList 2>&1 | ForEach-Object { $LogBox.AppendText("$_`r`n") }
+                    $output = & $venvExe $argsList 2>&1
+                    if ($output) { $LogBox.AppendText(($output | Out-String)) }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Process exited with code $LASTEXITCODE."
+                    }
                 } elseif (Test-Path -LiteralPath $pyScript) {
                     $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                    & $pyCmd $pyScript $argsList 2>&1 | ForEach-Object { $LogBox.AppendText("$_`r`n") }
+                    $output = & $pyCmd $pyScript $argsList 2>&1
+                    if ($output) { $LogBox.AppendText(($output | Out-String)) }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Process exited with code $LASTEXITCODE."
+                    }
                 } else {
                     throw "Could not find html2md executable or script."
                 }
