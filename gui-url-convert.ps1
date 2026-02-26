@@ -6,7 +6,7 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
+param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage, [switch]$BatchAllFormats)
 
 function Get-UniquePath {
     param([string]$Path)
@@ -45,7 +45,10 @@ if ($BatchFile) {
             New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$tempDir", "--all-formats")
+            $argsList = @("--url", "$url", "--outdir", "$tempDir")
+            if ($BatchAllFormats) {
+                $argsList += "--all-formats"
+            }
 
             try {
                 if (Test-Path -LiteralPath $venvExe) {
@@ -133,7 +136,11 @@ $xaml = @"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="True"
+                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
+                  ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+
+        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
                 />
@@ -168,6 +175,7 @@ $ConvertBtn = $window.FindName("ConvertBtn")
 $PasteBtn = $window.FindName("PasteBtn")
 $ClearBtn = $window.FindName("ClearBtn")
 $WholePageChk = $window.FindName("WholePageChk")
+$AllFormatsChk = $window.FindName("AllFormatsChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
@@ -314,10 +322,14 @@ $ConvertBtn.Add_Click({
 
             try {
                 $StatusText.Text = "Converting: $url"
-                $argsList = @("--url", $url, "--outdir", $tempDir, "--all-formats")
+                $argsList = @("--url", $url, "--outdir", $tempDir)
     
                 if ($WholePageChk.IsChecked) {
                     $argsList += "--whole-page"
+                }
+
+                if ($AllFormatsChk.IsChecked) {
+                    $argsList += "--all-formats"
                 }
     
                 if (Test-Path -LiteralPath $venvExe) {
