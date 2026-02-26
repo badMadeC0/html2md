@@ -25,8 +25,7 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $argsList = @("--url", "$url", "--outdir", "$outDir")
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -79,7 +78,18 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
+                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+            </StackPanel>
+        </Grid>
+
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
@@ -97,10 +107,10 @@ $xaml = @"
                 ToolTip="Start conversion process"
                 />
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False"/>
+        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
@@ -124,6 +134,8 @@ $OutBox = $window.FindName("OutBox")
 $BrowseBtn = $window.FindName("BrowseBtn")
 $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
+$PasteBtn = $window.FindName("PasteBtn")
+$ClearBtn = $window.FindName("ClearBtn")
 $WholePageChk = $window.FindName("WholePageChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
@@ -151,6 +163,80 @@ $OpenFolderBtn.Add_Click({
     }
 })
 
+function Get-ClipboardTextSta {
+    <#
+    Executes clipboard text access on a temporary STA thread so the GUI
+    works even when the main runspace is MTA (e.g., in PowerShell 7).
+    Returns an object with:
+      - HasText : [bool]  - true if clipboard contains text
+      - Text    : [string] - the clipboard text (may be $null)
+    #>
+    $state = New-Object psobject -Property @{
+        HasText = $false
+        Text    = $null
+    }
+
+    try {
+        $thread = New-Object System.Threading.Thread({
+            param($s)
+            if ([System.Windows.Clipboard]::ContainsText()) {
+                $s.HasText = $true
+                $s.Text = [System.Windows.Clipboard]::GetText()
+            } else {
+                $s.HasText = $false
+                $s.Text = $null
+            }
+        })
+
+        $thread.SetApartmentState([System.Threading.ApartmentState]::STA)
+        $thread.Start($state)
+        $thread.Join()
+    } catch {
+        # Swallow here; caller will handle generic error messaging.
+    }
+
+    return $state
+}
+
+# --- Paste button logic ---
+$PasteBtn.Add_Click({
+    try {
+        $clipboardState = Get-ClipboardTextSta
+
+        if ($clipboardState -and $clipboardState.HasText) {
+            $text = $clipboardState.Text
+            if (-not [string]::IsNullOrWhiteSpace($text)) {
+                if ($UrlBox.Text.Length -gt 0 -and -not $UrlBox.Text.EndsWith("`n")) {
+                    $UrlBox.AppendText("`r`n")
+                }
+                $UrlBox.AppendText($text)
+                $UrlBox.Focus()
+                $UrlBox.ScrollToEnd()
+                $StatusText.Text = "Pasted from clipboard."
+                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+            } else {
+                $StatusText.Text = "Clipboard is empty or whitespace."
+                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+            }
+        } else {
+            $StatusText.Text = "Clipboard does not contain text."
+            $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+        }
+    } catch {
+        $StatusText.Text = "Error pasting from clipboard."
+        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "Red"
+    }
+})
+
+# --- Clear button logic ---
+$ClearBtn.Add_Click({
+    $UrlBox.Clear()
+    $UrlBox.Focus()
+    $StatusText.Text = "Cleared."
+    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+})
+
 # --- Convert button logic ---
 $ConvertBtn.Add_Click({
     $rawInput = $UrlBox.Text
@@ -163,90 +249,11 @@ $ConvertBtn.Add_Click({
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
-    if (-not (Test-Path $outdir)) {
-        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
-        catch {}
-    }
-
-    $scriptDir = Split-Path -Parent $PSCommandPath
-    if (-not $scriptDir) {
-        $scriptDir = (Get-Location).Path
-    }
-
-    # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
-    try {
-        $fso = New-Object -ComObject Scripting.FileSystemObject
-        $short = $fso.GetFolder($scriptDir).ShortPath
-        if ($short) { $scriptDir = $short }
-    } catch {}
-
-    # Check for Python executable
-    $pyCmd = "python"
-    if (-not (Get-Command $pyCmd -ErrorAction SilentlyContinue)) {
-        if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
-        else {
-            $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
-
-    # Check for .venv executable (preferred) or standalone script
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
-
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
-    $psi.WorkingDirectory = $scriptDir
-    $psi.UseShellExecute = $true
-
-    if ($urlList.Count -gt 1) {
-        # --- BATCH MODE ---
-        $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        $urlList | Set-Content -Path $tempFile
-
-        # Relaunch this script in batch mode
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -BatchFile `"$tempFile`" -BatchOutDir `"$outdir`""
-        if ($WholePageChk.IsChecked) {
-            $psi.Arguments += " -BatchWholePage"
-        }
-    } else {
-        # --- SINGLE URL MODE ---
-        $url = $urlList[0]
-        # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
-
-        if (Test-Path -LiteralPath $venvExe) {
-            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$venvExe' --url '$url' --outdir '$outdir' --all-formats$optArg`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$pyScript' --url '$url' --outdir '$outdir' --all-formats$optArg`""
-        }
-        else {
-            $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
-    
-    $LogBox.AppendText("Executing process...`r`n")
-    [Diagnostics.Process]::Start($psi) | Out-Null
-
-    $StatusText.Text = "Conversion started in a new console."
-    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
-    $ProgressBar.IsIndeterminate = $false
-})
-
-# --- Show window ---
-$window.ShowDialog() | Out-Null
+    # --- Security Validation ---
+    foreach ($url in $urlList) {
+        try {
+ 
