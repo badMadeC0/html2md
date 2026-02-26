@@ -180,6 +180,15 @@ $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
 
+# --- UX Logic: Disable Convert button if input is empty ---
+$UpdateState = {
+    $hasText = -not [string]::IsNullOrWhiteSpace($UrlBox.Text)
+    $ConvertBtn.IsEnabled = $hasText
+}
+$UrlBox.Add_TextChanged($UpdateState)
+# Initialize state
+& $UpdateState
+
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
 
@@ -263,7 +272,6 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
         $StatusText.Foreground = "Red"
     }
 })
