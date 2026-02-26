@@ -27,7 +27,7 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
 
         # Validate URL scheme (Security Fix)
         parsed = urlparse(target_url)
-response = session.get(target_url, timeout=30, allow_redirects=False)
+        response = session.get(target_url, timeout=30, allow_redirects=False)
         response.raise_for_status()
 
         logger.info("Converting to Markdown...")
@@ -50,7 +50,7 @@ response = session.get(target_url, timeout=30, allow_redirects=False)
                 f.write(md_content)
             logger.info("Success! Saved to: %s", out_path)
         else:
-logger.info(md_content)
+            logger.info(md_content)
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Conversion failed: %s", e)
