@@ -1,7 +1,6 @@
 """Tests for upload functionality."""
 import sys
 import pytest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Define the exception class globally so it can be used for assertions
