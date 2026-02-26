@@ -50,15 +50,12 @@ def test_upload_file_success(upload_module, mock_anthropic_module, tmp_path):
     assert file_tuple[0] == "test.txt"  # filename
     assert file_tuple[2] == "text/plain"  # mimetype
 
-def test_upload_file_not_found(upload_module):
+def test_upload_file_not_found(upload_module, tmp_path):
     """Test error raised when file not found."""
-    with patch("pathlib.Path.exists", return_value=False):
-        try:
-            upload_module.upload_file("nonexistent.txt")
-        except FileNotFoundError as e:
-            assert "File not found" in str(e)
-        else:
-            pytest.fail("Should have raised FileNotFoundError")
+    missing_file = tmp_path / "nonexistent.txt"
+
+    with pytest.raises(FileNotFoundError, match="File not found"):
+        upload_module.upload_file(str(missing_file))
 
 def test_upload_file_default_mime_type(upload_module, mock_anthropic_module, tmp_path):
     """Test fallback to default mime type."""
