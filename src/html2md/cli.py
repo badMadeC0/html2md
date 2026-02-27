@@ -52,6 +52,10 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        # Lock for file writing to prevent interleaved writes on collision
+        import threading
+        write_lock = threading.Lock()
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -70,7 +74,7 @@ def main(argv=None):
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
+                        os.makedirs(args.outdir, exist_ok=True)
 
                     # Create a simple filename based on the URL
                     filename = "conversion_result.md"
@@ -81,11 +85,15 @@ def main(argv=None):
                             filename = f"{base}.md"
 
                     out_path = os.path.join(args.outdir, filename)
-                    with open(out_path, 'w', encoding='utf-8') as f:
-                        f.write(md_content)
-                    print(f"Success! Saved to: {out_path}")
+
+                    with write_lock:
+                        with open(out_path, 'w', encoding='utf-8') as f:
+                            f.write(md_content)
+                        print(f"Success! Saved to: {out_path}")
                 else:
-                    print(md_content)
+                    # Print to stdout needs locking too if we want to avoid interleaving
+                    with write_lock:
+                        print(md_content)
 
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}")
@@ -97,11 +105,20 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}")
                 return 1
+
+            urls = []
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        urls.append(u)
+
+            if urls:
+                import concurrent.futures
+                # Use ThreadPoolExecutor for concurrent processing
+                # Default to 5 workers as a reasonable start
+                with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                    executor.map(process_url, urls)
 
         return 0
 
