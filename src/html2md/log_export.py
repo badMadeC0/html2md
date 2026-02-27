@@ -59,12 +59,14 @@ def main(argv=None):
 
     fields = [f.strip() for f in args.fields.split(',') if f.strip()]
     fieldnames, mapping = _unique_fieldnames(fields)
+    input_keys = [m[0] for m in mapping]
 
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
-        w.writeheader()
+        # Optimization: use csv.writer instead of DictWriter to avoid per-row dict overhead
+        w = csv.writer(fo)
+        w.writerow(fieldnames)
 
         for line in fi:
             line = line.strip()
@@ -79,11 +81,8 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
-                for input_name, output_name in mapping
-            }
-            w.writerow(row)
+            row_values = [_sanitize_value(rec.get(k, "")) for k in input_keys]
+            w.writerow(row_values)
 
     return 0
 
