@@ -64,10 +64,6 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            if not _validate_scheme(target_url):
-                print(f"Error: Invalid URL scheme in '{target_url}'. Only HTTPS and file:// are allowed.")
-                return
-
             print(f"Processing URL: {target_url}")
 
             try:
