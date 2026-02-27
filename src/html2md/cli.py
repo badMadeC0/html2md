@@ -31,7 +31,7 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
             logger.error("Unsupported URL scheme '%s' for URL: %s", parsed.scheme, target_url)
             return
 
-        response = session.get(target_url, timeout=30, allow_redirects=False)
+        response = session.get(target_url, timeout=30)
         response.raise_for_status()
 
         logger.info("Converting to Markdown...")
