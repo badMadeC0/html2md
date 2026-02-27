@@ -22,6 +22,11 @@ def main(argv=None):
         return 0
 
     if args.url or args.batch:
+        # Validate URL scheme to prevent SSRF and usage of unsupported protocols
+        if args.url and not args.url.lower().startswith(('http://', 'https://')):
+            print(f"Error: Invalid URL scheme. Only http:// and https:// are supported. Got: {args.url}")
+            return 1
+
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
@@ -57,6 +62,10 @@ def main(argv=None):
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
+
+            if not target_url.lower().startswith(('http://', 'https://')):
+                print(f"Error: Skipping invalid URL scheme: {target_url}")
+                return
 
             print(f"Processing URL: {target_url}")
 
