@@ -21,7 +21,9 @@ def test_upload_file_success(tmp_path):
     mock_upload_response.id = "file_123"
     mock_client_instance.beta.files.upload.return_value = mock_upload_response
 
-    with patch("anthropic.Anthropic", return_value=mock_client_instance) as mock_anthropic_class:
+    with patch(
+        "anthropic.Anthropic", return_value=mock_client_instance
+    ) as mock_anthropic_class:
         result = upload_file(str(test_file))
 
         assert result.id == "file_123"
@@ -82,7 +84,9 @@ def test_main_success(capsys):
 
 def test_main_file_not_found_error(capsys):
     """Test main function handles FileNotFoundError gracefully."""
-    with patch("html2md.upload.upload_file", side_effect=FileNotFoundError("Missing file")):
+    with patch(
+        "html2md.upload.upload_file", side_effect=FileNotFoundError("Missing file")
+    ):
         ret = main(["missing.txt"])
 
         assert ret == 1
@@ -121,7 +125,9 @@ def test_upload_help_runs():
     """Verify html2md-upload --help exits with code 0."""
     env = os.environ.copy()
     src_path = os.path.join(os.getcwd(), "src")
-    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
+    env["PYTHONPATH"] = f"{src_path}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(
+        os.pathsep
+    )
 
     result = subprocess.run(
         [sys.executable, "-m", "html2md.upload", "--help"],
