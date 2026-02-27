@@ -124,7 +124,8 @@ $xaml = @"
             </StackPanel>
         </Grid>
 
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"
+                 ToolTip="Enter URLs to convert, one per line (Ctrl+Enter to convert)"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
@@ -142,7 +143,7 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
+                ToolTip="Start conversion process (Ctrl+Enter)"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -179,6 +180,22 @@ $AllFormatsChk = $window.FindName("AllFormatsChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
+
+# --- Keyboard Shortcuts ---
+$UrlBox.Add_KeyDown({
+    param($sender, $e)
+    # Check for Ctrl + Enter
+    if ($e.Key -eq [System.Windows.Input.Key]::Return -and
+       ([System.Windows.Input.Keyboard]::Modifiers -band [System.Windows.Input.ModifierKeys]::Control)) {
+
+        # Programmatically click the Convert button
+        $peer = New-Object System.Windows.Automation.Peers.ButtonAutomationPeer($ConvertBtn)
+        $invoker = $peer.GetPattern([System.Windows.Automation.Peers.PatternInterface]::Invoke)
+        $invoker.Invoke()
+
+        $e.Handled = $true
+    }
+})
 
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
@@ -263,7 +280,6 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
         $StatusText.Foreground = "Red"
     }
 })
