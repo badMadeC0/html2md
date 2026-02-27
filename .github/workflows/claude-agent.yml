@@ -32,8 +32,10 @@ jobs:
           fetch-depth: 0
 
       - name: Validate configuration
+        env:
+          CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
         run: |
-          if [[ -z "${{ vars.CLAUDE_COMMAND }}" ]]; then
+          if [[ -z "$CLAUDE_COMMAND" ]]; then
             echo "::error::CLAUDE_COMMAND repository variable is not set. Configure it in Settings > Secrets and variables > Actions > Variables."
             exit 1
           fi
