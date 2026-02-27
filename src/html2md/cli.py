@@ -87,7 +87,7 @@ def main(argv=None):
                 else:
                     print(md_content)
 
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except (requests.RequestException, OSError) as e:
                 print(f"Conversion failed: {e}")
 
         if args.url:
