@@ -31,17 +31,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate configuration
-        run: |
-          if [[ -z "${{ vars.CLAUDE_COMMAND }}" ]]; then
-            echo "::error::CLAUDE_COMMAND repository variable is not set. Configure it in Settings > Secrets and variables > Actions > Variables."
-            exit 1
-          fi
-
-      - name: Run Claude agent
-        env:
-          CLAUDE_COMMAND: ${{ vars.CLAUDE_COMMAND }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DISABLE_MEMORY: "true"
-          SKIP_MEMORY_FETCH: "true"
-        run: .github/scripts/run_claude_agent.sh
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
