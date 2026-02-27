@@ -54,7 +54,7 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
                 f.write(md_content)
             logger.info("Success! Saved to: %s", out_path)
         else:
-            logger.info(md_content)
+            print(md_content)
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Conversion failed: %s", e)
