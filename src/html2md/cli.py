@@ -25,10 +25,39 @@ def main(argv=None):
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
+            from bs4 import BeautifulSoup  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify")
+                  "Please run: pip install requests markdownify beautifulsoup4")
             return 1
+
+        def sanitize_html(html_content: str) -> str:
+            """Sanitize HTML content to prevent XSS in Markdown."""
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            # Remove dangerous tags
+            for tag in soup(['script', 'style', 'iframe', 'object', 'embed', 'applet']):
+                tag.decompose()
+
+            # Remove event handlers and sanitize attributes
+            for tag in soup.find_all(True):
+                # Remove all attributes starting with 'on' (event handlers)
+                attrs_to_remove = [attr for attr in tag.attrs if attr.lower().startswith('on')]
+                for attr in attrs_to_remove:
+                    del tag[attr]
+
+                # Sanitize href and src attributes
+                for attr in ['href', 'src']:
+                    if attr in tag.attrs:
+                        val = tag[attr]
+                        if isinstance(val, list):
+                            val = val[0]  # Take first if list
+                        val = str(val).strip().lower()
+                        # Check for dangerous schemes
+                        if val.startswith(('javascript:', 'vbscript:', 'data:')):
+                            del tag[attr]
+
+            return str(soup)
 
         session = requests.Session()
         session.headers.update({
@@ -66,7 +95,8 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                safe_html = sanitize_html(response.text)
+                md_content = md(safe_html, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
