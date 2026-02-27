@@ -50,21 +50,23 @@ def _sanitize_value(value: object) -> object:
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
-        prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
+        prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument('--in', dest='inp', required=True)
-    ap.add_argument('--out', dest='out', required=True)
-    ap.add_argument('--fields', default='ts,input,output,status,reason')
+    ap.add_argument("--in", dest="inp", required=True)
+    ap.add_argument("--out", dest="out", required=True)
+    ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
 
-    fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    fields = [f.strip() for f in args.fields.split(",") if f.strip()]
     fieldnames, mapping = _unique_fieldnames(fields)
 
     inp = Path(args.inp)
     out = Path(args.out)
-    with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
-        w.writeheader()
+    with inp.open("r", encoding="utf-8") as fi, out.open(
+        "w", newline="", encoding="utf-8"
+    ) as fo:
+        w = csv.writer(fo)
+        w.writerow(fieldnames)
 
         for line in fi:
             line = line.strip()
@@ -79,14 +81,14 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
-                for input_name, output_name in mapping
-            }
+            # Optimize CSV writing by using list comprehension instead of dict creation
+            row = [
+                _sanitize_value(rec.get(input_name, "")) for input_name, _ in mapping
+            ]
             w.writerow(row)
 
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())
