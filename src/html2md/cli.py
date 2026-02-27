@@ -28,7 +28,7 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
         # Validate URL scheme (Security Fix)
         parsed = urlparse(target_url)
         if parsed.scheme.lower() != "https":
-            logger.error("Unsupported URL scheme '%s' for URL: %s", parsed.scheme, target_url)
+            logger.error("Invalid URL scheme '%s' for URL: %s", parsed.scheme, target_url)
             return
 
         response = session.get(target_url, timeout=30)
