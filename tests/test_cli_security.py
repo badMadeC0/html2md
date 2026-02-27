@@ -66,15 +66,56 @@ class TestSecurityFix(unittest.TestCase):
             main(['--url', 'ftp://example.com'])
         self.assertTrue(any("Invalid URL scheme" in o for o in cm.output))
         self.mock_session.get.assert_not_called()
-             with self.assertLogs(level='ERROR') as cm:
-                 main(['--url', 'ftp://example.com'])
-             self.assertTrue(any("Invalid URL scheme" in o for o in cm.output))
-             self.mock_session.get.assert_not_called()
 
     def test_file_url_blocked(self):
         """Verify FILE URLs are rejected."""
         with patch('builtins.print'):
-             with self.assertLogs(level='ERROR') as cm:
-                 main(['--url', 'file:///etc/passwd'])
-             self.assertTrue(any("Invalid URL scheme" in o for o in cm.output))
-             self.mock_session.get.assert_not_called()
+            with self.assertLogs(level='ERROR') as cm:
+                main(['--url', 'file:///etc/passwd'])
+            self.assertTrue(any("Invalid URL scheme" in o for o in cm.output))
+            self.mock_session.get.assert_not_called()
+
+    def test_uppercase_https_url_allowed(self):
+        """Verify HTTPS URLs with uppercase scheme are processed correctly."""
+        with patch('builtins.print'):
+            main(['--url', 'HTTPS://example.com'])
+        self.mock_session.get.assert_called()
+        args, _ = self.mock_session.get.call_args
+        # Scheme handling should be case-insensitive; ensure it's treated as HTTPS
+        self.assertEqual(args[0].lower(), 'https://example.com')
+
+    def test_uppercase_http_url_blocked(self):
+        """Verify HTTP URLs with uppercase scheme are rejected."""
+        with patch('builtins.print'):
+            with self.assertLogs(level='ERROR') as cm:
+                main(['--url', 'HTTP://example.com'])
+        self.assertTrue(any("Invalid URL scheme" in o for o in cm.output),
+                        f"Expected 'Invalid URL scheme' in logs, got: {cm.output}")
+        self.mock_session.get.assert_not_called()
+
+    def test_url_without_scheme_blocked(self):
+        """Verify URLs without an explicit scheme are rejected."""
+        with patch('builtins.print'):
+            with self.assertLogs(level='ERROR') as cm:
+                main(['--url', 'example.com'])
+        self.assertTrue(any("Invalid URL scheme" in o for o in cm.output),
+                        f"Expected 'Invalid URL scheme' in logs, got: {cm.output}")
+        self.mock_session.get.assert_not_called()
+
+    def test_javascript_url_blocked(self):
+        """Verify javascript: scheme URLs are rejected."""
+        with patch('builtins.print'):
+            with self.assertLogs(level='ERROR') as cm:
+                main(['--url', 'javascript:alert(1)'])
+        self.assertTrue(any("Invalid URL scheme" in o for o in cm.output),
+                        f"Expected 'Invalid URL scheme' in logs, got: {cm.output}")
+        self.mock_session.get.assert_not_called()
+
+    def test_data_url_blocked(self):
+        """Verify data: scheme URLs are rejected."""
+        with patch('builtins.print'):
+            with self.assertLogs(level='ERROR') as cm:
+                main(['--url', 'data:text/html;base64,PGgxPkhlbGxvPC9oMT4='])
+        self.assertTrue(any("Invalid URL scheme" in o for o in cm.output),
+                        f"Expected 'Invalid URL scheme' in logs, got: {cm.output}")
+        self.mock_session.get.assert_not_called()
