@@ -1,0 +1,87 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install deps (best-effort frozen)
+        id: install_try_frozen
+        run: |
+          set -euxo pipefail
+          pnpm install --frozen-lockfile || echo "FROZEN_FAILED=1" >> $GITHUB_OUTPUT
+
+      - name: Install deps (fallback non-frozen)
+        if: steps.install_try_frozen.outputs.FROZEN_FAILED == '1'
+        run: |
+          set -euxo pipefail
+          pnpm install
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
+
+      - name: Attempt self-heal repairs
+        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: node scripts/healthcheck.mjs | tee selfheal-post.txt
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            BRANCH_NAME="self-heal-$(date +%s)"
+            git checkout -b $BRANCH_NAME
+            git add .
+            git commit -m "Self-healing auto-fix"
+            git push origin $BRANCH_NAME
+            gh pr create --title "Self-healing auto-fix" --body "Automated fixes" --label "self-heal" --head $BRANCH_NAME
+          fi
