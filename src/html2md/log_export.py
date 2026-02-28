@@ -6,13 +6,17 @@ import json
 from pathlib import Path
 
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIXES_SET = set("=+-@")
 
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
+    if not value:
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    first = value[0]
+    if first == "'":
+        return value
+    if first in _DANGEROUS_PREFIXES_SET or value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -40,10 +44,17 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
+    if type(value) is str:
+        if not value:
+            return value
+        first = value[0]
+        if first == "'":
+            return value
+        if first in _DANGEROUS_PREFIXES_SET or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     if value is None:
         return ""
-    if isinstance(value, str):
-        return _sanitize_formula(value)
     return value
 
 
@@ -66,13 +77,17 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
 
+        loads = json.loads
+        writerow = w.writerow
+        sanitize = _sanitize_value
+
         for line in fi:
             line = line.strip()
             if not line:
                 continue
 
             try:
-                rec = json.loads(line)
+                rec = loads(line)
             except json.JSONDecodeError:
                 continue
 
@@ -80,10 +95,10 @@ def main(argv=None):
                 continue
 
             row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
+                output_name: sanitize(rec.get(input_name, ""))
                 for input_name, output_name in mapping
             }
-            w.writerow(row)
+            writerow(row)
 
     return 0
 
