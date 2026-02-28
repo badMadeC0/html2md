@@ -1,0 +1,13 @@
+{
+  "name": "html2md",
+  "version": "1.0.0",
+  "description": "HTML to Markdown converter",
+  "scripts": {
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "self:heal": "node scripts/self-heal.mjs",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  }
+}
