@@ -132,13 +132,15 @@ $xaml = @"
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,15,0,0">
+            <CheckBox Name="WholePageChk" Content="Convert _Whole Page"
+                      VerticalAlignment="Center" Margin="0,0,15,0"
+                      ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
-                  ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+            <CheckBox Name="AllFormatsChk" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
+                      VerticalAlignment="Center"
+                      ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+        </StackPanel>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
