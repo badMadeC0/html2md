@@ -54,6 +54,11 @@ def main(argv=None):
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""
+            # SECURITY: Enforce allowed URL schemes to prevent SSRF and local file inclusion via file://
+            if not target_url.lower().startswith(('http://', 'https://')):
+                print(f"Error: Invalid URL scheme. Only http:// and https:// are supported. Provided: {target_url}")
+                return
+
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
