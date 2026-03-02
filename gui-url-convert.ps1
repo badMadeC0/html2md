@@ -108,6 +108,7 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -126,31 +127,46 @@ $xaml = @"
 
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
-            <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
-            <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
-        </StackPanel>
+        <Label Grid.Row="2" Content="_Output Folder:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Bottom"/>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+        <Grid Grid.Row="3" Margin="0,5,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Name="OutBox" Grid.Column="0" FontSize="14" Height="28" VerticalContentAlignment="Center" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
+            <Button Name="BrowseBtn" Grid.Column="1" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
+            <Button Name="OpenFolderBtn" Grid.Column="2" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
+        </Grid>
 
-        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
-                  ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+        <Grid Grid.Row="4" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
-                Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
-                />
+            <CheckBox Name="WholePageChk" Grid.Column="0" Content="Convert _Whole Page"
+                      VerticalAlignment="Center" Margin="0,0,20,0"
+                      ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
+            <CheckBox Name="AllFormatsChk" Grid.Column="1" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
+                      VerticalAlignment="Center"
+                      ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+
+            <Button Name="ConvertBtn" Grid.Column="2" Content="_Convert"
+                    Height="35" HorizontalAlignment="Right" Width="180"
+                    ToolTip="Start conversion process"
+                    />
+        </Grid>
+
+        <ProgressBar Name="ProgressBar" Grid.Row="5" Height="10" Margin="0,15,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
-        <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
+        <TextBox Name="LogBox" Grid.Row="6" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
-        <StatusBar Grid.Row="6" Margin="0,10,0,0">
+        <StatusBar Grid.Row="7" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
         </StatusBar>
     </Grid>
