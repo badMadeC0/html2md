@@ -132,13 +132,14 @@ $xaml = @"
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
-
-        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
-                  ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+        <WrapPanel Grid.Row="3" Margin="0,15,0,0" VerticalAlignment="Center">
+            <CheckBox Name="WholePageChk" Content="Convert _Whole Page"
+                      Margin="0,0,15,0"
+                      ToolTip="If checked, includes headers and footers. Default is main content only."/>
+            <CheckBox Name="AllFormatsChk" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
+                      Margin="0,0,15,0"
+                      ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+        </WrapPanel>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
@@ -151,7 +152,7 @@ $xaml = @"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray" AutomationProperties.LiveSetting="Polite"/>
         </StatusBar>
     </Grid>
 </Window>
