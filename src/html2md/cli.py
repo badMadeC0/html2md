@@ -3,7 +3,7 @@
 from __future__ import annotations
 import argparse
 import logging
-import os
+from pathlib import Path
 from urllib.parse import urlparse
 
 # Configure module-level logger
@@ -38,19 +38,19 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
         md_content = md_func(response.text, heading_style="ATX")
 
         if outdir:
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
+            outdir_path = Path(outdir)
+            outdir_path.mkdir(parents=True, exist_ok=True)
 
             # Create a simple filename based on the URL
             filename = "conversion_result.md"
             url_path = target_url.split('?')[0].rstrip('/')
             if url_path:
-                base = os.path.basename(url_path)
+                base = Path(url_path).name
                 if base:
                     filename = f"{base}.md"
 
-            out_path = os.path.join(outdir, filename)
-            with open(out_path, 'w', encoding='utf-8') as f:
+            out_path = outdir_path / filename
+            with out_path.open('w', encoding='utf-8') as f:
                 f.write(md_content)
             logger.info("Success! Saved to: %s", out_path)
         else:
@@ -113,10 +113,11 @@ def main(argv=None):
             process_url(args.url, session, md, args.outdir)
 
         if args.batch:
-            if not os.path.exists(args.batch):
+            batch_path = Path(args.batch)
+            if not batch_path.exists():
                 logger.error("Error: Batch file not found: %s", args.batch)
                 return 1
-            with open(args.batch, 'r', encoding='utf-8') as f:
+            with batch_path.open('r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
