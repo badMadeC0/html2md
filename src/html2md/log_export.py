@@ -66,6 +66,8 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
 
+        prefixes = _DANGEROUS_PREFIXES
+
         for line in fi:
             line = line.strip()
             if not line:
@@ -73,16 +75,27 @@ def main(argv=None):
 
             try:
                 rec = json.loads(line)
-            except json.JSONDecodeError:
+            except ValueError:
                 continue
 
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
-            row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
-                for input_name, output_name in mapping
-            }
+            row = {}
+            for input_name, output_name in mapping:
+                val = rec.get(input_name, "")
+
+                if type(val) is str:
+                    # Inlined _sanitize_formula for performance
+                    if val and not val.startswith("'") and val.lstrip().startswith(prefixes):
+                        row[output_name] = f"'{val}"
+                    else:
+                        row[output_name] = val
+                elif val is None:
+                    row[output_name] = ""
+                else:
+                    row[output_name] = val
+
             w.writerow(row)
 
     return 0
