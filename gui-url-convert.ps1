@@ -180,6 +180,18 @@ $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
 
+# Initialize button states based on UrlBox content
+$hasTextInit = -not [string]::IsNullOrWhiteSpace($UrlBox.Text)
+$ClearBtn.IsEnabled = $hasTextInit
+$ConvertBtn.IsEnabled = $hasTextInit
+
+# Update button states when UrlBox changes
+$UrlBox.Add_TextChanged({
+    $hasText = -not [string]::IsNullOrWhiteSpace($UrlBox.Text)
+    $ClearBtn.IsEnabled = $hasText
+    $ConvertBtn.IsEnabled = $hasText
+})
+
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
 
