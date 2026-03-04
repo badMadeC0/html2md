@@ -71,6 +71,13 @@ def main(argv=None):
             if not line:
                 continue
 
+            # Performance optimization: Skip parsing non-dictionary lines
+            # json.loads() throwing JSONDecodeError is very slow. Since we only
+            # want dictionaries anyway, we can skip lines that don't start with '{'
+            # Note: `line` is already `strip()`ped above, so it has no leading whitespace.
+            if not line.startswith('{'):
+                continue
+
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:
