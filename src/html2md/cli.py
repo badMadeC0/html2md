@@ -3,6 +3,31 @@
 from __future__ import annotations
 import argparse
 import os
+import re
+import urllib.parse
+
+def _secure_filename(filename: str) -> str:
+    """Return a secure version of a filename to prevent path traversal."""
+    if not filename:
+        return "conversion_result"
+
+    # Decode URL-encoded characters (like %2f, %5c)
+    decoded = urllib.parse.unquote(filename)
+
+    # Replace path separators and null bytes with underscores
+    safe = decoded.replace('/', '_').replace('\\', '_').replace('\0', '_')
+
+    # Remove directory traversal elements explicitly
+    while '..' in safe:
+        safe = safe.replace('..', '_')
+
+    # Strip dangerous leading/trailing characters
+    safe = safe.strip('._- ')
+
+    # Replace multiple consecutive underscores
+    safe = re.sub(r'_+', '_', safe)
+
+    return safe or "conversion_result"
 
 def main(argv=None):
     """Run the CLI."""
@@ -72,13 +97,14 @@ def main(argv=None):
                     if not os.path.exists(args.outdir):
                         os.makedirs(args.outdir)
 
-                    # Create a simple filename based on the URL
+                    # Create a secure filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
                     if url_path:
                         base = os.path.basename(url_path)
                         if base:
-                            filename = f"{base}.md"
+                            safe_base = _secure_filename(base)
+                            filename = f"{safe_base}.md"
 
                     out_path = os.path.join(args.outdir, filename)
                     with open(out_path, 'w', encoding='utf-8') as f:
