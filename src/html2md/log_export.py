@@ -50,20 +50,22 @@ def _sanitize_value(value: object) -> object:
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
-        prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
+        prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument('--in', dest='inp', required=True)
-    ap.add_argument('--out', dest='out', required=True)
-    ap.add_argument('--fields', default='ts,input,output,status,reason')
+    ap.add_argument("--in", dest="inp", required=True)
+    ap.add_argument("--out", dest="out", required=True)
+    ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
 
-    fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    fields = [f.strip() for f in args.fields.split(",") if f.strip()]
     fieldnames, mapping = _unique_fieldnames(fields)
 
     inp = Path(args.inp)
     out = Path(args.out)
-    with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
+    with inp.open("r", encoding="utf-8") as fi, out.open(
+        "w", newline="", encoding="utf-8"
+    ) as fo:
+        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction="ignore", restval="")
         w.writeheader()
 
         for line in fi:
@@ -88,5 +90,5 @@ def main(argv=None):
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())
