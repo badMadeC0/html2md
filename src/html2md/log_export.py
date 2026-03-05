@@ -9,11 +9,21 @@ _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
 
 def _sanitize_formula(value: str) -> str:
-    """Prefix strings that look like formulas to prevent CSV injection."""
+    """Prefix strings that look like formulas to prevent CSV injection.
+
+    Optimized: Avoids allocating a new string via lstrip(), which
+    improves performance significantly for large inputs or when
+    called millions of times during CSV export.
+    """
     if value.startswith("'"):
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
-        return f"'{value}"
+
+    for char in value:
+        if not char.isspace():
+            if char in _DANGEROUS_PREFIXES:
+                return f"'{value}"
+            break
+
     return value
 
 
