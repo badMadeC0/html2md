@@ -124,10 +124,11 @@ $xaml = @"
             </StackPanel>
         </Grid>
 
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80" ToolTip="Enter one or more URLs, each on a new line"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
+            <Label Content="O_utput:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0" Padding="0"/>
+            <TextBox Name="OutBox" Width="280" FontSize="14" VerticalContentAlignment="Center" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
@@ -140,7 +141,7 @@ $xaml = @"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
                   ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
+        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert" IsDefault="True"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
                 />
