@@ -1,0 +1,36 @@
+--- src/html2md/log_export.py
++++ src/html2md/log_export.py
+@@ -66,6 +66,8 @@
+         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
+         w.writeheader()
+
++        _prefixes = _DANGEROUS_PREFIXES
++
+         for line in fi:
+             line = line.strip()
+             if not line:
+@@ -79,10 +81,18 @@
+             if not isinstance(rec, dict):
+                 continue
+
+-            row = {
+-                output_name: _sanitize_value(rec.get(input_name, ""))
+-                for input_name, output_name in mapping
+-            }
++            row = {}
++            for input_name, output_name in mapping:
++                val = rec.get(input_name)
++                if val is None:
++                    row[output_name] = ""
++                elif isinstance(val, str):
++                    if val.startswith("'"):
++                        row[output_name] = val
++                    elif val.lstrip().startswith(_prefixes):
++                        row[output_name] = f"'{val}"
++                    else:
++                        row[output_name] = val
++                else:
++                    row[output_name] = val
+             w.writerow(row)
+
+     return 0
