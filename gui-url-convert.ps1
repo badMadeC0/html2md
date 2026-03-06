@@ -97,12 +97,13 @@ Add-Type -AssemblyName System.Windows.Forms
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="html2md - Convert URL"
-        Height="450" Width="580"
+        Height="480" Width="580"
         FocusManager.FocusedElement="{Binding ElementName=UrlBox}"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -124,33 +125,35 @@ $xaml = @"
             </StackPanel>
         </Grid>
 
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80" ToolTip="Enter one or more URLs to convert, each on a new line."/>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal">
+        <Label Grid.Row="2" Content="O_utput Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Bottom" Padding="0,0,0,2"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal">
             <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
+        <CheckBox Name="WholePageChk" Grid.Row="4" Content="Convert _Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
+        <CheckBox Name="AllFormatsChk" Grid.Row="4" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
                   ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
+        <Button Name="ConvertBtn" Grid.Row="4" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 ToolTip="Start conversion process"
                 />
 
-        <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
+        <ProgressBar Name="ProgressBar" Grid.Row="5" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
-        <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
+        <TextBox Name="LogBox" Grid.Row="6" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
-        <StatusBar Grid.Row="6" Margin="0,10,0,0">
+        <StatusBar Grid.Row="7" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
         </StatusBar>
     </Grid>
