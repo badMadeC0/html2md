@@ -6,13 +6,15 @@ import json
 from pathlib import Path
 
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIXES_SET = frozenset(_DANGEROUS_PREFIXES)
 
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
+    if not value or value[0] == "'":
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    stripped = value.lstrip()
+    if stripped and stripped[0] in _DANGEROUS_PREFIXES_SET:
         return f"'{value}"
     return value
 
@@ -67,8 +69,7 @@ def main(argv=None):
         w.writeheader()
 
         for line in fi:
-            line = line.strip()
-            if not line:
+            if not line or line.isspace():
                 continue
 
             try:
@@ -76,13 +77,16 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
-            row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
-                for input_name, output_name in mapping
-            }
+            row = {}
+            for input_name, output_name in mapping:
+                val = rec.get(input_name)
+                if type(val) is str:
+                    row[output_name] = _sanitize_formula(val)
+                elif val is not None:
+                    row[output_name] = val
             w.writerow(row)
 
     return 0
