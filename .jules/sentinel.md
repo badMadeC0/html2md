@@ -11,3 +11,8 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Vulnerability:** `gui-url-convert.ps1` constructs a command string using unescaped user input (`$url` and `$outdir`) inside a single-quoted string context passed to `powershell -Command`. A malicious URL containing a single quote `'` allows arbitrary PowerShell code execution.
 **Learning:** String concatenation for command construction is dangerous, even in PowerShell. Using `Start-Process -ArgumentList` with an array of arguments is safer than building a command string.
 **Prevention:** Avoid `Invoke-Expression` or `powershell -Command "..."`. Use `& $exe $args` where `$args` is an array, or `Start-Process` with `ArgumentList`.
+
+## 2025-02-18 - SSRF / LFI via Unrestricted URL Scheme
+**Vulnerability:** The CLI tool `html2md` passed user-supplied URLs directly to `requests.get()` without validating the URL scheme. While `requests` generally blocks `file://` scheme internally by default, missing scheme validation could still lead to SSRF or unexpectedly resolving loopback/internal hosts. Furthermore, any custom transport adapters could accidentally allow `file://` or other schemes.
+**Learning:** Always explicitly validate that a user-provided URL belongs to an expected, safe protocol whitelist (e.g., `http://`, `https://`) before passing it to any network fetching utility.
+**Prevention:** Implement strict prefix checks (`url.lower().startswith(('http://', 'https://'))`) on all URL inputs intended for web requests.
