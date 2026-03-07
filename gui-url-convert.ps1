@@ -124,7 +124,7 @@ $xaml = @"
             </StackPanel>
         </Grid>
 
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
+        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80" AutomationProperties.Name="URL Input"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
