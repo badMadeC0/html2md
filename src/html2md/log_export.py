@@ -63,8 +63,11 @@ def main(argv=None):
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
-        w.writeheader()
+        w = csv.writer(fo)
+        w.writerow(fieldnames)
+
+        output_to_input = {out_name: in_name for in_name, out_name in mapping}
+        input_keys_in_order = [output_to_input.get(f) for f in fieldnames]
 
         for line in fi:
             line = line.strip()
@@ -79,11 +82,12 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
-                for input_name, output_name in mapping
-            }
-            w.writerow(row)
+            # Using a plain csv.writer and list comprehension avoids allocating
+            # and mapping a new dictionary per row, bypassing csv.DictWriter overhead.
+            w.writerow([
+                _sanitize_value(rec.get(k, "")) if k is not None else ""
+                for k in input_keys_in_order
+            ])
 
     return 0
 
