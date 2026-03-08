@@ -1,6 +1,6 @@
 """Security tests for the CLI."""
 
-import os
+import io
 import sys
 import pytest
 from unittest.mock import patch, MagicMock
