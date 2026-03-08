@@ -1,6 +1,5 @@
 """Security tests for the CLI."""
 
-import io
 import os
 import sys
 import pytest
