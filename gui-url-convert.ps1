@@ -33,8 +33,8 @@ if ($BatchFile) {
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
     $pyScript = Join-Path $scriptDir "html2md.py"
+    $html2mdCmd = Get-Command html2md -ErrorAction SilentlyContinue
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
@@ -51,14 +51,14 @@ if ($BatchFile) {
             }
 
             try {
-                if (Test-Path -LiteralPath $venvExe) {
-                    & $venvExe $argsList
+                if ($html2mdCmd) {
+                    & $html2mdCmd.Source $argsList
                 } elseif (Test-Path -LiteralPath $pyScript) {
                     $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
                     $argsList = @("$pyScript") + $argsList
                     & $pyCmd $argsList
                 } else {
-                    Write-Error "Could not find html2md executable or script."
+                    Write-Error "Could not find html2md command on PATH or html2md.py script."
                 }
 
                 Get-ChildItem -Path $tempDir | ForEach-Object {
@@ -310,8 +310,8 @@ $ConvertBtn.Add_Click({
         $scriptDir = Split-Path -Parent $PSCommandPath
         if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
     
-        $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
         $pyScript = Join-Path $scriptDir "html2md.py"
+        $html2mdCmd = Get-Command html2md -ErrorAction SilentlyContinue
     
         $successCount = 0
         $failureCount = 0
@@ -332,8 +332,8 @@ $ConvertBtn.Add_Click({
                     $argsList += "--all-formats"
                 }
     
-                if (Test-Path -LiteralPath $venvExe) {
-                    $output = & $venvExe $argsList 2>&1
+                if ($html2mdCmd) {
+                    $output = & $html2mdCmd.Source $argsList 2>&1
                     if ($output) { $LogBox.AppendText(($output | Out-String)) }
                     if ($LASTEXITCODE -ne 0) {
                         throw "Process exited with code $LASTEXITCODE."
@@ -346,7 +346,7 @@ $ConvertBtn.Add_Click({
                         throw "Process exited with code $LASTEXITCODE."
                     }
                 } else {
-                    throw "Could not find html2md executable or script."
+                    throw "Could not find html2md command on PATH or html2md.py script."
                 }
 
                 Get-ChildItem -Path $tempDir | ForEach-Object {
