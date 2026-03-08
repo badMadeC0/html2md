@@ -265,7 +265,6 @@ $PasteBtn.Add_Click({
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
         $StatusText.Foreground = "#CC0000"
-        $StatusText.Foreground = "#CC0000"
     }
 })
 
