@@ -62,7 +62,7 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                MAX_SIZE = 10 * 1024 * 1024  # 10 MB limit
+                max_size = 10 * 1024 * 1024  # 10 MB limit
 
                 with session.get(target_url, timeout=30, stream=True) as response:
                     response.raise_for_status()
@@ -72,8 +72,8 @@ def main(argv=None):
                     if content_length:
                         try:
                             cl_val = int(content_length)
-                            if cl_val > MAX_SIZE:
-                                raise ValueError(f"Content-Length exceeds maximum allowed size ({MAX_SIZE} bytes)")
+                            if cl_val > max_size:
+                                raise ValueError(f"Content-Length exceeds maximum allowed size ({max_size} bytes)")
                         except ValueError as e:
                             if "Content-Length exceeds" in str(e):
                                 raise
@@ -82,8 +82,8 @@ def main(argv=None):
                     content = b""
                     for chunk in response.iter_content(chunk_size=8192):
                         content += chunk
-                        if len(content) > MAX_SIZE:
-                            raise ValueError(f"Response exceeds maximum allowed size ({MAX_SIZE} bytes)")
+                        if len(content) > max_size:
+                            raise ValueError(f"Response exceeds maximum allowed size ({max_size} bytes)")
 
                     text_content = content.decode(response.encoding or "utf-8", errors="replace")
 
