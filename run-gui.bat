@@ -41,7 +41,7 @@ REM Upgrade pip/wheel in the new venv (quietly)
 python -m pip install --upgrade pip wheel >nul 2>&1
 
 REM Check if cache needs to be populated
-if not exist "!CACHE_DIR!\*" (
+if not exist "!CACHE_DIR!\html2md_cli*.whl" (
     echo [INFO] Cache is empty. Downloading and building wheels to !CACHE_DIR!...
     mkdir "!CACHE_DIR!" 2>nul
     pip wheel . -w "!CACHE_DIR!"

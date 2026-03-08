@@ -57,7 +57,7 @@ source "$VENV_DIR/bin/activate"
 python -m pip install --upgrade pip wheel >/dev/null 2>&1
 
 # Check if cache needs to be populated
-if [ ! -d "$CACHE_DIR" ] || [ -z "$(ls -A "$CACHE_DIR")" ]; then
+if [ ! -d "$CACHE_DIR" ] || ! ls "$CACHE_DIR"/html2md_cli*.whl >/dev/null 2>&1; then
     echo "[INFO] Cache is empty. Downloading and building wheels to $CACHE_DIR..."
     mkdir -p "$CACHE_DIR"
     if ! pip wheel . -w "$CACHE_DIR"; then
