@@ -12,7 +12,7 @@ def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
     if value.startswith("'"):
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value and (value[0] in "='+-@" or (value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES))):
         return f"'{value}"
     return value
 
@@ -63,9 +63,8 @@ def main(argv=None):
     inp = Path(args.inp)
     out = Path(args.out)
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
-        # Optimization: Use csv.writer instead of DictWriter to avoid per-row dictionary overhead
-        w = csv.writer(fo)
-        w.writerow(fieldnames)
+        w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
+        w.writeheader()
 
         # Optimization: Pre-calculate input keys to avoid tuple unpacking in loop
         input_keys = [k for k, _ in mapping]
@@ -75,6 +74,11 @@ def main(argv=None):
             if not line or line.isspace():
                 continue
 
+            if line[0] != '{':
+                line = line.strip()
+                if not line or line[0] != '{':
+                    continue
+
             try:
                 rec = json.loads(line)
             except json.JSONDecodeError:
@@ -83,10 +87,10 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            row = [
-                _sanitize_value(rec.get(k, ""))
-                for k in input_keys
-            ]
+            row = {
+                output_name: _sanitize_value(rec.get(input_name, ""))
+                for input_name, output_name in mapping
+            }
             w.writerow(row)
 
     return 0

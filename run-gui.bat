@@ -14,6 +14,6 @@ if "%~1"=="" (
     powershell -NoProfile -ExecutionPolicy Bypass -STA -Command "Set-Location -LiteralPath '%SCRIPT_DIR%'; & '.\gui-url-convert.ps1'"
 ) else (
     echo [INFO] Batch processing file: "%~1"
-    powershell -NoProfile -ExecutionPolicy Bypass -STA -Command "Set-Location -LiteralPath '%SCRIPT_DIR%'; & '.\gui-url-convert.ps1' -BatchFile '%~1'"
+    powershell -NoProfile -ExecutionPolicy Bypass -STA -File "%SCRIPT_DIR%gui-url-convert.ps1" -BatchFile "%~1" %2 %3 %4 %5 %6 %7 %8 %9
 )
 pause

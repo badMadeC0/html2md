@@ -6,7 +6,24 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
+param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage, [switch]$BatchAllFormats)
+
+function Get-UniquePath {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $Path }
+    
+    $dir = Split-Path -Parent $Path
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($Path)
+    $ext = [System.IO.Path]::GetExtension($Path)
+    $count = 1
+    
+    do {
+        $newPath = Join-Path $dir "${name}_${count}${ext}"
+        $count++
+    } while (Test-Path -LiteralPath $newPath)
+    
+    return $newPath
+}
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
@@ -24,18 +41,34 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
-            } elseif (Test-Path -LiteralPath $pyScript) {
-                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                $argsList = @("$pyScript") + $argsList
-                & $pyCmd $argsList
-            } else {
-                Write-Error "Could not find html2md executable or script."
+            # Default to main content unless BatchWholePage is set
+            $argsList = @("--url", "$url", "--outdir", "$tempDir")
+            if ($BatchAllFormats) {
+                $argsList += "--all-formats"
+            }
+
+            try {
+                if (Test-Path -LiteralPath $venvExe) {
+                    & $venvExe $argsList
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    $argsList = @("$pyScript") + $argsList
+                    & $pyCmd $argsList
+                } else {
+                    Write-Error "Could not find html2md executable or script."
+                }
+
+                Get-ChildItem -Path $tempDir | ForEach-Object {
+                    $dest = Join-Path $outDir $_.Name
+                    $final = Get-UniquePath $dest
+                    Move-Item -LiteralPath $_.FullName -Destination $final -Force
+                    Write-Host "Saved to: $final"
+                }
+            } finally {
+                if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
             }
         }
     }
@@ -94,7 +127,8 @@ $xaml = @"
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
+            <Label Content="Save _To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox Name="OutBox" Width="265" FontSize="14" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
@@ -103,9 +137,13 @@ $xaml = @"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
+                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
+                  ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
+
+        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
+                ToolTip="Start conversion process" IsDefault="True"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -114,7 +152,7 @@ $xaml = @"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+            <TextBlock Name="StatusText" Text="Ready" Foreground="#555555" AutomationProperties.LiveSetting="Assertive"/>
         </StatusBar>
     </Grid>
 </Window>
@@ -138,6 +176,7 @@ $ConvertBtn = $window.FindName("ConvertBtn")
 $PasteBtn = $window.FindName("PasteBtn")
 $ClearBtn = $window.FindName("ClearBtn")
 $WholePageChk = $window.FindName("WholePageChk")
+$AllFormatsChk = $window.FindName("AllFormatsChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
@@ -160,7 +199,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
     }
 })
 
@@ -225,8 +264,7 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
     }
 })
 
@@ -249,125 +287,91 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
-    # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+        # --- Security Validation ---
+        foreach ($url in $urlList) {
+            try {
+                if (-not ($url -match '^https?://')) {
+                    throw "URL must start with http:// or https://"
+                }
+            } catch {
+                $StatusText.Text = "Invalid URL: $_"
+                $StatusText.Foreground = "#CC0000"
+                $ProgressBar.IsIndeterminate = $false
+                return
+            }
         }
-        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-        $url = $uriObj.AbsoluteUri
-    } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
-        return
-    }
-
-    # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
-        return
-    }
-    # ---------------------------
-
-    if (-not (Test-Path $outdir)) {
-        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
-        catch {}
-    }
-
-    $scriptDir = Split-Path -Parent $PSCommandPath
-    if (-not $scriptDir) {
-        $scriptDir = (Get-Location).Path
-    }
-
-    # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
-    try {
-        $fso = New-Object -ComObject Scripting.FileSystemObject
-        $short = $fso.GetFolder($scriptDir).ShortPath
-        if ($short) { $scriptDir = $short }
-    } catch {}
-
-    # Check for Python executable
-    $pyCmd = "python"
-    if (-not (Get-Command $pyCmd -ErrorAction SilentlyContinue)) {
-        if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
-        else {
-            $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
-
-    # Use a robust way to launch the process:
-    # 1. Revert to ProcessStartInfo for precise control over the command line.
-    # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
-    #    to ensure all internal quotes are preserved and arguments are correctly delimited.
-    # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
-    $psi.WorkingDirectory = $scriptDir
-    $psi.UseShellExecute = $true
-
-    if ($urlList.Count -gt 1) {
-        # --- BATCH MODE ---
-        $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        $urlList | Set-Content -Path $tempFile
-
-        # Sanitize for -File arguments (escape single quotes)
-        $safeCommandPath = $PSCommandPath -replace "'", "''"
-        $safeTempFile = $tempFile -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-
-        # Relaunch this script in batch mode
-        # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
-        if ($WholePageChk.IsChecked) {
-            $psi.Arguments += " -BatchWholePage"
-        }
-    } else {
-        # --- SINGLE URL MODE ---
-        $url = $urlList[0]
-        # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
-
-        # Sanitize inputs for single-quoted string interpolation in PowerShell
-        $safeUrl = $url -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-        $safeVenvExe = $venvExe -replace "'", "''"
-        $safePyScript = $pyScript -replace "'", "''"
-
-        if (Test-Path -LiteralPath $venvExe) {
-            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        else {
-            $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
     
-    $LogBox.AppendText("Executing process...`r`n")
-    [Diagnostics.Process]::Start($psi) | Out-Null
+        # --- Execute Conversion ---
+        $scriptDir = Split-Path -Parent $PSCommandPath
+        if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+    
+        $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+        $pyScript = Join-Path $scriptDir "html2md.py"
+    
+        $successCount = 0
+        $failureCount = 0
+    
+        foreach ($url in $urlList) {
+            $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
-    $StatusText.Text = "Conversion started in a new console."
-    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
-    $ProgressBar.IsIndeterminate = $false
-})
+            try {
+                $StatusText.Text = "Converting: $url"
+                $argsList = @("--url", $url, "--outdir", $tempDir)
+    
+                if ($WholePageChk.IsChecked) {
+                    $argsList += "--whole-page"
+                }
 
-# --- Show window ---
-$window.ShowDialog() | Out-Null
+                if ($AllFormatsChk.IsChecked) {
+                    $argsList += "--all-formats"
+                }
+    
+                if (Test-Path -LiteralPath $venvExe) {
+                    $output = & $venvExe $argsList 2>&1
+                    if ($output) { $LogBox.AppendText(($output | Out-String)) }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Process exited with code $LASTEXITCODE."
+                    }
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    $output = & $pyCmd $pyScript $argsList 2>&1
+                    if ($output) { $LogBox.AppendText(($output | Out-String)) }
+                    if ($LASTEXITCODE -ne 0) {
+                        throw "Process exited with code $LASTEXITCODE."
+                    }
+                } else {
+                    throw "Could not find html2md executable or script."
+                }
+
+                Get-ChildItem -Path $tempDir | ForEach-Object {
+                    $dest = Join-Path $outdir $_.Name
+                    $final = Get-UniquePath $dest
+                    Move-Item -LiteralPath $_.FullName -Destination $final -Force
+                    $LogBox.AppendText("Saved to: $final`r`n")
+                }
+    
+                $successCount++
+                $LogBox.AppendText("[OK] Completed: $url`r`n")
+            } catch {
+                $failureCount++
+                $LogBox.AppendText("[Error] Failed: $url`r`n  Error: $_`r`n")
+            } finally {
+                if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+            }
+        }
+    
+        $ProgressBar.IsIndeterminate = $false
+        $StatusText.Text = "Complete: $successCount succeeded, $failureCount failed"
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+        $LogBox.ScrollToEnd()
+    })
+    
+    # --- Show window ---
+    $window.ShowDialog() | Out-Null
+ 
