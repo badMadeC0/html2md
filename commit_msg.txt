@@ -1,0 +1,5 @@
+🔒 Fix Path Traversal via Unsanitized Filename
+
+🎯 What: Added `sanitize_filename` function to mitigate a path traversal vulnerability in `src/html2md/cli.py` during batch/URL conversion.
+⚠️ Risk: An attacker could craft a URL like `http://example.com/../../etc/passwd` that, when passed with `--outdir`, bypasses basic `os.path.basename` checks (due to URL encoding or backslashes on Windows), potentially allowing arbitrary file writes.
+🛡️ Solution: The new `sanitize_filename` function explicitly URL-decodes the path component, converts backslashes to forward slashes before `os.path.basename`, and explicitly strips lingering traversal sequences. Added `tests/test_cli_security.py` to assert correctness under various payloads.
