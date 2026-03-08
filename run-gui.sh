@@ -23,11 +23,11 @@ else
         DL_DIR="$HOME/Downloads"
     fi
 fi
+mkdir -p "$DL_DIR"
 
 # Define Cache and Venv paths
 CACHE_DIR="$DL_DIR/html2md-cache/wheels"
 VENV_DIR=$(mktemp -d "$DL_DIR/html2md-venv-XXXXXX")
-
 echo "[INFO] Using cache directory: $CACHE_DIR"
 echo "[INFO] Creating temporary virtual environment: $VENV_DIR"
 
