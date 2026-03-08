@@ -64,25 +64,21 @@ def main(argv=None):
                 print("Fetching content...")
                 MAX_SIZE = 10 * 1024 * 1024  # 10 MB limit
 
-                response = session.get(target_url, timeout=30, stream=True)
-                response.raise_for_status()
+                with session.get(target_url, timeout=30, stream=True) as response:
+                    response.raise_for_status()
 
-                # Check Content-Length if present
-                content_length = response.headers.get("Content-Length")
-                if content_length:
-                    try:
-                        if int(content_length) > MAX_SIZE:
-                            raise ValueError(f"Content-Length exceeds maximum allowed size ({MAX_SIZE} bytes)")
-                    except ValueError:
-                        raise ValueError("Invalid Content-Length header value") from None
+                    # Check Content-Length if present
+                    content_length = response.headers.get("Content-Length")
+                    if content_length and int(content_length) > MAX_SIZE:
+                        raise ValueError(f"Content-Length exceeds maximum allowed size ({MAX_SIZE} bytes)")
 
-                content = bytearray()
-                for chunk in response.iter_content(chunk_size=8192):
-                    content.extend(chunk)
-                    if len(content) > MAX_SIZE:
-                        raise ValueError(f"Response exceeds maximum allowed size ({MAX_SIZE} bytes)")
+                    content = b""
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content += chunk
+                        if len(content) > MAX_SIZE:
+                            raise ValueError(f"Response exceeds maximum allowed size ({MAX_SIZE} bytes)")
 
-                text_content = content.decode(response.encoding or "utf-8", errors="replace")
+                    text_content = content.decode(response.encoding or "utf-8", errors="replace")
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")

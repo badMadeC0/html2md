@@ -6,6 +6,7 @@ from unittest.mock import patch, MagicMock
 def test_download_size_limit_exceeded_content_length(capsys):
     """Test that download is aborted if Content-Length exceeds the maximum limit."""
     mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
     mock_response.headers = {'Content-Length': str(11 * 1024 * 1024)} # 11 MB
 
     mock_session = MagicMock()
@@ -25,6 +26,7 @@ def test_download_size_limit_exceeded_content_length(capsys):
 def test_download_size_limit_exceeded_stream(capsys):
     """Test that download is aborted if streamed content exceeds the maximum limit."""
     mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
     mock_response.headers = {}
 
     # Create a generator that yields 2MB chunks, 6 times (12MB total)
@@ -52,6 +54,7 @@ def test_download_size_limit_exceeded_stream(capsys):
 def test_download_size_limit_ok(capsys):
     """Test that a normal download within limits succeeds."""
     mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
     mock_response.headers = {'Content-Length': str(1024)}
 
     def iter_content(chunk_size):
