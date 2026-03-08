@@ -117,6 +117,9 @@ def main(argv=None):
             if not batch_path.exists():
                 logger.error("Error: Batch file not found: %s", args.batch)
                 return 1
+            if not batch_path.is_file():
+                logger.error("Error: Batch path is not a regular file: %s", args.batch)
+                return 1
             with batch_path.open('r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
