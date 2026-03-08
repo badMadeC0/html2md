@@ -10,10 +10,12 @@ _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
+    if not value or value[0] == "'":
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
-        return f"'{value}"
+    first_char = value[0]
+    if first_char in _DANGEROUS_PREFIXES or first_char.isspace():
+        if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
     return value
 
 
@@ -42,7 +44,7 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if isinstance(value, str):
+    if type(value) is str:
         return _sanitize_formula(value)
     return value
 
