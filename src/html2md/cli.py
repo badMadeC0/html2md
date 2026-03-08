@@ -69,8 +69,15 @@ def main(argv=None):
 
                     # Check Content-Length if present
                     content_length = response.headers.get("Content-Length")
-                    if content_length and int(content_length) > MAX_SIZE:
-                        raise ValueError(f"Content-Length exceeds maximum allowed size ({MAX_SIZE} bytes)")
+                    if content_length:
+                        try:
+                            cl_val = int(content_length)
+                            if cl_val > MAX_SIZE:
+                                raise ValueError(f"Content-Length exceeds maximum allowed size ({MAX_SIZE} bytes)")
+                        except ValueError as e:
+                            if "Content-Length exceeds" in str(e):
+                                raise
+                            raise ValueError("Invalid Content-Length header value") from e
 
                     content = b""
                     for chunk in response.iter_content(chunk_size=8192):
