@@ -51,6 +51,9 @@ def main(argv=None):
             'Sec-Fetch-Site': 'cross-site',
             'Sec-Fetch-User': '?1',
         })
+        if args.outdir:
+            os.makedirs(args.outdir, exist_ok=True)
+
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""
@@ -69,8 +72,6 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
 
                     # Create a simple filename based on the URL
                     filename = "conversion_result.md"
