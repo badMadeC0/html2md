@@ -87,7 +87,7 @@ echo "[WARN] Running this on macOS/Linux may fail unless you have a specific cro
 if command -v pwsh &> /dev/null; then
     echo "[INFO] Launching pwsh..."
     if [ -z "$1" ]; then
-        pwsh -NoProfile -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '$SCRIPT_DIR'; & './gui-url-convert.ps1'"
+        pwsh -NoProfile -ExecutionPolicy Bypass -File "./gui-url-convert.ps1"
     else
         echo "[INFO] Batch processing file: $1"
         pwsh -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT_DIR/gui-url-convert.ps1" -BatchFile "$1" "${@:2}"
