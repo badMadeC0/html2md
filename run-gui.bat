@@ -39,6 +39,13 @@ call "!VENV_DIR!\Scripts\activate.bat"
 
 REM Upgrade pip/wheel in the new venv (quietly)
 python -m pip install --upgrade pip wheel >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Failed to upgrade pip/wheel in the virtual environment.
+    rmdir /s /q "!VENV_DIR!"
+    popd
+    pause
+    exit /b 1
+)
 
 REM Check if cache needs to be populated
 if not exist "!CACHE_DIR!\*" (
