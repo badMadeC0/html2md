@@ -128,7 +128,7 @@ $xaml = @"
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
             <Label Content="Save _To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Name="OutBox" Width="265" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
+            <TextBox Name="OutBox" Width="265" FontSize="14" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
