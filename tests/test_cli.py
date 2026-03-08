@@ -1,6 +1,5 @@
 """Unit tests for the html2md CLI."""
 
-import os
 from unittest.mock import MagicMock, patch
 import pytest
 
