@@ -5,7 +5,7 @@ import argparse
 import os
 
 
-def process_url(target_url: str, session, md_func, outdir: str | None = None) -> None:
+def process_url(target_url: str, session: 'requests.Session', md_func: 'typing.Callable[..., str]', outdir: str | None = None) -> None:
     """Process a single URL."""
     # Fix common URL typo: trailing slash before query parameters
     if "/?" in target_url:
