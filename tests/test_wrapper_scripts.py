@@ -68,7 +68,7 @@ def test_temp_venv_wrapper_gui():
     script_path = repo_root / "run-gui.bat"
 
     assert script_path.exists()
-    content = script_path.read_text()
+    content = script_path.read_text(encoding='utf-8')
 
     assert "html2md-venv-" in content
     assert "html2md-cache" in content
@@ -84,7 +84,7 @@ def test_temp_venv_wrapper_gui_unix():
     script_path = repo_root / "run-gui.sh"
 
     assert script_path.exists()
-    content = script_path.read_text()
+    content = script_path.read_text(encoding='utf-8')
 
     assert "mktemp" in content
     assert "html2md-venv-" in content
