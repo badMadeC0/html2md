@@ -1,3 +1,5 @@
+import glob
+
 files = ["run-html2md.bat", "run-gui.bat"]
 for f in files:
     with open(f, "r") as file:

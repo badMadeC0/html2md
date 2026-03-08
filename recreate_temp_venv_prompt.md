@@ -14,8 +14,8 @@ If you ever need to recreate this setup or apply it to another project, you can 
 > 2.  Define a cache directory specifically for wheels (e.g., `Downloads/html2md-cache/wheels`).
 > 3.  Define a temporary, unique virtual environment directory inside Downloads (e.g., `Downloads/html2md-venv-<random>`).
 > 4.  Create the temporary virtual environment at that path and activate it.
-> 5.  If the cache directory is empty, run `pip wheel html2md-cli -w <cache-dir>` to download and build all dependencies from the internet into the cache folder.
-> 6.  Run `pip install html2md-cli --no-index --find-links <cache-dir>` to install the package and its dependencies purely offline from the local cache.
+> 5.  If the cache directory is empty, run `pip wheel . -w <cache-dir>` to download and build all dependencies from the internet into the cache folder.
+> 6.  Run `pip install . --no-index --find-links <cache-dir>` to install the package and its dependencies purely offline from the local cache.
 > 7.  Execute the application (e.g., the CLI tool or the GUI script).
 > 8.  Delete the temporary virtual environment directory completely after the application exits, regardless of success or failure.
 >
