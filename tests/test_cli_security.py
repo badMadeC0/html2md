@@ -1,7 +1,6 @@
 """Security tests for the CLI."""
 
 import sys
-import pytest
 from unittest.mock import patch, MagicMock
 
 def test_download_size_limit_exceeded_content_length(capsys):
