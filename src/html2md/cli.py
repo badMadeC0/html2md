@@ -97,11 +97,20 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}")
                 return 1
+
+            urls = []
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        urls.append(u)
+
+            if urls:
+                import concurrent.futures
+                # Use ThreadPoolExecutor to process URLs concurrently
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    for _ in executor.map(process_url, urls):
+                        pass
 
         return 0
 
