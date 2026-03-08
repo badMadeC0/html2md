@@ -1,6 +1,7 @@
 """Test suite for html2md."""
 
-import requests  # type: ignore
+import pytest
+pytest.importorskip('requests')
 
 def test_requests() -> None:
     """Test requests import."""

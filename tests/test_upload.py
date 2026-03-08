@@ -5,8 +5,9 @@ import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 
-import anthropic
 import pytest
+
+pytest.importorskip('anthropic')
 
 from html2md.upload import main, upload_file
 
