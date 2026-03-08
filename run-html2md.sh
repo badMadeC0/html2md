@@ -17,7 +17,7 @@ else
         DL_DIR="$HOME/Downloads"
     fi
 fi
-
+mkdir -p "$DL_DIR" # Ensure the Downloads directory exists
 # Define Cache and Venv paths
 CACHE_DIR="$DL_DIR/html2md-cache/wheels"
 # Create a temporary directory that will be deleted on exit
