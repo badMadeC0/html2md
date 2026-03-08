@@ -142,7 +142,7 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
+                ToolTip="Start conversion process" IsDefault="True"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -151,7 +151,7 @@ $xaml = @"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+            <TextBlock Name="StatusText" Text="Ready" Foreground="#555555" AutomationProperties.LiveSetting="Assertive"/>
         </StatusBar>
     </Grid>
 </Window>
@@ -198,7 +198,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
     }
 })
 
@@ -263,8 +263,8 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
+        $StatusText.Foreground = "#CC0000"
     }
 })
 
@@ -287,7 +287,7 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
         $ProgressBar.IsIndeterminate = $false
         return
     }
@@ -300,7 +300,7 @@ $ConvertBtn.Add_Click({
                 }
             } catch {
                 $StatusText.Text = "Invalid URL: $_"
-                $StatusText.Foreground = "Red"
+                $StatusText.Foreground = "#CC0000"
                 $ProgressBar.IsIndeterminate = $false
                 return
             }
@@ -369,6 +369,7 @@ $ConvertBtn.Add_Click({
         $ProgressBar.IsIndeterminate = $false
         $StatusText.Text = "Complete: $successCount succeeded, $failureCount failed"
         $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+        $LogBox.ScrollToEnd()
     })
     
     # --- Show window ---
