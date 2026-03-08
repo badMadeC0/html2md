@@ -80,7 +80,7 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            if type(rec) is not dict:
+            if not isinstance(rec, dict):
                 continue
 
             row = {
