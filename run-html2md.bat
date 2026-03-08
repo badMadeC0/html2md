@@ -48,7 +48,7 @@ if not exist "!CACHE_DIR!\*" (
 
 REM Install from cache purely offline
 echo [INFO] Installing package from local cache...
-pip install . --no-index --find-links="!CACHE_DIR!" >nul 2>&1
+pip install html2md-cli --no-index --find-links="!CACHE_DIR!" >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Failed to install from cache. The cache might be incomplete. Try deleting !CACHE_DIR! and running again.
     rmdir /s /q "!VENV_DIR!"

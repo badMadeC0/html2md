@@ -74,7 +74,7 @@ fi
 
 # Install from cache purely offline
 echo "[INFO] Installing package from local cache..."
-if ! pip install . --no-index --find-links="$CACHE_DIR" >/dev/null 2>&1; then
+if ! pip install html2md-cli --no-index --find-links="$CACHE_DIR" >/dev/null 2>&1; then
     echo "[ERROR] Failed to install from cache. The cache might be incomplete. Try deleting $CACHE_DIR and running again."
     exit 1
 fi
