@@ -72,9 +72,9 @@ def main(argv=None):
                 if content_length and int(content_length) > MAX_SIZE:
                     raise ValueError(f"Content-Length exceeds maximum allowed size ({MAX_SIZE} bytes)")
 
-                content = b""
+                content = bytearray()
                 for chunk in response.iter_content(chunk_size=8192):
-                    content += chunk
+                    content.extend(chunk)
                     if len(content) > MAX_SIZE:
                         raise ValueError(f"Response exceeds maximum allowed size ({MAX_SIZE} bytes)")
 
