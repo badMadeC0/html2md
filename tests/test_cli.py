@@ -1,6 +1,6 @@
 """Unit tests for the html2md CLI."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import pytest
 
 from html2md.cli import process_url
