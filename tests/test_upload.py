@@ -5,10 +5,16 @@ import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 
-import anthropic
 import pytest
 
-from html2md.upload import main, upload_file
+try:
+    import anthropic
+    from html2md.upload import main, upload_file
+except ImportError:
+    anthropic = None
+
+pytestmark = pytest.mark.skipif(anthropic is None, reason="anthropic is not installed")
+
 
 
 def test_upload_file_success(tmp_path):
