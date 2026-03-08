@@ -12,7 +12,7 @@ def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
     if value.startswith("'"):
         return value
-    if value and (value[0] in "='+-@" or value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES)):
+    if value and (value[0] in "='+-@" or (value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES))):
         return f"'{value}"
     return value
 
