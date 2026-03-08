@@ -2,6 +2,7 @@
 
 import pytest
 pytest.importorskip('requests')
+import requests
 
 def test_requests() -> None:
     """Test requests import."""
