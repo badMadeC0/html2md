@@ -28,6 +28,7 @@ mkdir -p "$DL_DIR"
 # Define Cache and Venv paths
 CACHE_DIR="$DL_DIR/html2md-cache/wheels"
 VENV_DIR=$(mktemp -d "$DL_DIR/html2md-venv-XXXXXX")
+
 echo "[INFO] Using cache directory: $CACHE_DIR"
 echo "[INFO] Creating temporary virtual environment: $VENV_DIR"
 
@@ -87,6 +88,7 @@ if ! pip install html2md-cli --no-index --find-links="$CACHE_DIR" >/dev/null 2>&
         exit 1
     fi
 fi
+mkdir -p "$DL_DIR"
 
 echo "[WARN] gui-url-convert.ps1 is a Windows Presentation Foundation (WPF) GUI."
 echo "[WARN] It natively requires Windows and PowerShell with STA mode."

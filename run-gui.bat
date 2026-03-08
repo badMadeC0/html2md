@@ -18,6 +18,7 @@ if defined USERPROFILE (
 ) else (
     set "DL_DIR=%HOMEDRIVE%%HOMEPATH%\Downloads"
 )
+mkdir "!DL_DIR!" 2>nul
 
 REM Define Cache and Venv paths
 set "CACHE_DIR=!DL_DIR!\html2md-cache\wheels"

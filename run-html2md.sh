@@ -17,7 +17,8 @@ else
         DL_DIR="$HOME/Downloads"
     fi
 fi
-mkdir -p "$DL_DIR" # Ensure the Downloads directory exists
+mkdir -p "$DL_DIR"
+
 # Define Cache and Venv paths
 CACHE_DIR="$DL_DIR/html2md-cache/wheels"
 # Create a temporary directory that will be deleted on exit
@@ -83,6 +84,7 @@ if ! pip install html2md-cli --no-index --find-links="$CACHE_DIR" >/dev/null 2>&
         exit 1
     fi
 fi
+mkdir -p "$DL_DIR"
 
 # Pass all args through to html2md
 echo "[INFO] Running html2md..."
