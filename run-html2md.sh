@@ -71,8 +71,17 @@ fi
 # Install from cache purely offline
 echo "[INFO] Installing package from local cache..."
 if ! pip install html2md-cli --no-index --find-links="$CACHE_DIR" >/dev/null 2>&1; then
-    echo "[ERROR] Failed to install from cache. The cache might be incomplete. Try deleting $CACHE_DIR and running again."
-    exit 1
+    echo "[WARN] Failed to install from cache. The cache might be incomplete or for a different Python version."
+    echo "[INFO] Attempting to rebuild wheels..."
+    if ! pip wheel . -w "$CACHE_DIR"; then
+        echo "[ERROR] Failed to build wheels. Check your internet connection or dependencies."
+        exit 1
+    fi
+    echo "[INFO] Retrying installation..."
+    if ! pip install html2md-cli --no-index --find-links="$CACHE_DIR" >/dev/null 2>&1; then
+        echo "[ERROR] Failed to install even after rebuilding wheels."
+        exit 1
+    fi
 fi
 
 # Pass all args through to html2md
