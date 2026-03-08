@@ -11,3 +11,8 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Vulnerability:** `gui-url-convert.ps1` constructs a command string using unescaped user input (`$url` and `$outdir`) inside a single-quoted string context passed to `powershell -Command`. A malicious URL containing a single quote `'` allows arbitrary PowerShell code execution.
 **Learning:** String concatenation for command construction is dangerous, even in PowerShell. Using `Start-Process -ArgumentList` with an array of arguments is safer than building a command string.
 **Prevention:** Avoid `Invoke-Expression` or `powershell -Command "..."`. Use `& $exe $args` where `$args` is an array, or `Start-Process` with `ArgumentList`.
+
+## 2024-10-24 - Terminal Injection in CLI
+**Vulnerability:** The `cli.py` script directly printed exception messages using `print(f"Conversion failed: {e}")`. If the exception message contained terminal control characters (e.g., ANSI escape sequences `\x1b` or Bell `\x07`), it could allow an attacker to execute terminal injection attacks or manipulate the console output.
+**Learning:** Terminal output from untrusted sources (including external HTTP responses that cause exceptions) must be sanitized before being displayed to the user.
+**Prevention:** Sanitize exception messages or any untrusted output by filtering out non-printable characters, except for necessary whitespace like newlines and tabs. Example: `"".join(c for c in str(e) if c.isprintable() or c in "\n\t\r")`.
