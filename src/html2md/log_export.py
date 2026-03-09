@@ -9,7 +9,7 @@ _FORMULA_PREFIXES = ('=', '+', '-', '@')
 _CONTROL_PREFIXES = ('\t', '\r')
 
 
-def sanitize_csv_field(value):
+def sanitize_csv_field(value: object) -> object:
     """Sanitize a field to prevent CSV injection."""
     if isinstance(value, str):
         # Check for formula injection (stripping all whitespace)
