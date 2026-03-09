@@ -2,7 +2,10 @@
 # Script to close invalid/redundant PRs on badMadeC0/html2md
 # Run locally where you have `gh auth login` configured
 # Usage: bash close-invalid-prs.sh
-#
+# Script to close invalid/redundant PRs on badMadeC0/html2md
+# Run locally where you have `gh auth login` configured
+# Usage: bash close-invalid-prs.sh
+set -euo pipefail
 # Last reviewed: 2026-03-09
 # Remaining open PRs reviewed and categorized below.
 
