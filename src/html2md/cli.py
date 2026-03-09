@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import os
+import sys
 
 def main(argv=None):
     """Run the CLI."""
@@ -27,7 +28,7 @@ def main(argv=None):
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify")
+                  "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -62,33 +63,11 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                max_size = 10 * 1024 * 1024  # 10 MB limit
-
-                with session.get(target_url, timeout=30, stream=True) as response:
-                    response.raise_for_status()
-
-                    # Check Content-Length if present
-                    content_length = response.headers.get("Content-Length")
-                    if content_length:
-                        try:
-                            cl_val = int(content_length)
-                            if cl_val > max_size:
-                                raise ValueError(f"Content-Length exceeds maximum allowed size ({max_size} bytes)")
-                        except ValueError as e:
-                            if "Content-Length exceeds" in str(e):
-                                raise
-                            raise ValueError("Invalid Content-Length header value") from e
-
-                    content = b""
-                    for chunk in response.iter_content(chunk_size=8192):
-                        content += chunk
-                        if len(content) > max_size:
-                            raise ValueError(f"Response exceeds maximum allowed size ({max_size} bytes)")
-
-                    text_content = content.decode(response.encoding or "utf-8", errors="replace")
+                response = session.get(target_url, timeout=30)
+                response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(text_content, heading_style="ATX")
+                md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
@@ -109,15 +88,19 @@ def main(argv=None):
                 else:
                     print(md_content)
 
+            except requests.RequestException as e:
+                print(f"Network error: {e}", file=sys.stderr)
+            except OSError as e:
+                print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}")
+                print(f"Conversion failed: {e}", file=sys.stderr)
 
         if args.url:
             process_url(args.url)
 
         if args.batch:
             if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}")
+                print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:

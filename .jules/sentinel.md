@@ -12,7 +12,7 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Learning:** String concatenation for command construction is dangerous, even in PowerShell. Using `Start-Process -ArgumentList` with an array of arguments is safer than building a command string.
 **Prevention:** Avoid `Invoke-Expression` or `powershell -Command "..."`. Use `& $exe $args` where `$args` is an array, or `Start-Process` with `ArgumentList`.
 
-## 2024-11-09 - Denial of Service (DoS) Risk in HTML Conversion
-**Vulnerability:** The `cli.py` script used `requests.get()` to fetch URL content without an explicit input length limit or streaming validation. An attacker could provide a link to a multi-gigabyte file or an infinite stream, exhausting memory and causing a Denial of Service.
-**Learning:** Default behavior of `requests.get()` reads the entire response into memory. Unbounded memory allocation based on untrusted input is a significant vulnerability.
-**Prevention:** Always use `stream=True` with `requests.get()` when downloading untrusted content. Enforce a maximum file size using the `Content-Length` header (if present) and iterate over response chunks, checking the total accumulated size. Stop and raise an error if it exceeds the limit.
+## 2024-10-24 - Safe PowerShell String Interpolation
+**Vulnerability:** Constructing PowerShell commands via string interpolation (e.g., `-Command "..."`) is risky. While `Start-Process -ArgumentList` is preferred, it may not support all use cases (like keeping the window open with `-NoExit` easily without wrapper scripts).
+**Learning:** When using `-Command` is unavoidable, wrapping arguments in single quotes and escaping existing single quotes by doubling them (`' -> ''`) provides a robust defense against injection.
+**Prevention:** Always sanitize variables before interpolating them into a command string. For single-quoted strings in PowerShell, replace `'` with `''`.
