@@ -33,11 +33,6 @@ class TestCliExceptions(unittest.TestCase):
             exit_code = main(["--url", "http://example.com"])
 
             # Verify exit code is 0 (handled error)
-            # The current implementation catches generic Exception and prints it,
-            # but doesn't return non-zero exit code in the catch block (it falls through).
-            # Wait, let's check cli.py again.
-            # It prints "Conversion failed" and continues.
-            # If args.url is processed, it returns 0 at the end.
             self.assertEqual(exit_code, 0)
 
             # Verify error message
