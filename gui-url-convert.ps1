@@ -33,8 +33,8 @@ if ($BatchFile) {
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
     $pyScript = Join-Path $scriptDir "html2md.py"
+    $html2mdCmd = Get-Command html2md -ErrorAction SilentlyContinue
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
@@ -51,14 +51,14 @@ if ($BatchFile) {
             }
 
             try {
-                if (Test-Path -LiteralPath $venvExe) {
-                    & $venvExe $argsList
+                if ($html2mdCmd) {
+                    & $html2mdCmd.Source $argsList
                 } elseif (Test-Path -LiteralPath $pyScript) {
                     $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
                     $argsList = @("$pyScript") + $argsList
                     & $pyCmd $argsList
                 } else {
-                    Write-Error "Could not find html2md executable or script."
+                    Write-Error "Could not find html2md command on PATH or html2md.py script."
                 }
 
                 Get-ChildItem -Path $tempDir | ForEach-Object {
@@ -127,7 +127,8 @@ $xaml = @"
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
+            <Label Content="Save _To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox Name="OutBox" Width="265" FontSize="14" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </StackPanel>
@@ -136,13 +137,13 @@ $xaml = @"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="True"
+        <CheckBox Name="AllFormatsChk" Grid.Row="3" Content="Generate _All Formats (md, txt, pdf)" IsChecked="False"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="150,15,0,0"
                   ToolTip="If checked, creates .md, .txt, and .pdf files. Uncheck if the converter doesn't support this."/>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
+                ToolTip="Start conversion process" IsDefault="True"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -151,7 +152,7 @@ $xaml = @"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="Gray"/>
+            <TextBlock Name="StatusText" Text="Ready" Foreground="#555555" AutomationProperties.LiveSetting="Assertive"/>
         </StatusBar>
     </Grid>
 </Window>
@@ -198,7 +199,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
     }
 })
 
@@ -263,8 +264,7 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
     }
 })
 
@@ -287,7 +287,7 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#CC0000"
         $ProgressBar.IsIndeterminate = $false
         return
     }
@@ -300,7 +300,7 @@ $ConvertBtn.Add_Click({
                 }
             } catch {
                 $StatusText.Text = "Invalid URL: $_"
-                $StatusText.Foreground = "Red"
+                $StatusText.Foreground = "#CC0000"
                 $ProgressBar.IsIndeterminate = $false
                 return
             }
@@ -310,8 +310,8 @@ $ConvertBtn.Add_Click({
         $scriptDir = Split-Path -Parent $PSCommandPath
         if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
     
-        $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
         $pyScript = Join-Path $scriptDir "html2md.py"
+        $html2mdCmd = Get-Command html2md -ErrorAction SilentlyContinue
     
         $successCount = 0
         $failureCount = 0
@@ -332,8 +332,8 @@ $ConvertBtn.Add_Click({
                     $argsList += "--all-formats"
                 }
     
-                if (Test-Path -LiteralPath $venvExe) {
-                    $output = & $venvExe $argsList 2>&1
+                if ($html2mdCmd) {
+                    $output = & $html2mdCmd.Source $argsList 2>&1
                     if ($output) { $LogBox.AppendText(($output | Out-String)) }
                     if ($LASTEXITCODE -ne 0) {
                         throw "Process exited with code $LASTEXITCODE."
@@ -346,7 +346,7 @@ $ConvertBtn.Add_Click({
                         throw "Process exited with code $LASTEXITCODE."
                     }
                 } else {
-                    throw "Could not find html2md executable or script."
+                    throw "Could not find html2md command on PATH or html2md.py script."
                 }
 
                 Get-ChildItem -Path $tempDir | ForEach-Object {
@@ -369,6 +369,7 @@ $ConvertBtn.Add_Click({
         $ProgressBar.IsIndeterminate = $false
         $StatusText.Text = "Complete: $successCount succeeded, $failureCount failed"
         $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+        $LogBox.ScrollToEnd()
     })
     
     # --- Show window ---
