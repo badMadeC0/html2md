@@ -9,16 +9,12 @@ _FORMULA_PREFIXES = ('=', '+', '-', '@')
 _CONTROL_PREFIXES = ('\t', '\r')
 
 
-def sanitize_csv_field(value: object) -> object:
-    """Sanitize a field to prevent CSV injection."""
-    if isinstance(value, str):
-        # Check for formula injection (stripping all whitespace)
-        if value.lstrip().startswith(_FORMULA_PREFIXES):
-            return f"'{value}"
-        # Check for control character injection (stripping only spaces to detect \t, \r)
-        if value.lstrip(" ").startswith(_CONTROL_PREFIXES):
-            return f"'{value}"
-    return value
+    """Sanitizes a field to prevent CSV injection.
+
+    For string values, it prefixes potentially dangerous content (e.g., formulas,
+    control characters) with a single quote to neutralize them. Non-string
+    values are returned unchanged.
+    """
 
 
 def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
