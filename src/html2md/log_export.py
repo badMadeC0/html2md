@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Export html2md JSONL logs to CSV."""
 
 import argparse
@@ -9,26 +10,15 @@ _FORMULA_PREFIXES = ('=', '+', '-', '@')
 _CONTROL_PREFIXES = ('\t', '\r')
 
 
-def sanitize_csv_field(value: object) -> object:
-    """Sanitizes a field to prevent CSV injection.
-
-    For string values, it prefixes potentially dangerous content (e.g., formulas,
-    control characters) with a single quote to neutralize them. Non-string
-    values are returned unchanged.
-    """
-    # Non-string values are not subject to CSV injection; return as-is.
-    if not isinstance(value, str):
-        return value
-
-    # Empty strings are safe.
-    if value == "":
-        return value
-
-    first_char = value[0]
-    if first_char in _FORMULA_PREFIXES or first_char in _CONTROL_PREFIXES:
-        # Prefix with a single quote to neutralize potential formulas/control chars.
-        return "'" + value
-
+def sanitize_csv_field(value):
+    """Sanitize a field to prevent CSV injection."""
+    if isinstance(value, str):
+        # Check for formula injection (stripping all whitespace)
+        if value.lstrip().startswith(_FORMULA_PREFIXES):
+            return f"'{value}"
+        # Check for control character injection (stripping only spaces)
+        if value.lstrip(" ").startswith(_CONTROL_PREFIXES):
+            return f"'{value}"
     return value
 
 
@@ -41,7 +31,7 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
     for field in fields:
         base = sanitize_csv_field(field)
         if not isinstance(base, str):
-            base = str(base)
+             base = str(base)
 
         candidate = base
         suffix = 1
