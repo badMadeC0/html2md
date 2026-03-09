@@ -7,6 +7,7 @@ from pathlib import Path
 # Identify if we're on Windows
 IS_WINDOWS = sys.platform == "win32"
 
+
 def test_temp_venv_wrapper_html2md():
     """
     Test that the run-html2md wrapper script works and successfully runs html2md --help.
@@ -36,10 +37,12 @@ def test_temp_venv_wrapper_html2md():
             capture_output=True,
             text=True,
             check=True,
-            timeout=300  # Give it time to build wheels on first run
+            timeout=300,  # Give it time to build wheels on first run
         )
     except subprocess.CalledProcessError as e:
-        pytest.fail(f"Wrapper script failed with return code {e.returncode}.\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}")
+        pytest.fail(
+            f"Wrapper script failed with return code {e.returncode}.\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}"
+        )
     except subprocess.TimeoutExpired:
         pytest.fail("Wrapper script timed out.")
 
@@ -56,7 +59,10 @@ def test_temp_venv_wrapper_html2md():
     # parsing, we trust the script's internal cleanup mechanism. The fact that it exits 0 means
     # the cleanup trap/logic executed successfully.
 
-@pytest.mark.skipif(not IS_WINDOWS, reason="GUI wrapper natively requires Windows/PowerShell.")
+
+@pytest.mark.skipif(
+    not IS_WINDOWS, reason="GUI wrapper natively requires Windows/PowerShell."
+)
 def test_temp_venv_wrapper_gui():
     """
     Smoke test the GUI wrapper on Windows. We won't actually launch the GUI
@@ -68,12 +74,13 @@ def test_temp_venv_wrapper_gui():
     script_path = repo_root / "run-gui.bat"
 
     assert script_path.exists()
-    content = script_path.read_text(encoding='utf-8')
+    content = script_path.read_text(encoding="utf-8")
 
     assert "html2md-venv-" in content
     assert "html2md-cache" in content
     assert "pip install" in content
     assert "rmdir /s /q" in content  # Cleanup logic exists
+
 
 @pytest.mark.skipif(IS_WINDOWS, reason="Unix specific wrapper check")
 def test_temp_venv_wrapper_gui_unix():
@@ -84,7 +91,7 @@ def test_temp_venv_wrapper_gui_unix():
     script_path = repo_root / "run-gui.sh"
 
     assert script_path.exists()
-    content = script_path.read_text(encoding='utf-8')
+    content = script_path.read_text(encoding="utf-8")
 
     assert "mktemp" in content
     assert "html2md-venv-" in content
