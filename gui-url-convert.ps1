@@ -120,7 +120,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
@@ -143,7 +143,7 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process" IsDefault="True"
+                ToolTip="Start conversion process" IsDefault="True" IsEnabled="False"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -180,6 +180,13 @@ $AllFormatsChk = $window.FindName("AllFormatsChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
+
+# --- Event Listeners ---
+$UrlBox.Add_TextChanged({
+    $hasText = -not [string]::IsNullOrWhiteSpace($UrlBox.Text)
+    $ConvertBtn.IsEnabled = $hasText
+    $ClearBtn.IsEnabled = $hasText
+})
 
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
