@@ -16,3 +16,8 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Vulnerability:** The `cli.py` script used `requests.get()` to fetch URL content without an explicit input length limit or streaming validation. An attacker could provide a link to a multi-gigabyte file or an infinite stream, exhausting memory and causing a Denial of Service.
 **Learning:** Default behavior of `requests.get()` reads the entire response into memory. Unbounded memory allocation based on untrusted input is a significant vulnerability.
 **Prevention:** Always use `stream=True` with `requests.get()` when downloading untrusted content. Enforce a maximum file size using the `Content-Length` header (if present) and iterate over response chunks, checking the total accumulated size. Stop and raise an error if it exceeds the limit.
+
+## 2024-05-24 - [Path Traversal in URL Base Filename]
+**Vulnerability:** Found `os.path.basename` parsing URLs without stripping URL-encoded path traversal characters (`%2F..%2F..`) in `src/html2md/cli.py`. If a malicious URL was provided, it could allow an attacker to write files outside of the intended directory when saving the markdown output.
+**Learning:** `os.path.basename` doesn't sanitize URL encoding, and the server shouldn't implicitly trust the path in the URL to generate local filenames.
+**Prevention:** Always `urllib.parse.unquote()` the URL path *before* applying `os.path.basename`, and aggressively replace slash and backslash characters with a safe character like `_`, along with stripping `..` combinations.

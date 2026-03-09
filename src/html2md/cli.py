@@ -3,6 +3,16 @@
 from __future__ import annotations
 import argparse
 import os
+from urllib.parse import urlparse, unquote
+
+def is_safe_scheme(url: str) -> bool:
+    """Validate URL scheme to prevent arbitrary local file reads."""
+    try:
+        parsed = urlparse(url)
+        # For a CLI tool, we allow http/https but disallow file:// to prevent reading local files like /etc/passwd
+        return parsed.scheme in ('http', 'https')
+    except Exception:
+        return False
 
 def main(argv=None):
     """Run the CLI."""
@@ -60,6 +70,10 @@ def main(argv=None):
 
             print(f"Processing URL: {target_url}")
 
+            if not is_safe_scheme(target_url):
+                print(f"Error: Unsupported URL scheme: {target_url}")
+                return
+
             try:
                 print("Fetching content...")
                 max_size = 10 * 1024 * 1024  # 10 MB limit
@@ -98,7 +112,10 @@ def main(argv=None):
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
                     if url_path:
-                        base = os.path.basename(url_path)
+                        # unquote and sanitize to prevent path traversal
+                        base = os.path.basename(unquote(url_path))
+                        # remove dangerous characters and separators
+                        base = base.replace('/', '_').replace('\\', '_').replace('..', '')
                         if base:
                             filename = f"{base}.md"
 
