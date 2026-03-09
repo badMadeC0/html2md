@@ -66,8 +66,6 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
 
-        # Optimization: Pre-calculate input keys to avoid tuple unpacking in loop
-        input_keys = [k for k, _ in mapping]
 
         for line in fi:
             # Optimization: Avoid allocating stripped string if line is empty/whitespace
