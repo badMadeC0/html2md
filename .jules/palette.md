@@ -15,3 +15,7 @@ Format: `## YYYY-MM-DD - [Title]`
 ## 2026-03-08 - Missing Visible Label for Output Directory Input
 **Learning:** Found an input field (`OutBox`) that had `AutomationProperties.Name` and a `ToolTip` but no visible `<Label>`. While this was technically accessible to screen readers, sighted users lacked visual context for what the input was for. `Target="{Binding ElementName=...}"` provides both visual context and an expanded clickable area (especially when combined with mnemonics like `_T` in `Save _To:`).
 **Action:** Always ensure important input fields have visible, associated `<Label>` controls, not just automation properties, to improve usability for all users and provide keyboard mnemonics (Alt+T).
+
+## 2026-03-08 - Keyboard Accelerators & Dynamic Button State
+**Learning:** In WPF/PowerShell XAML, multiple controls can accidentally share the same keyboard accelerator (e.g., Alt+T for "Paste" and "Save To" using `_`). Additionally, primary action buttons should ideally communicate *why* they are disabled when required input is missing.
+**Action:** Always verify that keyboard mnemonics (using `_` in Content/Label) are unique across the UI. Use dynamic `ToolTip` and `IsEnabled` properties on primary buttons, tied to `TextChanged` events of required inputs, to guide users rather than letting them click and fail.

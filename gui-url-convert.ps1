@@ -127,7 +127,7 @@ $xaml = @"
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="80"/>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal">
-            <Label Content="Save _To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <Label Content="_Save To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
             <TextBox Name="OutBox" Width="265" FontSize="14" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
             <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
@@ -143,7 +143,7 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process" IsDefault="True"
+                ToolTip="Please enter at least one URL to enable conversion" IsDefault="True" IsEnabled="False"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -183,6 +183,17 @@ $LogBox = $window.FindName("LogBox")
 
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
+
+# --- URL Box text changed logic ---
+$UrlBox.Add_TextChanged({
+    if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
+        $ConvertBtn.IsEnabled = $false
+        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+    } else {
+        $ConvertBtn.IsEnabled = $true
+        $ConvertBtn.ToolTip = "Start conversion process"
+    }
+})
 
 # --- Browse button logic ---
 $BrowseBtn.Add_Click({
