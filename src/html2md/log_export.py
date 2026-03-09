@@ -66,7 +66,9 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
 
+
         for line in fi:
+            # Optimization: Avoid allocating stripped string if line is empty/whitespace
             if not line or line.isspace():
                 continue
 
