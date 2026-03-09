@@ -30,7 +30,7 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
     for field in fields:
         base = sanitize_csv_field(field)
         if not isinstance(base, str):
-             base = str(base)
+            base = str(base)
 
         candidate = base
         suffix = 1
