@@ -10,5 +10,5 @@ Format: `## YYYY-MM-DD - [Title]`
 **Action:** Always map shortcuts for primary actions and check for conflicts in the visual label.
 
 ## 2024-10-18 - WPF Default Text Contrast
-**Learning:** The default `Gray` color in WPF (and many UI frameworks) often fails WCAG AA contrast guidelines on light backgrounds (approx 3.95:1). For status text or hints, use a darker shade like `#555555` (DimGray) to ensure readability for all users while maintaining visual hierarchy.
+**Learning:** The default `Gray` color in WPF (and many UI frameworks) often fails WCAG AA contrast guidelines on light backgrounds (approx 3.95:1). For status text or hints, use a darker shade like `#555555` to ensure readability for all users while maintaining visual hierarchy.
 **Action:** Always verify color contrast ratios for "subtle" text colors using a contrast checker.
