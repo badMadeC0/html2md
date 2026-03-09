@@ -39,6 +39,9 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
 
         if outdir:
             outdir_path = Path(outdir)
+            if outdir_path.exists() and not outdir_path.is_dir():
+                logger.error("Error: Output path is not a directory: %s", outdir_path)
+                return
             outdir_path.mkdir(parents=True, exist_ok=True)
 
             # Create a simple filename based on the URL
