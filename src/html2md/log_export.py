@@ -66,6 +66,9 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
 
+        # Optimization: hoist function lookups outside the hot loop
+        sanitize = _sanitize_value
+        writer_writerow = w.writerow
 
         for line in fi:
             # Optimization: Avoid allocating stripped string if line is empty/whitespace
@@ -85,11 +88,10 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            row = {
-                output_name: _sanitize_value(rec.get(input_name, ""))
+            writer_writerow({
+                output_name: sanitize(rec.get(input_name, ""))
                 for input_name, output_name in mapping
-            }
-            w.writerow(row)
+            })
 
     return 0
 
