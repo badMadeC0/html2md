@@ -1,5 +1,3 @@
-import glob
-
 for f in ["run-html2md.sh", "run-gui.sh"]:
     with open(f, "r") as file:
         content = file.read()
