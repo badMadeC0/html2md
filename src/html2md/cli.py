@@ -62,11 +62,33 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
-                response.raise_for_status()
+                max_size = 10 * 1024 * 1024  # 10 MB limit
+
+                with session.get(target_url, timeout=30, stream=True) as response:
+                    response.raise_for_status()
+
+                    # Check Content-Length if present
+                    content_length = response.headers.get("Content-Length")
+                    if content_length:
+                        try:
+                            cl_val = int(content_length)
+                            if cl_val > max_size:
+                                raise ValueError(f"Content-Length exceeds maximum allowed size ({max_size} bytes)")
+                        except ValueError as e:
+                            if "Content-Length exceeds" in str(e):
+                                raise
+                            raise ValueError("Invalid Content-Length header value") from e
+
+                    content = b""
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content += chunk
+                        if len(content) > max_size:
+                            raise ValueError(f"Response exceeds maximum allowed size ({max_size} bytes)")
+
+                    text_content = content.decode(response.encoding or "utf-8", errors="replace")
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(text_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):

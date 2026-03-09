@@ -12,7 +12,7 @@ def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
     if value.startswith("'"):
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value and (value[0] in "='+-@" or (value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES))):
         return f"'{value}"
     return value
 
@@ -66,10 +66,16 @@ def main(argv=None):
         w = csv.DictWriter(fo, fieldnames=fieldnames, extrasaction='ignore', restval='')
         w.writeheader()
 
+
         for line in fi:
-            line = line.strip()
-            if not line:
+            # Optimization: Avoid allocating stripped string if line is empty/whitespace
+            if not line or line.isspace():
                 continue
+
+            if line[0] != '{':
+                line = line.strip()
+                if not line or line[0] != '{':
+                    continue
 
             try:
                 rec = json.loads(line)
