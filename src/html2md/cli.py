@@ -48,7 +48,11 @@ def process_url(target_url: str, session, md_func, outdir: str | None = None) ->
             filename = "conversion_result.md"
             url_path = target_url.split('?')[0].rstrip('/')
             if url_path:
-                base = Path(url_path).name
+            url_path_component = parsed.path.rstrip('/')
+            if url_path_component:
+                base = Path(url_path_component).name
+                if base:
+                    filename = f"{base}.md"
                 if base:
                     filename = f"{base}.md"
 
