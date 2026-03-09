@@ -36,7 +36,7 @@ def test_temp_venv_wrapper_html2md():
             capture_output=True,
             text=True,
             check=True,
-            timeout=120  # Give it time to build wheels on first run
+            timeout=300  # Give it time to build wheels on first run
         )
     except subprocess.CalledProcessError as e:
         pytest.fail(f"Wrapper script failed with return code {e.returncode}.\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}")
