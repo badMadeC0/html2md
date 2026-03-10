@@ -45,6 +45,6 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
         assert "Success!" in outerr.out
 
     # Ensure any output files are contained under --outdir.
-    assert all(path.is_file() for path in outdir.rglob("*.md"))
+    assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
