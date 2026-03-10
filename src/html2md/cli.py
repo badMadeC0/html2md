@@ -2,8 +2,36 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
 import sys
+import urllib.parse
+
+def is_safe_url(url: str) -> bool:
+    """Validate URL to prevent SSRF and local file access."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Block obvious local names
+        if hostname.lower() in ('localhost', 'localhost.localdomain', '0.0.0.0'):
+            return False
+
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+                return False
+        except ValueError:
+            pass # Not an IP address
+
+        return True
+    except Exception: # pylint: disable=broad-exception-caught
+        return False
 
 def main(argv=None):
     """Run the CLI."""
@@ -60,6 +88,10 @@ def main(argv=None):
                 target_url = target_url.replace('/?', '?')
 
             print(f"Processing URL: {target_url}")
+
+            if not is_safe_url(target_url):
+                print(f"Error: URL {target_url!r} is not safe to fetch (SSRF/LFI protection).", file=sys.stderr)
+                return
 
             try:
                 print("Fetching content...")

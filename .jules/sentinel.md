@@ -16,3 +16,9 @@ This journal records CRITICAL security learnings, vulnerabilities, and patterns 
 **Vulnerability:** Constructing PowerShell commands via string interpolation (e.g., `-Command "..."`) is risky. While `Start-Process -ArgumentList` is preferred, it may not support all use cases (like keeping the window open with `-NoExit` easily without wrapper scripts).
 **Learning:** When using `-Command` is unavoidable, wrapping arguments in single quotes and escaping existing single quotes by doubling them (`' -> ''`) provides a robust defense against injection.
 **Prevention:** Always sanitize variables before interpolating them into a command string. For single-quoted strings in PowerShell, replace `'` with `''`.
+
+
+## 2024-10-24 - SSRF and Local File Inclusion (LFI) vulnerability
+**Vulnerability:** The CLI tool accepts URL arguments to fetch and convert HTML content, but lacked validation, allowing users to provide `file://` or local IP URLs (e.g. `http://localhost`, `http://169.254.169.254/`). This exposed the application to SSRF (accessing internal cloud metadata or services) and LFI (reading arbitrary local files).
+**Learning:** When building tools that fetch URLs, never blindly trust user input. Server-Side Request Forgery and Local File Inclusion are high-severity vulnerabilities common in fetchers or converters.
+**Prevention:** Always validate URLs against a strict allowlist of schemes (`http`, `https`), ensure the hostname is not a loopback or private IP (e.g., using `ipaddress`), and deny known local hostnames before fetching content.
