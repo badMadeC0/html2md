@@ -87,8 +87,6 @@ def main(argv=None):
                         base = os.path.basename(unquote(url_path))
                         # Sanitize to prevent path traversal
                         base = base.replace('/', '_').replace('\\', '_')
-                        while '..' in base:
-                            base = base.replace('..', '')
                         base = base.strip('. ')
                         if base:
                             filename = f"{base}.md"
