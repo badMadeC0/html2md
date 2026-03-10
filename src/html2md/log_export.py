@@ -67,24 +67,28 @@ def main(argv=None):
         w = csv.writer(fo)
         w.writerow(fieldnames)
 
+        # Hoist lookups out of hot loop for faster access (LOAD_FAST vs LOAD_GLOBAL/LOAD_ATTR)
+        sanitize = _sanitize_value
+        writerow = w.writerow
+        loads = json.loads
+
         for line in fi:
             line = line.strip()
             if not line:
                 continue
 
             try:
-                rec = json.loads(line)
+                rec = loads(line)
             except json.JSONDecodeError:
                 continue
 
             if not isinstance(rec, dict):
                 continue
 
-            row = [
-                _sanitize_value(rec.get(input_name, ""))
+            writerow([
+                sanitize(rec.get(input_name, ""))
                 for input_name, _ in mapping
-            ]
-            w.writerow(row)
+            ])
 
     return 0
 

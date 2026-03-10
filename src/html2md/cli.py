@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from urllib.parse import urlparse, unquote
 
 def main(argv=None):
     """Run the CLI."""
@@ -59,6 +60,12 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
+            parsed = urlparse(target_url)
+            if parsed.scheme not in ('http', 'https'):
+                print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
+                      "Only http and https are allowed.", file=sys.stderr)
+                return
+
             print(f"Processing URL: {target_url}")
 
             try:
@@ -73,15 +80,25 @@ def main(argv=None):
                     if not os.path.exists(args.outdir):
                         os.makedirs(args.outdir)
 
-                    # Create a simple filename based on the URL
+                    # Create a safe filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
                     if url_path:
-                        base = os.path.basename(url_path)
+                        base = os.path.basename(unquote(url_path))
+                        # Sanitize to prevent path traversal
+                        base = base.replace('/', '_').replace('\\', '_')
+                        base = base.strip('. ')
                         if base:
                             filename = f"{base}.md"
 
                     out_path = os.path.join(args.outdir, filename)
+                    # Final safety check: ensure output stays within outdir
+                    real_outdir = os.path.realpath(args.outdir)
+                    real_out_path = os.path.realpath(out_path)
+                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                        print("Error: Output path escapes output directory.",
+                              file=sys.stderr)
+                        return
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
