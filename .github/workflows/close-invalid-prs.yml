@@ -23,7 +23,10 @@ jobs:
               { number: 238, reason: "This CLI tool outputs Markdown (plain text), not HTML rendered in a browser. XSS is not a real vulnerability in this context. The proposed blacklist-based sanitizer is also vulnerable to bypasses." },
               { number: 214, reason: "Already fixed. `log_export.py` already uses `except json.JSONDecodeError` (not a bare except) and has `isinstance(rec, dict)` validation." },
               { number: 213, reason: "Duplicate — `tests/test_log_export.py` already exists in the codebase with test coverage for the log export utility." },
-              { number: 140, reason: "References a non-existent function `sanitize_csv_field` (the actual function is `_sanitize_formula`). Also overlaps with existing `tests/test_csv_security.py`." }
+              { number: 140, reason: "References a non-existent function `sanitize_csv_field` (the actual function is `_sanitize_formula`). Also overlaps with existing `tests/test_csv_security.py`." },
+              { number: 317, reason: "Unnecessary micro-optimization of log export loop. Same category as closed PR #308 — the log export is not a performance-critical hot path for a CLI tool." },
+              { number: 316, reason: "Unnecessary micro-optimization of log export loop. Same category as closed PRs #308 and #317 — the log export is not a performance-critical hot path for a CLI tool." },
+              { number: 313, reason: "Introduces Node.js tooling (`pnpm`, `vitest`, `package.json`) into a Python-only project. The self-healing scripts use the wrong technology stack entirely." }
             ];
 
             for (const pr of invalidPRs) {
