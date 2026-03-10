@@ -5,14 +5,22 @@ import csv
 import json
 from pathlib import Path
 
-_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIXES = frozenset(("=", "+", "-", "@"))
 
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
+    if not value:
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value[0] == "'":
+        return value
+
+    # Fast path: check first char before stripping
+    if value[0] in _DANGEROUS_PREFIXES:
+        return f"'{value}"
+
+    stripped = value.lstrip()
+    if stripped and stripped[0] in _DANGEROUS_PREFIXES:
         return f"'{value}"
     return value
 
@@ -68,8 +76,7 @@ def main(argv=None):
         w.writerow(fieldnames)
 
         for line in fi:
-            line = line.strip()
-            if not line:
+            if not line or line.isspace():
                 continue
 
             try:
@@ -77,7 +84,7 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
             row = [
