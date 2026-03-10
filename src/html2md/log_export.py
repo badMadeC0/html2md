@@ -38,15 +38,6 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
     return out_fields, mapping
 
 
-def _sanitize_value(value: object) -> object:
-    """Return CSV-safe value."""
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return _sanitize_formula(value)
-    return value
-
-
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
@@ -62,10 +53,18 @@ def main(argv=None):
 
     inp = Path(args.inp)
     out = Path(args.out)
+
+    # Pre-extract input names outside the loop
+    input_names = [m[0] for m in mapping]
+
     with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
         # Optimization: Use csv.writer instead of DictWriter to avoid per-row dictionary overhead
         w = csv.writer(fo)
         w.writerow(fieldnames)
+
+        # Localize functions for the hot loop
+        loads = json.loads
+        writerow = w.writerow
 
         for line in fi:
             line = line.strip()
@@ -73,18 +72,31 @@ def main(argv=None):
                 continue
 
             try:
-                rec = json.loads(line)
+                rec = loads(line)
             except json.JSONDecodeError:
                 continue
 
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
-            row = [
-                _sanitize_value(rec.get(input_name, ""))
-                for input_name, _ in mapping
-            ]
-            w.writerow(row)
+            # Inline string sanitization logic to avoid per-cell function call overhead
+            row = []
+            append = row.append
+            for name in input_names:
+                v = rec.get(name, "")
+                if type(v) is str:
+                    if v.startswith("'"):
+                        append(v)
+                    elif v.lstrip().startswith(_DANGEROUS_PREFIXES):
+                        append(f"'{v}")
+                    else:
+                        append(v)
+                elif v is None:
+                    append("")
+                else:
+                    append(v)
+
+            writerow(row)
 
     return 0
 
