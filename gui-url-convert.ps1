@@ -107,7 +107,8 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                ToolTip="Start conversion process"
+                IsEnabled="False"
+                ToolTip="Please enter at least one URL to enable conversion"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -238,6 +239,17 @@ $ClearBtn.Add_Click({
     $UrlBox.Focus()
     $StatusText.Text = "Cleared."
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+})
+
+# --- Dynamic Convert button state ---
+$UrlBox.Add_TextChanged({
+    if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
+        $ConvertBtn.IsEnabled = $false
+        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+    } else {
+        $ConvertBtn.IsEnabled = $true
+        $ConvertBtn.ToolTip = "Start conversion process"
+    }
 })
 
 # --- Convert button logic ---
