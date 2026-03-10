@@ -1,22 +1,25 @@
 """Security-focused tests for CLI URL and output path handling."""
 
 from unittest.mock import MagicMock, patch
+import pytest
 
 from html2md import cli
 
 
-@patch("requests.Session.get")
-def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path):
-    """Unsupported schemes are rejected before any network call."""
-    for url, scheme in [
+@pytest.mark.parametrize(
+    "url, scheme",
+    [
         ("file:///etc/passwd", "file"),
         ("ftp://example.com/data.txt", "ftp"),
         ("example.com/data.txt", ""),
-    ]:
-        cli.main(["--url", url, "--outdir", str(tmp_path)])
-        outerr = capsys.readouterr()
-        assert f"Error: Unsupported URL scheme '{scheme}'." in outerr.err
-
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme):
+    """Unsupported schemes are rejected before any network call."""
+    cli.main(["--url", url, "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert f"Error: Unsupported URL scheme '{scheme}'." in outerr.err
     mock_get.assert_not_called()
 
 
