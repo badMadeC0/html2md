@@ -12,3 +12,7 @@ Format: `## YYYY-MM-DD - [Title]`
 ## 2024-10-18 - WPF Default Text Contrast
 **Learning:** The default `Gray` color in WPF (and many UI frameworks) often fails WCAG AA contrast guidelines on light backgrounds (approx 3.95:1). For status text or hints, use a darker shade like `#555555` to ensure readability for all users while maintaining visual hierarchy.
 **Action:** Always verify color contrast ratios for "subtle" text colors using a contrast checker.
+
+## 2024-10-24 - Explicit Labeling and Mnemonics in WPF
+**Learning:** Sighted keyboard users often rely on visual labels to understand the purpose of input fields. While `AutomationProperties.Name` serves screen readers, it's essential to pair it with a visual `<Label>` that sets `Target="{Binding ElementName=...}"`. Furthermore, when assigning access keys (mnemonics like `_D`), it is crucial to audit adjacent buttons and fields (e.g., `_Browse...` and `_Open Folder`) to avoid conflicting access keys.
+**Action:** Always provide explicit visible labels for input fields unless visually redundant, and double-check mnemonic uniqueness within the form context.
