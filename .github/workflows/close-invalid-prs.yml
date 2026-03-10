@@ -1,0 +1,51 @@
+name: Close Invalid PRs
+
+on:
+  push:
+    branches:
+      - 'claude/review-invalid-prs-*'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  close-invalid-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close invalid PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const invalidPRs = [
+              { number: 311, reason: "The PR diff does not match the description. It only adds a stray review file instead of the claimed workflow changes." },
+              { number: 308, reason: "Unnecessary micro-optimization. The log export loop is not a performance-critical hot path for a CLI tool, and the PR adds unrelated documentation files." },
+              { number: 302, reason: "Over-engineered self-healing CI that introduces tools (`black`) not used by this project. Adds unnecessary complexity." },
+              { number: 238, reason: "This CLI tool outputs Markdown (plain text), not HTML rendered in a browser. XSS is not a real vulnerability in this context. The proposed blacklist-based sanitizer is also vulnerable to bypasses." },
+              { number: 214, reason: "Already fixed. `log_export.py` already uses `except json.JSONDecodeError` (not a bare except) and has `isinstance(rec, dict)` validation." },
+              { number: 213, reason: "Duplicate — `tests/test_log_export.py` already exists in the codebase with test coverage for the log export utility." },
+              { number: 140, reason: "References a non-existent function `sanitize_csv_field` (the actual function is `_sanitize_formula`). Also overlaps with existing `tests/test_csv_security.py`." }
+            ];
+
+            for (const pr of invalidPRs) {
+              try {
+                // Add comment explaining why
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: `Closing as invalid: ${pr.reason}`
+                });
+
+                // Close the PR
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  state: 'closed'
+                });
+
+                console.log(`Closed PR #${pr.number}`);
+              } catch (error) {
+                console.log(`Failed to close PR #${pr.number}: ${error.message}`);
+              }
+            }
