@@ -10,9 +10,10 @@ _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    if value.startswith("'"):
+    # Fast path checks before expensive lstrip()
+    if not value or value[0] == "'":
         return value
-    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -42,7 +43,7 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if isinstance(value, str):
+    if type(value) is str:
         return _sanitize_formula(value)
     return value
 
@@ -72,22 +73,23 @@ def main(argv=None):
         writerow = w.writerow
         loads = json.loads
 
-        for line in fi:
-            line = line.strip()
-            if not line:
-                continue
+        # Pre-extract names to avoid tuple unpacking in loop comprehension
+        input_names = [name for name, _ in mapping]
 
+        for line in fi:
+            # json.loads ignores whitespace; skip manual strip/empty checks
             try:
                 rec = loads(line)
             except json.JSONDecodeError:
                 continue
 
-            if not isinstance(rec, dict):
+            # Strict/fast dict check
+            if type(rec) is not dict:
                 continue
 
             writerow([
-                sanitize(rec.get(input_name, ""))
-                for input_name, _ in mapping
+                sanitize(rec.get(name, ""))
+                for name in input_names
             ])
 
     return 0
