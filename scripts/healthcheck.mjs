@@ -8,13 +8,9 @@ import { existsSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+const rootPackage = JSON.parse(readFileSync("./package.json", "utf-8"));
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
-const hasScript = (name) => {
-  try {
-    const out = execSync("pnpm run -r", { stdio: "pipe" }).toString();
-    return out.includes(name);
-  } catch { return false; }
-};
+const hasScript = (name) => name in (rootPackage.scripts ?? {});
 
 const tryRun = (name, cmd) => {
   if (!cmd) return;
