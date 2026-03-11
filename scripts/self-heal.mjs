@@ -50,8 +50,8 @@ if (!healthOK) {
   trySh("pnpm install");
   healthOK = passHealth();
   if (!healthOK) {
-    // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
+    // Last resort: refresh lockfile (scoped) without upgrading dependency ranges
+    trySh("pnpm -w install --lockfile-only");
     healthOK = passHealth();
   }
   if (healthOK) fixed = fixed || changed();
