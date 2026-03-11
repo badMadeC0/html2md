@@ -84,6 +84,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b self-heal-${{ github.run_id }}
           git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit; skipping commit and PR creation."
+            exit 0
+          fi
           git commit -m "Auto-fix from self-heal workflow"
           git push -u origin self-heal-${{ github.run_id }}
           gh pr create --title "Auto-fix: self-healing updates" --body "Automated repairs applied successfully." --label "self-heal"
