@@ -1,7 +1,6 @@
 """Security tests for SSRF/LFI protection."""
 
 import io
-import sys
 from unittest.mock import patch
 
 from html2md.cli import is_safe_url, main
