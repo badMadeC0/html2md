@@ -322,6 +322,7 @@ $ConvertBtn.Add_Click({
     # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
     #    to ensure all internal quotes are preserved and arguments are correctly delimited.
     # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
+    $bat = "run-html2md.bat"
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "cmd.exe"
     $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""

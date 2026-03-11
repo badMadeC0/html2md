@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
 from urllib.parse import urlparse, unquote
 
@@ -66,6 +68,21 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return
 
+            # SSRF Protection: Block localhost and internal IPs
+            if parsed.hostname:
+                try:
+                    ip = socket.gethostbyname(parsed.hostname)
+                    ip_obj = ipaddress.ip_address(ip)
+                    if ip_obj.is_private or ip_obj.is_loopback:
+                        print(f"Error: Access to internal IP or localhost is blocked "
+                              f"for security reasons.", file=sys.stderr)
+                        return
+                except socket.gaierror:
+                    # Ignore resolution errors here; requests will fail naturally
+                    pass
+                except ValueError:
+                    pass
+
             print(f"Processing URL: {target_url}")
 
             try:
@@ -99,7 +116,11 @@ def main(argv=None):
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
-                    with open(out_path, 'w', encoding='utf-8') as f:
+
+                    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+                    # Open with restrictive permissions (read/write for owner only)
+                    fd = os.open(out_path, flags, 0o600)
+                    with open(fd, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:

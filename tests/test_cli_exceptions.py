@@ -36,16 +36,17 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
-                             try:
-                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                             except Exception as e:
-                                 self.fail(f"main raised exception {e}")
+                        with patch('os.open', side_effect=OSError("Permission denied")):
+                            with patch('builtins.open'):
+                                 try:
+                                     main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                                 except Exception as e:
+                                     self.fail(f"main raised exception {e}")
 
-                             output = captured_stderr.getvalue()
-                             # Expect "File error: Permission denied"
-                             self.assertIn("File error", output)
-                             self.assertIn("Permission denied", output)
+                                 output = captured_stderr.getvalue()
+                                 # Expect "File error: Permission denied"
+                                 self.assertIn("File error", output)
+                                 self.assertIn("Permission denied", output)
 
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
@@ -59,7 +60,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        with patch('os.open') as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
