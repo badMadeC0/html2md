@@ -23,7 +23,7 @@ const passHealth = () => {
 let fixed = false;
 
 // 1) Lint/format
-trySh("pnpm -w run lint --fix");
+trySh("pnpm -w run lint -- --fix");
 trySh("pnpm -w run format");
 healthOK = passHealth();
 if (healthOK) fixed = fixed || changed();
