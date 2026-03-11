@@ -2,6 +2,9 @@
 * @google-labs-jules
 
 # Automated self-healing reviewer routing
-* @badMade
+# Assign @google-labs-jules as a reviewer for all pull requests
+* @google-labs-jules
+
+# Automated self-healing reviewer routing
 apps/** @badMade
 packages/** @badMade
