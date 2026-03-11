@@ -35,11 +35,17 @@ try {
     for (const name of readdirSync(base)) {
       const dir = join(base, name);
       if (!statSync(dir).isDirectory()) continue;
-      try {
-        execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
-      } catch (e) {
-        console.error(`[healthcheck] build failed in ${dir}`);
-        process.exitCode = 1;
+      const pkgJsonPath = join(dir, 'package.json');
+      if (existsSync(pkgJsonPath)) {
+        const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
+        if (pkg.scripts?.build) {
+          try {
+            execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
+          } catch (e) {
+            console.error(`[healthcheck] build failed in ${dir}`);
+            process.exitCode = 1;
+          }
+        }
       }
     }
   }
