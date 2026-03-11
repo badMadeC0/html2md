@@ -120,7 +120,13 @@ $xaml = @"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" Foreground="#555555" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock Name="StatusText" Text="Ready" AutomationProperties.LiveSetting="Polite">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="#555555" />
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </StatusBar>
     </Grid>
 </Window>
