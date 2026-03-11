@@ -6,5 +6,5 @@
 * @google-labs-jules
 
 # Automated self-healing reviewer routing
-apps/** @badMade
-packages/** @badMade
+apps/** @google-labs-jules
+packages/** @google-labs-jules
