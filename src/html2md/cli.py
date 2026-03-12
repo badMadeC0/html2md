@@ -117,10 +117,9 @@ def main(argv=None):
                               file=sys.stderr)
                         return
 
-                    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
                     # Open with restrictive permissions (read/write for owner only)
-                    fd = os.open(out_path, flags, 0o600)
-                    with open(fd, 'w', encoding='utf-8') as f:
+                    with open(out_path, 'w', encoding='utf-8') as f:
+                        os.chmod(out_path, 0o600)
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
