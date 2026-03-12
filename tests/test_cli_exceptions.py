@@ -59,13 +59,16 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # Use target patch so we only mock open in html2md.cli instead of globally builtins.open
+                        with patch('html2md.cli.open') as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
                                 return '/tmp/out'
 
                             with patch('os.path.realpath', side_effect=fake_realpath):
+                                # Just run main, we've patched realpath so it will fail the path escape check
+                                # and print to stderr, which we are capturing
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
