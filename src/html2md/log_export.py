@@ -41,10 +41,16 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
+    # Optimization: Inline string sanitization to avoid function call overhead
+    # per value, and check string type first as it is the most common log type.
+    if type(value) is str:
+        if not value or value[0] == "'":
+            return value
+        if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     if value is None:
         return ""
-    if type(value) is str:
-        return _sanitize_formula(value)
     return value
 
 
