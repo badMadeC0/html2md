@@ -3,7 +3,7 @@ name: Self-heal (auto-fix & PR)
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["ci"]
+    workflows: ["build-and-test"]
     types:
       - completed
 
@@ -17,14 +17,13 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure')
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -51,21 +50,15 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: |
-          set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+        run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
-        run: |
-          set -o pipefail
-          node scripts/self-heal.mjs | tee selfheal-repair.txt
+        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
-        run: |
-          set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+        run: node scripts/healthcheck.mjs | tee selfheal-post.txt
 
       - name: Collect logs
         if: always()
@@ -83,11 +76,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b self-heal-${{ github.run_id }}
+          rm -f selfheal-*.txt
           git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit; skipping commit and PR creation."
-            exit 0
-          fi
           git commit -m "Auto-fix from self-heal workflow"
           git push -u origin self-heal-${{ github.run_id }}
           gh pr create --title "Auto-fix: self-healing updates" --body "Automated repairs applied successfully." --label "self-heal"

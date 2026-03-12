@@ -4,13 +4,18 @@
    - workspaces: smoke build where available
 */
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const rootPackage = JSON.parse(readFileSync("./package.json", "utf-8"));
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
-const hasScript = (name) => name in (rootPackage.scripts ?? {});
+const hasScript = (name) => {
+  try {
+    if (!existsSync("./package.json")) return false;
+    const rootPackage = JSON.parse(readFileSync("./package.json", "utf-8"));
+    return name in (rootPackage.scripts ?? {});
+  } catch { return false; }
+};
 
 const tryRun = (name, cmd) => {
   if (!cmd) return;
@@ -31,16 +36,17 @@ try {
     for (const name of readdirSync(base)) {
       const dir = join(base, name);
       if (!statSync(dir).isDirectory()) continue;
-      const pkgJsonPath = join(dir, 'package.json');
-      if (existsSync(pkgJsonPath)) {
-        const pkg = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
-        if (pkg.scripts?.build) {
-          try {
+
+      const pkgPath = join(dir, "package.json");
+      if (existsSync(pkgPath)) {
+        try {
+          const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+          if (pkg.scripts && "build" in pkg.scripts) {
             execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
-          } catch (e) {
-            console.error(`[healthcheck] build failed in ${dir}`);
-            process.exitCode = 1;
           }
+        } catch (e) {
+          console.error(`[healthcheck] build failed in ${dir}`);
+          process.exitCode = 1;
         }
       }
     }
