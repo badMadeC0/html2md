@@ -172,7 +172,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "DarkRed"
     }
 })
 
@@ -237,8 +237,7 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "DarkRed"
     }
 })
 
@@ -272,7 +271,7 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "DarkRed"
         return
     }
 
@@ -319,7 +318,7 @@ $ConvertBtn.Add_Click({
         if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
         else {
             $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "DarkRed"
             $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
             $ProgressBar.IsIndeterminate = $false
             return
@@ -376,7 +375,7 @@ $ConvertBtn.Add_Click({
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "DarkRed"
             $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
             $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
             $ProgressBar.IsIndeterminate = $false

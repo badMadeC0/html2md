@@ -28,7 +28,7 @@ def main(argv=None):
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
+            print(f"Error: Missing dependency {e.name}. "
                   "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
 
