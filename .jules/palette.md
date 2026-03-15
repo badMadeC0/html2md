@@ -1,3 +1,7 @@
+## 2024-06-12 - [Replace Blocking Message Boxes with Non-Blocking Status Bar Messages]
+**Learning:** For WPF applications using XAML to define UI, modal dialogs like `MessageBox` block the main interface and disrupt the user's flow, especially for common validation tasks like invalid URLs or invalid characters in file paths. In applications with an established non-blocking status bar pattern, it provides a much more intuitive and pleasant experience to use the status bar instead of modal popup dialogues for validation feedback.
+**Action:** When performing validation in UI scripts, prefer using a non-blocking `StatusText` element (along with resetting any loading states like `ProgressBar.IsIndeterminate`) rather than raising a modal `MessageBox`, thereby keeping the user in their workflow.
+
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
