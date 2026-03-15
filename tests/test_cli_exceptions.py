@@ -65,9 +65,13 @@ class TestCliExceptions(unittest.TestCase):
                                     return '/tmp/outside/a.md'
                                 return '/tmp/out'
 
-                            with patch('os.path.realpath', side_effect=fake_realpath):
+                        # Delay mock until inside the test to avoid mock interference with argparse during imports
+                        with patch('os.path.realpath', side_effect=fake_realpath):
+                            # Don't globally mock open because argparse needs it.
+                            # Just verify realpath behaves right.
+                            with patch('src.html2md.cli.open', create=True) as mock_open:
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
-                            output = captured_stderr.getvalue()
-                            self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                                output = captured_stderr.getvalue()
+                                self.assertIn("Output path escapes output directory", output)
+                                mock_open.assert_not_called()
