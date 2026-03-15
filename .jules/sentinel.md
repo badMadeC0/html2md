@@ -1,0 +1,4 @@
+## 2024-05-18 - Prevent DoS from Large Remote Payloads
+**Vulnerability:** When fetching external URLs for conversion (e.g., using `requests.get()`), the application read the entire response into memory at once without bounds checking or streaming. This introduces a Denial of Service (DoS) vulnerability via memory exhaustion, where a malicious server could provide an extremely large file or infinite stream.
+**Learning:** For a CLI that ingests data from external networks, the risk of a "bomb" file is high, and robust streaming + chunked reading are required to handle content safely.
+**Prevention:** Always use `stream=True` in HTTP requests when fetching arbitrary user-specified URLs. Read the data in chunks using `iter_content`, enforcing a strict maximum size (e.g., 10MB), and abort the fetch if the payload exceeds this limit. Also check the `Content-Length` header beforehand as a fast fail-safe.

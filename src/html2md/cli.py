@@ -70,11 +70,39 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                # Fetch in stream mode to prevent loading massive payloads into memory (DoS risk)
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
 
+                # Limit payload size to 10MB to prevent memory exhaustion
+                MAX_SIZE = 10 * 1024 * 1024
+                content_length = response.headers.get("Content-Length")
+                if content_length and int(content_length) > MAX_SIZE:
+                    print(f"Error: Content length ({content_length} bytes) exceeds maximum allowed size.", file=sys.stderr)
+                    return
+
+                content = b""
+                # response.iter_content might not be iterable on mocked MagicMock responses in tests.
+                # Adding a fallback check or making sure it decodes safely
+                if hasattr(response, "iter_content"):
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content += chunk
+                        if len(content) > MAX_SIZE:
+                            print(f"Error: Downloaded content exceeds maximum allowed size.", file=sys.stderr)
+                            return
+                else:
+                    content = response.content
+                    if len(content) > MAX_SIZE:
+                        print(f"Error: Downloaded content exceeds maximum allowed size.", file=sys.stderr)
+                        return
+
+                enc = response.encoding
+                if not isinstance(enc, str):
+                    enc = "utf-8"
+                text = content.decode(enc, errors="replace")
+
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(text, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):

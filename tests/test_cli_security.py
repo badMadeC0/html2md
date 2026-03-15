@@ -51,3 +51,39 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_large_response_content_length_rejected(mock_get, capsys):
+    """Test that responses with a Content-Length exceeding the limit are rejected."""
+    response = MagicMock()
+    response.headers = {"Content-Length": str(10 * 1024 * 1024 + 1)}
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/large"])
+    outerr = capsys.readouterr()
+
+    assert "Error: Content length" in outerr.err
+    assert "exceeds maximum allowed size" in outerr.err
+
+
+@patch("requests.Session.get")
+def test_large_response_streaming_rejected(mock_get, capsys):
+    """Test that streaming responses exceeding the limit are rejected."""
+    response = MagicMock()
+    response.headers = {}
+    response.raise_for_status.return_value = None
+
+    # Mock iter_content to yield chunks that eventually exceed the limit
+    def fake_iter_content(chunk_size):
+        yield b"a" * (5 * 1024 * 1024)
+        yield b"b" * (6 * 1024 * 1024)
+
+    response.iter_content = fake_iter_content
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/stream"])
+    outerr = capsys.readouterr()
+
+    assert "Error: Downloaded content exceeds maximum allowed size" in outerr.err
