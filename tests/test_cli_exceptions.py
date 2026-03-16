@@ -59,7 +59,12 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # Fix mock open breaking argparse translations by avoiding mocking builtins.open
+                        # during argparse initialization by setting autospec or wrapping.
+                        # We only need to ensure it's not called, or we can just patch it with a specific target.
+                        # Wait, the failure happens when argparse is initialized, which attempts to read translations using open.
+                        # We can mock `html2md.cli.open` instead of `builtins.open` to avoid breaking gettext.
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'

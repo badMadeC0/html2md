@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
 from urllib.parse import urlparse, unquote
+
+def is_internal_ip(ip_str: str) -> bool:
+    """Check if an IP address is internal/private."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved
+    except ValueError:
+        return False
 
 def main(argv=None):
     """Run the CLI."""
@@ -67,6 +77,25 @@ def main(argv=None):
                 return
 
             print(f"Processing URL: {target_url}")
+
+            try:
+                hostname = parsed.hostname
+                if not hostname:
+                    print("Error: Invalid URL hostname.", file=sys.stderr)
+                    return
+
+                try:
+                    ip_address = socket.gethostbyname(hostname)
+                except socket.gaierror:
+                    print(f"Error: Could not resolve hostname '{hostname}'.", file=sys.stderr)
+                    return
+
+                if is_internal_ip(ip_address):
+                    print(f"Error: Access to internal IP address '{ip_address}' is forbidden.", file=sys.stderr)
+                    return
+            except Exception as e:
+                print(f"Error validating hostname: {e}", file=sys.stderr)
+                return
 
             try:
                 print("Fetching content...")
