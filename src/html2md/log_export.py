@@ -13,7 +13,10 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+
+    c = value[0]
+    # Check first char against string (faster than tuple) and avoid lstrip if not space
+    if c in "=+-@" or (c.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES)):
         return f"'{value}"
     return value
 

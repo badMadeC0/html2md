@@ -40,3 +40,8 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+test_large.jsonl
+test_large.csv
+benchmark.py
+generate_test_data.py
+benchmark_output.txt
