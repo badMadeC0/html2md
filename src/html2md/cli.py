@@ -54,6 +54,12 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        real_outdir = None
+        if args.outdir:
+            if not os.path.exists(args.outdir):
+                os.makedirs(args.outdir)
+            real_outdir = os.path.realpath(args.outdir)
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -70,6 +76,7 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
+                # session is from the outer scope
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
@@ -77,9 +84,6 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
@@ -93,9 +97,8 @@ def main(argv=None):
 
                     out_path = os.path.join(args.outdir, filename)
                     # Final safety check: ensure output stays within outdir
-                    real_outdir = os.path.realpath(args.outdir)
                     real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                    if real_outdir and os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
