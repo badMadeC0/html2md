@@ -110,7 +110,7 @@ $xaml = @"
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
-                IsEnabled="False"
+                IsEnabled="False" IsDefault="True"
                 ToolTip="Please enter at least one URL to enable conversion"
                 />
 
@@ -258,6 +258,20 @@ $UrlBox.Add_TextChanged({
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+    }
+
+    # Clear stale error messages
+    if ($StatusText.Text -ne "Ready") {
+        $StatusText.Text = "Ready"
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+    }
+})
+
+$OutBox.Add_TextChanged({
+    # Clear stale error messages
+    if ($StatusText.Text -ne "Ready") {
+        $StatusText.Text = "Ready"
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
     }
 })
 
