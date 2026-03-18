@@ -86,8 +86,8 @@ $xaml = @"
             </Grid.ColumnDefinitions>
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
-                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="PasteBtn" AutomationProperties.Name="Paste" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
+                <Button Name="ClearBtn" AutomationProperties.Name="Clear" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
             </StackPanel>
         </Grid>
 
@@ -99,16 +99,16 @@ $xaml = @"
             <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
             <StackPanel Orientation="Horizontal">
                 <TextBox Name="OutBox" Width="340" FontSize="14" ToolTip="Directory where files will be saved"/>
-                <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
-                <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
+                <Button Name="BrowseBtn" AutomationProperties.Name="Browse" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
+                <Button Name="OpenFolderBtn" AutomationProperties.Name="Open Folder" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
             </StackPanel>
         </StackPanel>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
+        <CheckBox Name="WholePageChk" AutomationProperties.Name="Convert Whole Page" Grid.Row="3" Content="Convert _Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
                   ToolTip="If checked, includes headers and footers. Default is main content only."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <Button Name="ConvertBtn" AutomationProperties.Name="Convert All Formats" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
