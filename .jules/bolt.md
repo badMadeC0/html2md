@@ -7,3 +7,7 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-25 - Python fast path optimizations for string parsing and dictionary lookups
+**Learning:** Optimizing `_sanitize_formula` fast path by avoiding `.lstrip()` string allocations when the first character is alphanumeric or not whitespace dramatically speeds up log export. Also, caching `dict.get` as a local variable (`_get = dict.get`) and calling it as `_get(rec, name, "")` avoids dot-operator method lookup overhead in hot loops.
+**Action:** When parsing large volumes of text, use fast path checks (e.g., `value[0].isspace()`) to avoid expensive string methods like `.lstrip()`. Cache instance methods of built-in types to local variables to avoid dot-operator lookups in hot loops.
