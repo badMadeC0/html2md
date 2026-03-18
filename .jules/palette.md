@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2026-03-18 - [Replace modal dialogs with inline status feedback in GUI]
+**Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), modal dialogs (`MessageBox`) can be jarring and interruptive to the user experience. By replacing blocking `MessageBox` calls with inline non-blocking feedback through elements like `StatusText` with `AutomationProperties.LiveSetting="Polite"`, we provide a smoother and more accessible experience, especially for error and validation messaging.
+**Action:** Prefer non-blocking status feedback updates (e.g., updating a StatusBar TextBlock with appropriate colors and ARIA settings) instead of modal dialogs (`MessageBox`) for validation and operational feedback.
