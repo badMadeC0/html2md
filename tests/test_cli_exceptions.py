@@ -31,12 +31,14 @@ class TestCliExceptions(unittest.TestCase):
             with patch('requests.Session.get') as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
+                mock_resp.encoding = "utf-8"
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                        with patch('html2md.cli.open', side_effect=OSError("Permission denied"), create=True):
                              try:
                                  main(['--url', 'http://example.com', '--outdir', 'dummy'])
                              except Exception as e:
@@ -54,12 +56,16 @@ class TestCliExceptions(unittest.TestCase):
             with patch('requests.Session.get') as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
+                mock_resp.encoding = "utf-8"
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # Ensure we don't mock open when argparse uses it under the hood (e.g. gettext)
+                        # So we only patch open when it's creating the markdown file.
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
