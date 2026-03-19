@@ -87,7 +87,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" IsEnabled="False" ToolTipService.ShowOnDisabled="True" ToolTip="Clear URL list"/>
             </StackPanel>
         </Grid>
 
@@ -111,6 +111,7 @@ $xaml = @"
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
+                ToolTipService.ShowOnDisabled="True"
                 ToolTip="Please enter at least one URL to enable conversion"
                 />
 
@@ -255,9 +256,13 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ClearBtn.IsEnabled = $false
+        $ClearBtn.ToolTip = "No URLs to clear"
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        $ClearBtn.IsEnabled = $true
+        $ClearBtn.ToolTip = "Clear URL list"
     }
 })
 
