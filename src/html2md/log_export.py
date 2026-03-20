@@ -77,7 +77,10 @@ def main(argv=None):
         input_names = [name for name, _ in mapping]
 
         for line in fi:
-            # json.loads ignores whitespace; skip manual strip/empty checks
+            # Fast path check to skip expensive json.JSONDecodeError handling for non-JSON object lines
+            if not line.lstrip().startswith('{'):
+                continue
+
             try:
                 rec = loads(line)
             except json.JSONDecodeError:
