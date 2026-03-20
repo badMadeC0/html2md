@@ -70,8 +70,27 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                # Fetch with stream=True to prevent DoS from massive files
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
+
+                # Enforce a 10MB limit on the content length
+                MAX_SIZE = 10 * 1024 * 1024
+                content_length = response.headers.get('Content-Length')
+                if content_length and content_length.isdigit() and int(content_length) > MAX_SIZE:
+                    print(f"Error: Content-Length exceeds {MAX_SIZE} bytes limit.", file=sys.stderr)
+                    return
+
+                # Safely read content in chunks
+                content = bytearray()
+                for chunk in response.iter_content(chunk_size=8192):
+                    content.extend(chunk)
+                    if len(content) > MAX_SIZE:
+                        print(f"Error: Download size exceeds {MAX_SIZE} bytes limit.", file=sys.stderr)
+                        return
+
+                # Override _content so response.text properly handles encoding
+                response._content = bytes(content)
 
                 print("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")
