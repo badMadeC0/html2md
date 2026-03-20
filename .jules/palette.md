@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2026-03-20 - [Dynamically disable Clear button and add AutomationProperties.Name to Input/Output fields]
+**Learning:** In WPF (PowerShell GUI), setting `AutomationProperties.Name` on input fields greatly improves screen reader experience, acting much like an ARIA label on the web. Additionally, dynamically disabling action buttons (like 'Clear') when they are irrelevant prevents user confusion and meaningless clicks.
+**Action:** Always consider initial control states and dynamically toggle `IsEnabled` and `ToolTip` properties based on user input to guide them effectively, and apply `AutomationProperties.Name` to input controls without visible labels or where context requires it.
