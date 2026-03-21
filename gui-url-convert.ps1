@@ -87,7 +87,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" IsEnabled="False" ToolTip="Clear URL list"/>
             </StackPanel>
         </Grid>
 
@@ -225,8 +225,6 @@ $PasteBtn.Add_Click({
                 $UrlBox.AppendText($text)
                 $UrlBox.Focus()
                 $UrlBox.ScrollToEnd()
-                $StatusText.Text = "Pasted from clipboard."
-                $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
             } else {
                 $StatusText.Text = "Clipboard is empty or whitespace."
                 $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
@@ -238,7 +236,6 @@ $PasteBtn.Add_Click({
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
         $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
     }
 })
 
@@ -246,8 +243,6 @@ $PasteBtn.Add_Click({
 $ClearBtn.Add_Click({
     $UrlBox.Clear()
     $UrlBox.Focus()
-    $StatusText.Text = "Cleared."
-    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
 
 # --- Dynamic Convert button state ---
@@ -255,9 +250,24 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ClearBtn.IsEnabled = $false
+        $StatusText.Text = "Ready"
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        $ClearBtn.IsEnabled = $true
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+
+        $lines = @($UrlBox.Text -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $count = $lines.Count
+        if ($count -eq 1) {
+            $StatusText.Text = "1 URL detected."
+        } elseif ($count -gt 1) {
+            $StatusText.Text = "$count URLs detected."
+        } else {
+            $StatusText.Text = "Ready"
+        }
     }
 })
 

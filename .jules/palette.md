@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2024-05-24 - [Enhance quantitative feedback and dynamic button states in GUI]
+**Learning:** Real-time quantitative feedback on multi-item inputs (e.g., "$count URLs detected") provides much better user confidence than static success messages (e.g. "Pasted from clipboard"). Additionally, secondary action buttons (like 'Clear') should be disabled when they are not applicable to prevent confusion.
+**Action:** When designing interfaces with bulk inputs, dynamically update status text to reflect the actual parsed state of the input rather than just acknowledging the input action. Ensure related action buttons accurately reflect whether their action is currently valid.
