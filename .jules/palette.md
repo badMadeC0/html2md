@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2024-05-25 - [Replace blocking MessageBox validation with inline status updates]
+**Learning:** Using `[System.Windows.MessageBox]::Show` for form validation in a WPF/PowerShell script creates a jarring, blocking user experience. It interrupts the user flow and can cause the UI to feel clunky. Furthermore, failing to reset loading indicators (like a `ProgressBar`'s `IsIndeterminate` state) on validation errors leaves the UI in a confusing "stuck" state.
+**Action:** When implementing form validation or error handling in UI scripts, prefer non-blocking inline feedback (e.g., updating a `StatusBar`'s `TextBlock`) over modal popups. Always ensure that loading states are explicitly reset on all error or early-return paths.
