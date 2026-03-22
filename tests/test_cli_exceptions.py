@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import io
 import requests
+import builtins
 from html2md.cli import main
 
 class TestCliExceptions(unittest.TestCase):
@@ -59,15 +60,26 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
-                            def fake_realpath(path):
-                                if str(path).endswith('.md'):
-                                    return '/tmp/outside/a.md'
-                                return '/tmp/out'
+                        # Don't mock builtins.open globally before argparse is initialized
+                        # because argparse may load gettext translations and open .mo files
+                        # We only need to mock open during the file write part, but it's simpler
+                        # to just let the code run. Since fake_realpath makes it look like it escapes,
+                        # the open() call will never be reached anyway.
+                        # We just mock it locally when main runs.
+                        def fake_realpath(path):
+                            if str(path).endswith('.md'):
+                                return '/tmp/outside/a.md'
+                            return '/tmp/out'
 
-                            with patch('os.path.realpath', side_effect=fake_realpath):
+                        with patch('os.path.realpath', side_effect=fake_realpath):
+                            original_open = builtins.open
+                            def custom_open(*args, **kwargs):
+                                if args and 'conversion_result.md' in args[0] or args[0].endswith('.md'):
+                                    raise AssertionError("open called when it shouldn't be")
+                                return original_open(*args, **kwargs)
+
+                            with patch('builtins.open', side_effect=custom_open):
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
-                            output = captured_stderr.getvalue()
-                            self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                        output = captured_stderr.getvalue()
+                        self.assertIn("Output path escapes output directory", output)

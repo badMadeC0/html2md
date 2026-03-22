@@ -1,0 +1,4 @@
+## 2024-05-24 - Credential Exposure in CLI Logs and Filenames
+**Vulnerability:** The CLI tool accepted URLs containing credentials (e.g., `http://admin:secret123@example.com`), logged the raw URL to stdout during processing, included it in exception messages, and used the credential-containing URL path to generate the output filename (writing files like `admin:secret123@example.com.md`).
+**Learning:** Raw inputs containing embedded secrets must be systematically sanitized before logging, formatting, or parsing into filesystem paths. Python's `urlparse` can safely extract `hostname` and `path` while isolating the `password` field for redaction.
+**Prevention:** Always use `urllib.parse` properties (`parsed.hostname`, `parsed.path`) instead of raw string manipulation (like `.split('?')[0]`) for file generation. Additionally, actively redact `parsed.password` from any log output or generated exception messages.

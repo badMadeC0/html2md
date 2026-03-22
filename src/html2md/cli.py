@@ -66,7 +66,12 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return
 
-            print(f"Processing URL: {target_url}")
+            # Sanitize URL for logging to prevent credential leakage
+            safe_url = target_url
+            if parsed.password:
+                safe_url = target_url.replace(f":{parsed.password}@", ":***@")
+
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
@@ -82,14 +87,15 @@ def main(argv=None):
 
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(unquote(url_path))
-                        # Sanitize to prevent path traversal
-                        base = base.replace('/', '_').replace('\\', '_')
-                        base = base.strip('. ')
-                        if base:
-                            filename = f"{base}.md"
+                    url_path = parsed.path.rstrip('/')
+                    if not url_path:
+                        url_path = parsed.hostname or "index"
+                    base = os.path.basename(unquote(url_path))
+                    # Sanitize to prevent path traversal
+                    base = base.replace('/', '_').replace('\\', '_')
+                    base = base.strip('. ')
+                    if base:
+                        filename = f"{base}.md"
 
                     out_path = os.path.join(args.outdir, filename)
                     # Final safety check: ensure output stays within outdir
@@ -106,11 +112,17 @@ def main(argv=None):
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                err_msg = str(e)
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(f"Network error: {err_msg}", file=sys.stderr)
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                err_msg = str(e)
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(f"Conversion failed: {err_msg}", file=sys.stderr)
 
         if args.url:
             process_url(args.url)
