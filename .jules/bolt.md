@@ -7,3 +7,11 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-25 - Python Function Call & Attribute Lookup Overhead in Hot Loops
+**Learning:** In very tight hot loops (like reading JSON and writing CSV records), the overhead of function calls and attribute lookups becomes measurable.
+1. Inlining small functions (like `_sanitize_formula` into `_sanitize_value`) avoids function call overhead.
+2. Hoisting method lookups (like `get = rec.get` before a list comprehension) avoids repeated attribute lookups for each item in the list comprehension. This yielded a solid performance improvement in benchmarking.
+3. String prefixes and suffix checking can be significantly faster by just testing single characters against a tuple of chars or `in "=+-@"` string (if length 1). Also using `.lstrip().startswith(tuple)` is fast and safe.
+
+**Action:** When optimizing loop-heavy Python code, look for opportunities to inline tiny helper functions and hoist attribute/method lookups out of inner loops and comprehensions.

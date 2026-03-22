@@ -44,7 +44,11 @@ def _sanitize_value(value: object) -> object:
     if value is None:
         return ""
     if type(value) is str:
-        return _sanitize_formula(value)
+        if not value or value[0] == "'":
+            return value
+        if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     return value
 
 
@@ -87,8 +91,10 @@ def main(argv=None):
             if type(rec) is not dict:
                 continue
 
+            # Hoist the method lookup to avoid per-field overhead
+            get = rec.get
             writerow([
-                sanitize(rec.get(name, ""))
+                sanitize(get(name, ""))
                 for name in input_names
             ])
 
