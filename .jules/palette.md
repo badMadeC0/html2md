@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2024-05-25 - [Use Grid instead of StackPanel for responsive horizontal layouts in WPF GUI]
+**Learning:** For horizontal layout components in WPF (`gui-url-convert.ps1`) like a text input field accompanied by buttons, `StackPanel` combined with fixed `Width` limits responsiveness when the window is resized. Using a `Grid` with `ColumnDefinitions` where the input field uses `Width="*"` and buttons use `Width="Auto"` allows the input to fluidly adapt to available space, significantly improving the UX for components displaying variable-length strings like file paths.
+**Action:** Replace `StackPanel` and fixed `Width` properties with `Grid` structures to allow full-width resizing behavior for text inputs when building or modifying WPF layouts.
