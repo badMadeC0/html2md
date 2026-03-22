@@ -111,6 +111,7 @@ $xaml = @"
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
+                ToolTipService.ShowOnDisabled="True"
                 ToolTip="Please enter at least one URL to enable conversion"
                 />
 
