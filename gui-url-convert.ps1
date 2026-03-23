@@ -75,6 +75,7 @@ $xaml = @"
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -116,10 +117,13 @@ $xaml = @"
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
-        <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
+        <Label Grid.Row="5" Content="Log _Output:" Target="{Binding ElementName=LogBox}" FontSize="14" Padding="0,0,0,2" Margin="0,10,0,0"/>
 
-        <StatusBar Grid.Row="6" Margin="0,10,0,0">
+        <TextBox Name="LogBox" Grid.Row="6" Margin="0,2,0,0" FontFamily="Consolas" FontSize="12"
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"
+                 Text="Ready. Conversion logs will appear here."/>
+
+        <StatusBar Grid.Row="7" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" AutomationProperties.LiveSetting="Polite">
                 <TextBlock.Style>
                     <Style TargetType="TextBlock">
