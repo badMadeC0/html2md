@@ -1,0 +1,4 @@
+## 2024-05-24 - DoS via Unbounded HTTP Client Response Parsing
+**Vulnerability:** The HTTP client in `html2md` downloaded entire remote files blindly into memory using `requests.get()` without setting `stream=True` and enforcing a maximum limit, making the application vulnerable to DoS attacks via extremely large URLs.
+**Learning:** `requests.get()` loads the entire file into memory unless `stream=True` is provided. If `stream=True` is specified, we must iterate over the content using `iter_content` to fetch it chunk by chunk, tracking the total size to prevent memory exhaustion and DoS when handling unverified remote user input.
+**Prevention:** Whenever downloading data from external sources, enforce size limits. Use streaming APIs (like `requests.get(..., stream=True)`) and incrementally build the output while checking against a defined maximum length (e.g., `MAX_CONTENT_SIZE`). Fail securely if the limit is exceeded.

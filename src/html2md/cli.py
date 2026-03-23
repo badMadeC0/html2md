@@ -6,6 +6,9 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+MAX_CONTENT_SIZE = 10 * 1024 * 1024  # 10 MB limit to prevent DoS
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -70,8 +73,21 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                # Stream the response to enforce size limits and prevent DoS attacks
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
+
+                # Read the response in chunks to enforce MAX_CONTENT_SIZE
+                content_bytes = bytearray()
+                for chunk in response.iter_content(chunk_size=8192):
+                    content_bytes.extend(chunk)
+                    if len(content_bytes) > MAX_CONTENT_SIZE:
+                        print(f"Error: URL content exceeds maximum size of {MAX_CONTENT_SIZE} bytes.",
+                              file=sys.stderr)
+                        return
+
+                # Assign the accumulated bytes to _content so response.text works normally
+                response._content = bytes(content_bytes)
 
                 print("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")

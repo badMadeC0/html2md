@@ -66,6 +66,9 @@ class TestCliExceptions(unittest.TestCase):
                                 return '/tmp/out'
 
                             with patch('os.path.realpath', side_effect=fake_realpath):
+                                # Avoid argparse gettext trying to use the mocked open() by forcing english
+                                import os as _os
+                                _os.environ['LC_ALL'] = 'C'
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
