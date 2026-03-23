@@ -69,6 +69,14 @@ $xaml = @"
         WindowStartupLocation="CenterScreen"
         Topmost="True">
     <Grid Margin="10">
+        <Grid.Resources>
+            <Style TargetType="Button">
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
+            <Style TargetType="CheckBox">
+                <Setter Property="Cursor" Value="Hand"/>
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
