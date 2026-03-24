@@ -87,7 +87,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
@@ -238,7 +238,6 @@ $PasteBtn.Add_Click({
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
         $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
     }
 })
 
@@ -250,14 +249,16 @@ $ClearBtn.Add_Click({
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
 
-# --- Dynamic Convert button state ---
+# --- Dynamic Convert & Clear button state ---
 $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ClearBtn.IsEnabled = $false
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        $ClearBtn.IsEnabled = $true
     }
 })
 
