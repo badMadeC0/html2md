@@ -13,6 +13,10 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
+    # Optimization: Most fields start with letters/numbers. isalnum() is implemented in C
+    # and avoids string allocation (lstrip) and tuple match (startswith) overhead.
+    if value[0].isalnum():
+        return value
     if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
