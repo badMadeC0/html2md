@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2024-05-28 - [Add explicit screen reader mapping and contextual button disabled states]
+**Learning:** Even when inputs have a `<Label>` bound via `Target`, multi-line text boxes and other complex inputs often benefit from an explicit `AutomationProperties.Name` attribute for reliable screen reader announcements. Additionally, contextual buttons like "Clear" or "Submit" should be dynamically disabled (`IsEnabled="False"`) when their action is not applicable (e.g., when the input is empty) to prevent confusing "no-op" interactions.
+**Action:** Always add `AutomationProperties.Name` to input fields in WPF XAML, and bind dynamic disabled states to the associated input fields' text-changed events for contextual actions.
