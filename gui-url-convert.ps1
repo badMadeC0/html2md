@@ -87,7 +87,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
@@ -172,7 +172,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#D32F2F"
     }
 })
 
@@ -237,8 +237,7 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#D32F2F"
     }
 })
 
@@ -255,9 +254,11 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ClearBtn.IsEnabled = $false
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        $ClearBtn.IsEnabled = $true
     }
 })
 
@@ -272,7 +273,7 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#D32F2F"
         return
     }
 
@@ -319,7 +320,7 @@ $ConvertBtn.Add_Click({
         if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
         else {
             $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "#D32F2F"
             $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
             $ProgressBar.IsIndeterminate = $false
             return
@@ -376,7 +377,7 @@ $ConvertBtn.Add_Click({
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "#D32F2F"
             $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
             $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
             $ProgressBar.IsIndeterminate = $false

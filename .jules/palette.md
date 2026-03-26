@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2024-05-28 - [WCAG Color Contrast & Disabled Button States in WPF]
+**Learning:** Default system colors in WPF (like "Red", which is `#FF0000`) often fail WCAG AA contrast requirements against standard gray backgrounds (like the WPF StatusBar background, resulting in ~3.5:1). A darker shade like `#D32F2F` is required to achieve >4.5:1 contrast for accessibility. Additionally, contextual disabled states for buttons (e.g. disabling a "Clear" button when an input is already empty) provides better visual feedback and prevents dead clicks.
+**Action:** Always verify color contrast when manually setting foreground text colors. Use context-sensitive `.IsEnabled` properties on WPF buttons to communicate valid actions visually to the user.
