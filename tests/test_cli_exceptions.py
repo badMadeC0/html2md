@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
+import builtins
 import io
 import requests
 from html2md.cli import main
@@ -59,7 +60,16 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # Ensure we mock open after argparse finishes init or avoid breaking gettext
+                        real_open = builtins.open
+                        def safe_open(*args, **kwargs):
+                            if str(args[0]).endswith('.mo'):
+                                return real_open(*args, **kwargs)
+                            mock_obj = MagicMock()
+                            mock_obj.__enter__.return_value = mock_obj
+                            return mock_obj
+
+                        with patch('builtins.open', side_effect=safe_open) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +80,7 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                            # Ensure we don't try to open the markdown file for writing since it escapes outdir
+                            # (Ignore gettext .mo file reads)
+                            md_opens = [call for call in mock_open.call_args_list if str(call[0][0]).endswith('.md')]
+                            self.assertEqual(len(md_opens), 0)

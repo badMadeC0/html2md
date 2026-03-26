@@ -2,9 +2,42 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
 from urllib.parse import urlparse, unquote
+
+
+def _is_safe_url(url: str) -> bool:
+    """Check if the URL resolves to a safe, public IP address."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+
+    try:
+        # Try resolving the hostname (works for both IP literals and domain names)
+        # We check all returned IP addresses for safety.
+        addr_infos = socket.getaddrinfo(hostname, None)
+        for addr_info in addr_infos:
+            ip_str = addr_info[4][0]
+            ip = ipaddress.ip_address(ip_str)
+            # Check against local, private, or reserved ranges
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_multicast
+                or ip.is_unspecified
+                or ip.is_reserved
+            ):
+                return False
+        return True
+    except (socket.gaierror, ValueError):
+        # If we cannot resolve the hostname or parse the IP, fail securely (deny access)
+        return False
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -64,6 +97,11 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
+                return
+
+            if not _is_safe_url(target_url):
+                print(f"Error: URL resolves to a local or private network address, "
+                      "which is not allowed for security reasons.", file=sys.stderr)
                 return
 
             print(f"Processing URL: {target_url}")
