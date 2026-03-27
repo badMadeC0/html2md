@@ -86,8 +86,8 @@ $xaml = @"
             </Grid.ColumnDefinitions>
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
-                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard" AutomationProperties.Name="Paste"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list" AutomationProperties.Name="Clear"/>
             </StackPanel>
         </Grid>
 
@@ -99,25 +99,27 @@ $xaml = @"
             <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
             <StackPanel Orientation="Horizontal">
                 <TextBox Name="OutBox" Width="340" FontSize="14" ToolTip="Directory where files will be saved"/>
-                <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
-                <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
+                <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder" AutomationProperties.Name="Browse">_Browse...</Button>
+                <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder" AutomationProperties.Name="Open Folder">_Open Folder</Button>
             </StackPanel>
         </StackPanel>
 
         <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+                  ToolTip="If checked, includes headers and footers. Default is main content only."
+                  AutomationProperties.Name="Convert Whole Page"/>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
+                AutomationProperties.Name="Convert All Formats"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output" Text="Ready for conversion logs..."/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" AutomationProperties.LiveSetting="Polite">
@@ -162,6 +164,8 @@ $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
     if ($dlg.ShowDialog() -eq "OK") {
         $OutBox.Text = $dlg.SelectedPath
+        $StatusText.Text = "Selected output folder."
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
     }
 })
 
@@ -170,6 +174,8 @@ $OpenFolderBtn.Add_Click({
     $path = $OutBox.Text.Trim()
     if (Test-Path -LiteralPath $path) {
         Invoke-Item -LiteralPath $path
+        $StatusText.Text = "Opened output folder."
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
     } else {
         $StatusText.Text = "Output folder does not exist."
         $StatusText.Foreground = "Red"
