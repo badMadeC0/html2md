@@ -87,7 +87,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" IsEnabled="False" ToolTip="URL list is already empty"/>
             </StackPanel>
         </Grid>
 
@@ -238,14 +238,13 @@ $PasteBtn.Add_Click({
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
         $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
     }
 })
 
 # --- Clear button logic ---
 $ClearBtn.Add_Click({
-    $UrlBox.Clear()
     $UrlBox.Focus()
+    $UrlBox.Clear()
     $StatusText.Text = "Cleared."
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
@@ -255,9 +254,13 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ClearBtn.IsEnabled = $false
+        $ClearBtn.ToolTip = "URL list is already empty"
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        $ClearBtn.IsEnabled = $true
+        $ClearBtn.ToolTip = "Clear URL list"
     }
 })
 
