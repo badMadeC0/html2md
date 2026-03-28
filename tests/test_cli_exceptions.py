@@ -59,7 +59,19 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # We don't want to mock all of builtins.open, since argparse
+                        # uses it when setting up translations for errors!
+                        # We only mock opening the actual output file.
+                        # We only mock opening the actual output file.
+                        import builtins
+                        original_open = builtins.open
+
+                        def side_effect(*args, **kwargs):
+                            if str(args[0]).endswith('.md'):
+                                return MagicMock()
+                            return original_open(*args, **kwargs)
+
+                        with patch('builtins.open', side_effect=side_effect) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +82,6 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                            # Ensure we didn't open any .md files
+                            for call in mock_open.call_args_list:
+                                self.assertFalse(str(call.args[0]).endswith('.md'))

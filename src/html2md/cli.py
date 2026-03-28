@@ -54,6 +54,10 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        # Bolt: Optimize by creating outdir once, outside the loop
+        if args.outdir and not os.path.exists(args.outdir):
+            os.makedirs(args.outdir)
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -77,9 +81,6 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
@@ -119,10 +120,14 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
+
+            # Bolt: deduplicate URLs to avoid redundant fetching and processing
+            seen_urls = set()
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
-                    if u:
+                    if u and u not in seen_urls:
+                        seen_urls.add(u)
                         process_url(u)
 
         return 0
