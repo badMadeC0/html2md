@@ -8,16 +8,6 @@ from pathlib import Path
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
 
 
-def _sanitize_formula(value: str) -> str:
-    """Prefix strings that look like formulas to prevent CSV injection."""
-    # Fast path checks before expensive lstrip()
-    if not value or value[0] == "'":
-        return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
-        return f"'{value}"
-    return value
-
-
 def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
     """Return deduplicated/sanitized CSV headers and original->output mapping."""
     used: set[str] = set()
@@ -41,11 +31,28 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
+    # Fast-path for most common case (string)
+    if type(value) is str:
+        # Fast path checks before expensive lstrip()
+        if not value or value[0] == "'":
+            return value
+        c = value[0]
+        if c in _DANGEROUS_PREFIXES:
+            return f"'{value}"
+        if c.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     if value is None:
         return ""
-    if type(value) is str:
-        return _sanitize_formula(value)
     return value
+
+
+def _sanitize_formula(value: str) -> str:
+    """Prefix strings that look like formulas to prevent CSV injection.
+    Provided for backwards compatibility, but _sanitize_value is optimized to do this directly.
+    """
+    res = _sanitize_value(value)
+    return res if type(res) is str else value
 
 
 def main(argv=None):
