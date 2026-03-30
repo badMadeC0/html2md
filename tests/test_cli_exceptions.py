@@ -60,7 +60,7 @@ class TestCliExceptions(unittest.TestCase):
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
                         # Don't mock the entire open function globally because gettext might need it internally for translations
-                        with patch('src.html2md.cli.open') as mock_open:
+                        with patch('html2md.cli.open') as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
