@@ -251,15 +251,21 @@ $ClearBtn.Add_Click({
 })
 
 # --- Dynamic Convert button state ---
-$UrlBox.Add_TextChanged({
+$validateInput = {
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+    } elseif ([string]::IsNullOrWhiteSpace($OutBox.Text)) {
+        $ConvertBtn.IsEnabled = $false
+        $ConvertBtn.ToolTip = "Please specify an output directory"
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
     }
-})
+}
+
+$UrlBox.Add_TextChanged($validateInput)
+$OutBox.Add_TextChanged($validateInput)
 
 # --- Convert button logic ---
 $ConvertBtn.Add_Click({
