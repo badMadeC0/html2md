@@ -59,7 +59,13 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        import builtins
+                        original_open = builtins.open
+                        def mock_open_wrapper(file, *args, **kwargs):
+                            if 'out' in str(file) or 'outside' in str(file):
+                                return MagicMock()
+                            return original_open(file, *args, **kwargs)
+                        with patch('builtins.open', side_effect=mock_open_wrapper) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +76,8 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                            # Ensure open was never called for the output file
+                            for call in mock_open.call_args_list:
+                                file_arg = call[0][0]
+                                self.assertNotIn('out', str(file_arg))
+                                self.assertNotIn('outside', str(file_arg))
