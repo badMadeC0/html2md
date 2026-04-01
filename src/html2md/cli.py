@@ -4,7 +4,26 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from urllib.parse import urlparse, unquote
+
+def _is_safe_url(url: str) -> bool:
+    """Check if the URL hostname resolves to a public IP address."""
+    parsed = urlparse(url)
+    if not parsed.hostname:
+        return False
+    try:
+        addrinfo = socket.getaddrinfo(parsed.hostname, None)
+        for family, type, proto, canonname, sockaddr in addrinfo:
+            ip = sockaddr[0]
+            ip_obj = ipaddress.ip_address(ip)
+            if (ip_obj.is_private or ip_obj.is_loopback or
+                ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_unspecified):
+                return False
+    except (socket.gaierror, ValueError):
+        return False
+    return True
 
 def main(argv=None):
     """Run the CLI."""
@@ -66,11 +85,32 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return
 
+            if not _is_safe_url(target_url):
+                print(f"Error: Disallowed URL '{target_url}'. "
+                      "Resolves to a non-public IP address.", file=sys.stderr)
+                return
+
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+
+                # Check for redirect SSRF vulnerabilities
+                response = session.get(target_url, timeout=30, allow_redirects=False)
+                redirect_count = 0
+                while response.is_redirect and redirect_count < 10:
+                    redirect_count += 1
+                    target_url = response.headers.get('Location')
+                    if not target_url:
+                        break
+                    from urllib.parse import urljoin
+                    target_url = urljoin(response.url, target_url)
+                    if not _is_safe_url(target_url):
+                        print(f"Error: Disallowed redirect URL '{target_url}'. "
+                              "Resolves to a non-public IP address.", file=sys.stderr)
+                        return
+                    response = session.get(target_url, timeout=30, allow_redirects=False)
+
                 response.raise_for_status()
 
                 print("Converting to Markdown...")

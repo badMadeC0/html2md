@@ -49,6 +49,7 @@ class TestCliError(unittest.TestCase):
         mock_requests.Session.return_value = mock_session
         mock_response = MagicMock()
         mock_response.text = "<html></html>"
+        mock_response.is_redirect = False
         mock_session.get.return_value = mock_response
 
         mock_markdownify = MagicMock()
