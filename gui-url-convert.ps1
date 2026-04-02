@@ -91,9 +91,14 @@ $xaml = @"
             </StackPanel>
         </Grid>
 
-        <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True"
-                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
-                 ToolTip="Enter one or more URLs (one per line)"/>
+        <Grid Grid.Row="1" Margin="0,5,0,10">
+            <TextBox Name="UrlBox" FontSize="14" AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
+                     ToolTip="Enter one or more URLs (one per line)"/>
+            <TextBlock Name="UrlPlaceholder" IsHitTestVisible="False" Text="e.g. https://example.com"
+                       VerticalAlignment="Top" HorizontalAlignment="Left" Margin="5,3,0,0"
+                       Foreground="#FF767676" FontStyle="Italic"/>
+        </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Vertical">
             <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
@@ -153,6 +158,7 @@ $WholePageChk = $window.FindName("WholePageChk")
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
+$UrlPlaceholder = $window.FindName("UrlPlaceholder")
 
 # Set default output to Downloads
 $OutBox.Text = "$env:USERPROFILE\Downloads"
@@ -172,7 +178,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "DarkRed"
     }
 })
 
@@ -237,8 +243,8 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "DarkRed"
+        $StatusText.Foreground = "DarkRed"
     }
 })
 
@@ -255,9 +261,11 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        if ($UrlPlaceholder) { $UrlPlaceholder.Visibility = 'Visible' }
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        if ($UrlPlaceholder) { $UrlPlaceholder.Visibility = 'Hidden' }
     }
 })
 
@@ -272,7 +280,7 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "DarkRed"
         return
     }
 
@@ -319,7 +327,7 @@ $ConvertBtn.Add_Click({
         if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
         else {
             $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "DarkRed"
             $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
             $ProgressBar.IsIndeterminate = $false
             return
@@ -376,7 +384,7 @@ $ConvertBtn.Add_Click({
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "DarkRed"
             $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
             $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
             $ProgressBar.IsIndeterminate = $false
