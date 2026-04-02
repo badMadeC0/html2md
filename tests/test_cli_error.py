@@ -6,9 +6,10 @@ import os
 import requests
 
 # Ensure src is in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 import html2md.cli
+
 
 class TestCliError(unittest.TestCase):
     def test_cli_conversion_request_failure(self):
@@ -28,10 +29,12 @@ class TestCliError(unittest.TestCase):
         # Capture stderr
         captured_stderr = io.StringIO()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
+        with patch.dict(
+            sys.modules, {"requests": mock_requests, "markdownify": mock_markdownify}
+        ):
+            with patch("sys.stderr", captured_stderr):
                 try:
-                    html2md.cli.main(['--url', 'http://example.com'])
+                    html2md.cli.main(["--url", "http://example.com"])
                 except Exception as e:
                     self.fail(f"main raised exception {e}")
 
@@ -57,10 +60,12 @@ class TestCliError(unittest.TestCase):
 
         captured_stderr = io.StringIO()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
+        with patch.dict(
+            sys.modules, {"requests": mock_requests, "markdownify": mock_markdownify}
+        ):
+            with patch("sys.stderr", captured_stderr):
                 try:
-                    html2md.cli.main(['--url', 'http://example.com'])
+                    html2md.cli.main(["--url", "http://example.com"])
                 except Exception as e:
                     self.fail(f"main raised exception {e}")
 
@@ -69,5 +74,6 @@ class TestCliError(unittest.TestCase):
         self.assertIn("Conversion failed", output)
         self.assertIn("Parse error", output)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

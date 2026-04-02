@@ -1,2 +1,7 @@
 # Assign @google-labs-jules as a reviewer for all pull requests
 * @jules
+
+# Also assign @badMade
+* @badMade
+src/** @badMade
+tests/** @badMade

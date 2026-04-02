@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 
+
 def run(cmd):
     """Run a shell command."""
     env = os.environ.copy()
