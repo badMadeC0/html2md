@@ -7,3 +7,7 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2025-03-03 - CSV Export String Sanitization
+**Learning:** In highly iterated loops (like exporting millions of log lines to CSV), string allocations (e.g., `str.lstrip()`) can become a significant bottleneck.
+**Action:** When checking if a string starts with specific characters after stripping whitespace, first check if the string actually starts with whitespace (`string[0].isspace()`). This avoids calling `lstrip()` entirely for the vast majority of normal strings. Also, order type checks based on frequency (check for `str` before checking for `None` if strings are the most common data type).
