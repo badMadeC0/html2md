@@ -1,4 +1,3 @@
-
 # html2md-cli (0.11.6) — Repository Snapshot
 
 This repository contains the current source snapshot: a placeholder `html2md` CLI entry point, a working JSONL→CSV log export utility, Windows helper scripts, tests, and documentation.
@@ -23,24 +22,24 @@ The full runtime conversion workflow described in earlier packaging notes is **n
 
 ## Entry Points
 
-| Entry Point | Target | Description |
-| --- | --- | --- |
-| `html2md` | [`src/html2md/cli.py:main`](src/html2md/cli.py) | Primary CLI |
-| `html2md-log-export` | [`src/html2md/log_export.py:main`](src/html2md/log_export.py) | JSONL-to-CSV log export utility |
-| `python -m html2md` | [`src/html2md/__main__.py`](src/html2md/__main__.py) | Module execution, delegates to `cli.main()` |
+| Entry Point          | Target                                                        | Description                                 |
+| -------------------- | ------------------------------------------------------------- | ------------------------------------------- |
+| `html2md`            | [`src/html2md/cli.py:main`](src/html2md/cli.py)               | Primary CLI                                 |
+| `html2md-log-export` | [`src/html2md/log_export.py:main`](src/html2md/log_export.py) | JSONL-to-CSV log export utility             |
+| `python -m html2md`  | [`src/html2md/__main__.py`](src/html2md/__main__.py)          | Module execution, delegates to `cli.main()` |
 
 ## Key Files
 
-| File | Description |
-| --- | --- |
-| [`src/html2md/cli.py`](src/html2md/cli.py) | Main CLI module |
+| File                                                     | Description                                         |
+| -------------------------------------------------------- | --------------------------------------------------- |
+| [`src/html2md/cli.py`](src/html2md/cli.py)               | Main CLI module                                     |
 | [`src/html2md/log_export.py`](src/html2md/log_export.py) | Reads JSONL logs and exports selected fields to CSV |
-| [`src/html2md/__init__.py`](src/html2md/__init__.py) | Package init, exposes `__version__` |
-| [`tests/test_cli_smoke.py`](tests/test_cli_smoke.py) | Smoke test verifying `--help` exits cleanly |
-| [`setup-html2md.ps1`](setup-html2md.ps1) | Windows PowerShell setup (venv, deps, PATH) |
-| [`gui-url-convert.ps1`](gui-url-convert.ps1) | Windows WPF GUI for URL conversion |
-| [`run-html2md.bat`](run-html2md.bat) | Windows batch launcher |
-| [`run-gui.bat`](run-gui.bat) | Windows GUI launcher |
+| [`src/html2md/__init__.py`](src/html2md/__init__.py)     | Package init, exposes `__version__`                 |
+| [`tests/test_cli_smoke.py`](tests/test_cli_smoke.py)     | Smoke test verifying `--help` exits cleanly         |
+| [`setup-html2md.ps1`](setup-html2md.ps1)                 | Windows PowerShell setup (venv, deps, PATH)         |
+| [`gui-url-convert.ps1`](gui-url-convert.ps1)             | Windows WPF GUI for URL conversion                  |
+| [`run-html2md.bat`](run-html2md.bat)                     | Windows batch launcher                              |
+| [`run-gui.bat`](run-gui.bat)                             | Windows GUI launcher                                |
 
 ## Features in this repository
 

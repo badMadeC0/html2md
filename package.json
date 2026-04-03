@@ -1,0 +1,18 @@
+{
+  "name": "html2md",
+  "version": "1.0.0",
+  "scripts": {
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "self:heal": "node scripts/self-heal.mjs",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
+}

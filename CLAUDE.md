@@ -35,11 +35,11 @@ html2md/
 
 ## Key Entry Points
 
-| Command | Module | Description |
-| --------- | -------- | ------------- |
-| `html2md` | `html2md.cli:main` | Main converter CLI |
+| Command              | Module                    | Description               |
+| -------------------- | ------------------------- | ------------------------- |
+| `html2md`            | `html2md.cli:main`        | Main converter CLI        |
 | `html2md-log-export` | `html2md.log_export:main` | JSONL log to CSV exporter |
-| `python -m html2md` | `html2md.__main__` | Module invocation |
+| `python -m html2md`  | `html2md.__main__`        | Module invocation         |
 
 ## Development Setup
 
@@ -117,13 +117,13 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 ## Common Tasks
 
-| Task | Command |
-| ------ | --------- |
-| Install for development | `pip install -e .` then `pip install pytest build` |
-| Run tests | `pytest -q` |
-| Run the CLI | `html2md --help` |
-| Export logs | `html2md-log-export --in logs.jsonl --out logs.csv` |
-| Build package | `python -m build` |
+| Task                    | Command                                             |
+| ----------------------- | --------------------------------------------------- |
+| Install for development | `pip install -e .` then `pip install pytest build`  |
+| Run tests               | `pytest -q`                                         |
+| Run the CLI             | `html2md --help`                                    |
+| Export logs             | `html2md-log-export --in logs.jsonl --out logs.csv` |
+| Build package           | `python -m build`                                   |
 
 ## Architecture Notes
 
