@@ -1,0 +1,4 @@
+## 2025-03-09 - Server-Side Request Forgery (SSRF) via Unvalidated URL Fetching
+**Vulnerability:** The CLI `html2md` tool fetched URLs directly using `requests.get` without any validation of the target IP address. This allowed users to supply URLs like `http://localhost:8080` or `http://169.254.169.254/latest/meta-data/` to access internal services, metadata APIs, and loopback interfaces.
+**Learning:** Any tool that accepts a user-provided URL and fetches its content on behalf of the user is fundamentally an SSRF vector if the target IP is not validated. The application must not implicitly trust that standard URLs point to external resources.
+**Prevention:** Always perform DNS resolution *before* making the HTTP request, and use the `ipaddress` module to ensure the resolved IP does not belong to private (`is_private`), loopback (`is_loopback`), or link-local (`is_link_local`) subnets.
