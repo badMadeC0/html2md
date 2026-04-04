@@ -1,0 +1,76 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest black
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        run: python scripts/healthcheck.py > selfheal-pre.txt 2>&1
+
+      - name: Attempt self-heal repairs
+        run: python scripts/self-heal.py > selfheal-repair.txt 2>&1
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: python scripts/healthcheck.py > selfheal-post.txt 2>&1
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b self-heal-${{ github.run_id }}
+
+          # Do not commit the temporary log files generated during workflow execution
+          rm -f selfheal-pre.txt selfheal-repair.txt selfheal-post.txt
+
+          git add -A
+          git commit -m "[AI-Assisted] Self-healing auto-fix" || echo "No changes to commit"
+          git push origin self-heal-${{ github.run_id }} || echo "Could not push branch"
+          gh pr create --title "[AI-Assisted] Self-healing auto-fix" --body "Automated fixes applied by self-healing workflow. Please review." --label "self-heal" || echo "PR already exists or failed to create"
