@@ -93,12 +93,12 @@ $xaml = @"
 
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
-                 ToolTip="Enter one or more URLs (one per line)"/>
+                 AutomationProperties.Name="URLs to convert" ToolTip="Enter one or more URLs (one per line)"/>
 
         <StackPanel Grid.Row="2" Orientation="Vertical">
             <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
             <StackPanel Orientation="Horizontal">
-                <TextBox Name="OutBox" Width="340" FontSize="14" ToolTip="Directory where files will be saved"/>
+                <TextBox Name="OutBox" Width="340" FontSize="14" AutomationProperties.Name="Output Directory" ToolTip="Directory where files will be saved"/>
                 <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
                 <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
             </StackPanel>
@@ -273,6 +273,7 @@ $ConvertBtn.Add_Click({
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
@@ -285,13 +286,17 @@ $ConvertBtn.Add_Click({
         # AbsoluteUri is properly percent-encoded, preventing quote-based injection
         $url = $uriObj.AbsoluteUri
     } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
+        $StatusText.Text = "Please enter a valid HTTP/HTTPS URL."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $StatusText.Text = "Invalid characters detected in output directory."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
     # ---------------------------
