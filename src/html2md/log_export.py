@@ -13,7 +13,9 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value[0] in _DANGEROUS_PREFIXES:
+        return f"'{value}"
+    if value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -41,10 +43,16 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
+    if type(value) is str:
+        if not value or value[0] == "'":
+            return value
+        if value[0] in _DANGEROUS_PREFIXES:
+            return f"'{value}"
+        if value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     if value is None:
         return ""
-    if type(value) is str:
-        return _sanitize_formula(value)
     return value
 
 
@@ -77,7 +85,12 @@ def main(argv=None):
         input_names = [name for name, _ in mapping]
 
         for line in fi:
-            # json.loads ignores whitespace; skip manual strip/empty checks
+            # Strict format check to bypass slow JSON parsing for obvious non-dicts
+            if line and line[0] != '{':
+                sline = line.lstrip()
+                if not sline or sline[0] != '{':
+                    continue
+
             try:
                 rec = loads(line)
             except json.JSONDecodeError:
@@ -88,7 +101,7 @@ def main(argv=None):
                 continue
 
             writerow([
-                sanitize(rec.get(name, ""))
+                sanitize(rec.get(name))
                 for name in input_names
             ])
 
