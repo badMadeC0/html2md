@@ -1,0 +1,80 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest black
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        shell: bash
+        run: python scripts/healthcheck.py > selfheal-pre.txt 2>&1 || true
+
+      - name: Attempt self-heal repairs
+        shell: bash
+        run: python scripts/self-heal.py > selfheal-repair.txt 2>&1
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        shell: bash
+        run: python scripts/healthcheck.py > selfheal-post.txt 2>&1
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b chore/self-heal-${{ github.run_id }}
+          git add -u
+          if git diff-index --quiet HEAD; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "chore: self-heal auto-fixes"
+          git push origin chore/self-heal-${{ github.run_id }}
+          gh pr create --title "chore: self-heal auto-fixes" --body "Automated fixes from self-heal workflow." --label "self-heal" --reviewer "badMade" || echo "PR creation failed"
