@@ -2,9 +2,26 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
 from urllib.parse import urlparse, unquote
+
+
+def is_internal_url(url: str) -> bool:
+    """Check if the URL resolves to an internal or loopback IP (SSRF protection)."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return True
+        ip = socket.gethostbyname(hostname)
+        ip_obj = ipaddress.ip_address(ip)
+        return ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+    except (socket.gaierror, ValueError):
+        return True
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -24,36 +41,6 @@ def main(argv=None):
         return 0
 
     if args.url or args.batch:
-        try:
-            import requests  # type: ignore  # pylint: disable=import-outside-toplevel
-            from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
-        except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
-            return 1
-
-        session = requests.Session()
-        session.headers.update({
-            'User-Agent': (
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/120.0.0.0 Safari/537.36'
-            ),
-            'Accept': (
-                'text/html,application/xhtml+xml,application/xml;q=0.9,'
-                'image/avif,image/webp,image/apng,*/*;q=0.8'
-            ),
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.google.com/',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'cross-site',
-            'Sec-Fetch-User': '?1',
-        })
-
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -64,6 +51,10 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
+                return
+
+            if is_internal_url(target_url):
+                print(f"Error: URL resolves to internal network, rejecting. (SSRF Protection)", file=sys.stderr)
                 return
 
             print(f"Processing URL: {target_url}")
