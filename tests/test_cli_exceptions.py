@@ -59,7 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        with patch('builtins.open', new_callable=unittest.mock.mock_open) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
