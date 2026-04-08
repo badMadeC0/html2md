@@ -273,6 +273,7 @@ $ConvertBtn.Add_Click({
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
@@ -285,13 +286,17 @@ $ConvertBtn.Add_Click({
         # AbsoluteUri is properly percent-encoded, preventing quote-based injection
         $url = $uriObj.AbsoluteUri
     } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
+        $StatusText.Text = "Error: Please enter a valid HTTP/HTTPS URL."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $StatusText.Text = "Error: Invalid characters detected in output directory."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
     # ---------------------------
