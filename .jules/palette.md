@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2026-04-08 - [Add keyboard shortcut hints to ToolTips for accessibility]
+**Learning:** In WPF applications using XAML, keyboard shortcuts defined via mnemonics (e.g., `_Paste`) are not always obvious to sighted users without pressing Alt, and screen readers may not clearly announce them. Adding explicit keyboard shortcut hints (e.g., `(Alt+P)`) to the `ToolTip` properties greatly improves discoverability and provides important context for accessibility.
+**Action:** When designing WPF UIs with mnemonics, always append the shortcut hint to the element's `ToolTip` to ensure all users can easily discover and use keyboard navigation.
