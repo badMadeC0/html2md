@@ -1,0 +1,4 @@
+## 2024-05-18 - [Add Security Headers to Flask App]
+**Vulnerability:** Missing essential security headers (X-Content-Type-Options, X-Frame-Options, Content-Security-Policy, Strict-Transport-Security) in the Flask application responses.
+**Learning:** By default, Flask does not include these critical security headers, making the application susceptible to content sniffing, clickjacking, and potentially other attacks depending on future endpoints added. Since it's easy to overlook security headers in simple microservices or API endpoints, a centralized `after_request` middleware is crucial.
+**Prevention:** Always implement a middleware/`@app.after_request` handler to set basic defense-in-depth headers like CSP, X-Frame-Options, and X-Content-Type-Options, even on simple health-check endpoints.
