@@ -1,0 +1,14 @@
+{
+  "name": "html2md-cli-node-scripts",
+  "version": "1.0.0",
+  "description": "Node scripts for html2md-cli repo",
+  "private": true,
+  "scripts": {
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "self:heal": "node scripts/self-heal.mjs",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  }
+}
