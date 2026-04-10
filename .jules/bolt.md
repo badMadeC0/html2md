@@ -7,3 +7,7 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-18 - [Optimized Python String Prefix Scanning]
+**Learning:** Found a major bottleneck in CSV writing where `str.lstrip()` was being called on every field of every row to check for hidden dangerous prefixes. Due to Python short-circuiting logic in `if char in TUPLE or value.lstrip().startswith(...)`, `lstrip()` was invoked for all non-dangerous characters.
+**Action:** Always guard expensive string operations like `lstrip()` or `replace()` with cheaper `char` level checks (e.g., `value[0].isspace()`) before applying them, especially in tight data-processing loops. Also, using string subset testing `c in "=+-@"` is significantly faster (~2x) than tuple testing `c in ("=","+","-","@")` in Python.
