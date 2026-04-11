@@ -51,3 +51,48 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_dos_content_length_limit(mock_get, capsys, tmp_path):
+    """Test that responses with a Content-Length exceeding the limit are rejected."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    # 21 MB, which exceeds the 20 MB limit
+    response.headers = {'content-length': str(21 * 1024 * 1024)}
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/large", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert "exceeds maximum allowed size" in outerr.err
+    assert "20971520 bytes" in outerr.err  # 20 * 1024 * 1024
+    response.close.assert_called_once()
+
+
+@patch("requests.Session.get")
+def test_dos_stream_size_limit(mock_get, capsys, tmp_path):
+    """Test that responses without Content-Length but exceeding limit during streaming are rejected."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.headers = {}
+    response.raise_for_status.return_value = None
+
+    # Simulate streaming 21 chunks of 1MB, exceeding the 20MB limit
+    def mock_iter_content(chunk_size=8192):
+        for _ in range(21):
+            yield b"a" * (1024 * 1024)
+
+    response.iter_content = mock_iter_content
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/infinite", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert "Downloaded content exceeded maximum allowed size" in outerr.err
+    response.close.assert_called_once()

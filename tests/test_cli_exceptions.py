@@ -59,7 +59,15 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # Use a side_effect that only intercepts opening the output file
+                        original_open = open
+                        mock_open = MagicMock()
+                        def fake_open(file, *args, **kwargs):
+                            if str(file).endswith('.md'):
+                                return mock_open
+                            return original_open(file, *args, **kwargs)
+
+                        with patch('builtins.open', side_effect=fake_open):
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'

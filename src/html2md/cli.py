@@ -70,11 +70,34 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                # Stream the response to prevent Denial of Service (DoS) via large files
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
 
+                max_size = 20 * 1024 * 1024  # 20 MB limit
+                content_length = response.headers.get('content-length')
+                if content_length and int(content_length) > max_size:
+                    print(f"Error: Content-Length ({content_length} bytes) exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                    response.close()
+                    return
+
+                content_bytes = bytearray()
+                for chunk in response.iter_content(chunk_size=8192):
+                    content_bytes.extend(chunk)
+                    if len(content_bytes) > max_size:
+                        print(f"Error: Downloaded content exceeded maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                        response.close()
+                        return
+
+                response.close()
+
+                encoding = response.encoding
+                if not isinstance(encoding, str):
+                    encoding = 'utf-8'
+                response_text = content_bytes.decode(encoding, errors='replace')
+
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(response_text, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
