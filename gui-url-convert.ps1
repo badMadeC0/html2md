@@ -86,32 +86,32 @@ $xaml = @"
             </Grid.ColumnDefinitions>
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
-                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard (Alt+T)"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list (Alt+R)"/>
             </StackPanel>
         </Grid>
 
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
-                 ToolTip="Enter one or more URLs (one per line)"/>
+                 ToolTip="Enter one or more URLs (one per line) (Alt+P)"/>
 
         <StackPanel Grid.Row="2" Orientation="Vertical">
             <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
             <StackPanel Orientation="Horizontal">
-                <TextBox Name="OutBox" Width="340" FontSize="14" ToolTip="Directory where files will be saved"/>
-                <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
-                <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
+                <TextBox Name="OutBox" Width="340" FontSize="14" ToolTip="Directory where files will be saved (Alt+D)"/>
+                <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder (Alt+B)">_Browse...</Button>
+                <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder (Alt+O)">_Open Folder</Button>
             </StackPanel>
         </StackPanel>
 
         <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+                  ToolTip="If checked, includes headers and footers. Default is main content only. (Alt+W)"/>
 
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
-                ToolTip="Please enter at least one URL to enable conversion"
+                ToolTip="Please enter at least one URL to enable conversion (Alt+C)"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
@@ -254,10 +254,10 @@ $ClearBtn.Add_Click({
 $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
-        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion (Alt+C)"
     } else {
         $ConvertBtn.IsEnabled = $true
-        $ConvertBtn.ToolTip = "Start conversion process"
+        $ConvertBtn.ToolTip = "Start conversion process (Alt+C)"
     }
 })
 
