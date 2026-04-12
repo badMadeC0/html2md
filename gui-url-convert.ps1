@@ -84,7 +84,7 @@ $xaml = @"
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
+            <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom" Padding="0,0,0,2"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
                 <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
@@ -117,7 +117,7 @@ $xaml = @"
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output" Text="Ready. Output logs will appear here..."/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" AutomationProperties.LiveSetting="Polite">
@@ -162,6 +162,8 @@ $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
     if ($dlg.ShowDialog() -eq "OK") {
         $OutBox.Text = $dlg.SelectedPath
+        $StatusText.Text = "Output folder selected."
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
     }
 })
 
@@ -170,6 +172,8 @@ $OpenFolderBtn.Add_Click({
     $path = $OutBox.Text.Trim()
     if (Test-Path -LiteralPath $path) {
         Invoke-Item -LiteralPath $path
+        $StatusText.Text = "Opened output folder."
+        $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
     } else {
         $StatusText.Text = "Output folder does not exist."
         $StatusText.Foreground = "Red"
@@ -237,7 +241,6 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
         $StatusText.Foreground = "Red"
     }
 })

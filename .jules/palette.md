@@ -1,3 +1,7 @@
 ## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
+
+## 2024-06-18 - [Add initial placeholder text and status updates for folder actions in WPF GUI]
+**Learning:** Empty output log boxes in WPF GUIs can leave users uncertain of their purpose before operations start. Providing an initial helpful message (`Text="Ready. Output logs will appear here..."`) clarifies their intent. Additionally, successful non-destructive file operations (like selecting or opening a folder) should provide immediate positive feedback in the status bar (with foreground color reset) so users know the action completed successfully, rather than only reporting errors.
+**Action:** Always provide initial placeholder or guidance text for empty, read-only log text boxes, and ensure click handlers for successful folder operations clear error states and update the status text accordingly.
