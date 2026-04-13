@@ -13,7 +13,11 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value[0] in _DANGEROUS_PREFIXES:
+        return f"'{value}"
+    if not value[0].isspace():
+        return value
+    if value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -44,7 +48,15 @@ def _sanitize_value(value: object) -> object:
     if value is None:
         return ""
     if type(value) is str:
-        return _sanitize_formula(value)
+        # Inline fast paths for performance in hot loop
+        if not value or value[0] == "'":
+            return value
+        if value[0] in _DANGEROUS_PREFIXES:
+            return f"'{value}"
+        if not value[0].isspace():
+            return value
+        if value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
     return value
 
 
@@ -88,7 +100,7 @@ def main(argv=None):
                 continue
 
             writerow([
-                sanitize(rec.get(name, ""))
+                sanitize(rec.get(name))
                 for name in input_names
             ])
 
