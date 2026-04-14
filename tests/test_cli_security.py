@@ -51,3 +51,24 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+@patch("requests.Session.get")
+def test_process_url_size_limit(mock_get, capsys, tmp_path):
+    """Test that a response exceeding 10MB is rejected."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    # Mock iter_content to yield chunks that exceed 10MB
+    chunk_10mb = b"A" * (10 * 1024 * 1024)
+    chunk_extra = b"B" * 1024
+    response.iter_content.return_value = [chunk_10mb, chunk_extra]
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/large", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+    assert "Error: Content size exceeds 10MB limit." in outerr.err
+
+    # Ensure no markdown file was created
+    assert not list(outdir.rglob("*.md"))

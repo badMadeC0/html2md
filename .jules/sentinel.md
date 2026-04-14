@@ -1,0 +1,4 @@
+## 2024-05-24 - [Denial of Service via Unbounded File Downloads]
+**Vulnerability:** The application was vulnerable to Denial of Service (DoS) attacks because `session.get(target_url)` read the entire response into memory without bounds checking. A malicious server could supply an infinitely large payload, exhausting memory and crashing the application.
+**Learning:** `requests` will buffer the whole payload in memory by default. This is dangerous when accepting user-controlled URLs because we cannot trust the size of the returned content.
+**Prevention:** Use `stream=True` with `requests.get()`, and iterate through the response using `iter_content(chunk_size)`. Keep a running total of the bytes read, and abort the operation if the size exceeds a defined limit (e.g., 10MB) to prevent memory exhaustion.
