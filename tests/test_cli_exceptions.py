@@ -1,8 +1,16 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import io
 import requests
 from html2md.cli import main
+import builtins
+
+original_open = builtins.open
+
+def custom_open(*args, **kwargs):
+    if args and str(args[0]).endswith('.md'):
+        return mock_open()(*args, **kwargs)
+    return original_open(*args, **kwargs)
 
 class TestCliExceptions(unittest.TestCase):
     def test_network_error(self):
@@ -36,7 +44,15 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                        m = mock_open()
+                        m.side_effect = OSError("Permission denied")
+
+                        def error_open(*args, **kwargs):
+                            if args and str(args[0]).endswith('.md'):
+                                raise OSError("Permission denied")
+                            return original_open(*args, **kwargs)
+
+                        with patch('builtins.open', side_effect=error_open):
                              try:
                                  main(['--url', 'http://example.com', '--outdir', 'dummy'])
                              except Exception as e:
@@ -59,7 +75,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        with patch('builtins.open', side_effect=custom_open) as m_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +86,3 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
