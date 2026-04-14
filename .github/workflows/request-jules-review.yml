@@ -12,19 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Request review from Jules bot
-        uses: actions/github-script@v7.0.1
+        uses: actions/github-script@v7
         with:
           script: |
             const pr = context.payload.pull_request;
             try {
-              await github.rest.pulls.requestReviewers({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: pr.number,
-                reviewers: ['google-labs-jules[bot]']
+                issue_number: pr.number,
+                body: '@google-labs-jules please review this pull request.'
               });
-              console.log(`Requested review from @google-labs-jules[bot] on PR #${pr.number}`);
+              console.log(`Requested review from @google-labs-jules via comment on PR #${pr.number}`);
             } catch (error) {
               console.log(`Could not request review: ${error.message}`);
-              console.log('Ensure @google-labs-jules[bot] has access to this repository.');
+              console.log('Ensure the workflow token has permissions to comment.');
             }
