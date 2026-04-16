@@ -11,3 +11,6 @@
 ## 2024-04-16 - [Optimization] Formula Sanitization Overhead
 **Learning:** String allocations and manipulation functions like `lstrip()` are surprisingly expensive in Python when executed on a hot path like CSV record export.
 **Action:** When performing validations that may require whitespace stripping, fast-path the check by analyzing the first character directly (e.g., using `.isspace()`). This simple change avoids `lstrip()` allocations entirely for the majority of standard text records.
+## 2024-04-16 - [CI] GitHub Actions PR Comments
+**Learning:** By default, `GITHUB_TOKEN` only has `read` permissions in many setups. The GitHub Actions job `request-review` requires write access to pull requests to leave comments, which causes a 403 `Resource not accessible by integration` error if missing.
+**Action:** Always verify that workflows interacting with pull requests explicitly include `pull-requests: write` in their `permissions` block.
