@@ -5,16 +5,23 @@ import csv
 import json
 from pathlib import Path
 
-_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIXES = frozenset(("=", "+", "-", "@"))
 
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+
+    char = value[0]
+    if char in _DANGEROUS_PREFIXES:
         return f"'{value}"
+
+    if char.isspace():
+        stripped = value.lstrip()
+        if stripped and stripped[0] in _DANGEROUS_PREFIXES:
+            return f"'{value}"
+
     return value
 
 
@@ -51,19 +58,21 @@ def _sanitize_value(value: object) -> object:
 def main(argv=None):
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
-        prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
+        prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
-    ap.add_argument('--in', dest='inp', required=True)
-    ap.add_argument('--out', dest='out', required=True)
-    ap.add_argument('--fields', default='ts,input,output,status,reason')
+    ap.add_argument("--in", dest="inp", required=True)
+    ap.add_argument("--out", dest="out", required=True)
+    ap.add_argument("--fields", default="ts,input,output,status,reason")
     args = ap.parse_args(argv)
 
-    fields = [f.strip() for f in args.fields.split(',') if f.strip()]
+    fields = [f.strip() for f in args.fields.split(",") if f.strip()]
     fieldnames, mapping = _unique_fieldnames(fields)
 
     inp = Path(args.inp)
     out = Path(args.out)
-    with inp.open('r', encoding='utf-8') as fi, out.open('w', newline='', encoding='utf-8') as fo:
+    with inp.open("r", encoding="utf-8") as fi, out.open(
+        "w", newline="", encoding="utf-8"
+    ) as fo:
         # Optimization: Use csv.writer instead of DictWriter to avoid per-row dictionary overhead
         w = csv.writer(fo)
         w.writerow(fieldnames)
@@ -87,13 +96,10 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
-            writerow([
-                sanitize(rec.get(name, ""))
-                for name in input_names
-            ])
+            writerow([sanitize(rec.get(name, "")) for name in input_names])
 
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())
