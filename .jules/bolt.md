@@ -8,3 +8,6 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+## 2024-03-24 - [Avoid Builtins Patching in Tests]
+**Learning:** Patching `builtins.open` globally in tests can disrupt the `gettext` library (and other modules loaded lazily) during `argparse` initialization or module loading.
+**Action:** When mocking file operations, patch the specific module where `open` is called (e.g., `patch('html2md.cli.open')`) rather than `builtins.open` to isolate the mock and prevent cascading failures in third-party or standard libraries.
