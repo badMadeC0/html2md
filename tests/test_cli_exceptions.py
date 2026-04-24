@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import io
 import requests
 from html2md.cli import main
@@ -36,7 +36,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                        with patch('html2md.cli.open', side_effect=OSError("Permission denied")):
                              try:
                                  main(['--url', 'http://example.com', '--outdir', 'dummy'])
                              except Exception as e:
@@ -59,7 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        with patch('html2md.cli.open') as mock_open_var:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +70,4 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                            mock_open_var.assert_not_called()
