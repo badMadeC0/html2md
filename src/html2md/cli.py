@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import pathlib
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -95,10 +96,16 @@ def main(argv=None):
                     # Final safety check: ensure output stays within outdir
                     real_outdir = os.path.realpath(args.outdir)
                     real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+
+                    real_outdir_path = pathlib.Path(real_outdir).resolve()
+                    real_out_path_obj = pathlib.Path(real_out_path).resolve()
+                    try:
+                        real_out_path_obj.relative_to(real_outdir_path)
+                    except ValueError:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
+
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")

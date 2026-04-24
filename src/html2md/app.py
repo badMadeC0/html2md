@@ -17,6 +17,17 @@ def health():
     return jsonify({'status': 'ok', 'service': 'html2md', 'version': __version__})
 
 
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+
 def get_host_port():
     """Get host and port from environment variables."""
     default_port = 10000
