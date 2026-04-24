@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 from urllib.parse import urlparse, unquote
+import concurrent.futures
 
 def main(argv=None):
     """Run the CLI."""
@@ -33,6 +34,10 @@ def main(argv=None):
             return 1
 
         session = requests.Session()
+        from requests.adapters import HTTPAdapter  # pylint: disable=import-outside-toplevel
+        adapter = HTTPAdapter(pool_connections=100, pool_maxsize=100)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
         session.headers.update({
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -78,7 +83,7 @@ def main(argv=None):
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
+                        os.makedirs(args.outdir, exist_ok=True)
 
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
@@ -119,11 +124,18 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
+            urls_to_process = []
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        urls_to_process.append(u)
+
+            if urls_to_process:
+                # Use ThreadPoolExecutor to process URLs concurrently
+                # Max workers defaults to min(32, os.cpu_count() + 4), which is reasonable
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    list(executor.map(process_url, urls_to_process))
 
         return 0
 
