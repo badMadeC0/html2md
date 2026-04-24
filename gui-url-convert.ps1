@@ -306,6 +306,15 @@ $ConvertBtn.Add_Click({
         $scriptDir = (Get-Location).Path
     }
 
+    $bat = Join-Path $scriptDir "run-html2md.bat"
+    if (-not (Test-Path -LiteralPath $bat)) {
+        $StatusText.Text = "Error: run-html2md.bat not found."
+        $StatusText.Foreground = "Red"
+        $LogBox.AppendText("ERROR: Could not find run-html2md.bat in $scriptDir`r`n")
+        $ProgressBar.IsIndeterminate = $false
+        return
+    }
+
     # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
     try {
         $fso = New-Object -ComObject Scripting.FileSystemObject
