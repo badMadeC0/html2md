@@ -70,7 +70,7 @@ class TestCliExceptions(unittest.TestCase):
                                 return type(self)(fake_realpath(self))
 
                             with patch('pathlib.Path.resolve', fake_resolve):
-                                with patch('src.html2md.cli.open', create=True) as mock_open:
+                                with patch('html2md.cli.open', create=True) as mock_open:
                                     main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                                     output = captured_stderr.getvalue()
