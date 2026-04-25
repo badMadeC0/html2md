@@ -95,7 +95,14 @@ def main(argv=None):
                     # Final safety check: ensure output stays within outdir
                     real_outdir = os.path.realpath(args.outdir)
                     real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                    try:
+                        common = os.path.commonpath([real_outdir, real_out_path])
+                        if os.path.normcase(common) != os.path.normcase(real_outdir):
+                            print("Error: Output path escapes output directory.",
+                                  file=sys.stderr)
+                            return
+                    except ValueError:
+                        # Paths are on different drives on Windows, definitively an escape
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return

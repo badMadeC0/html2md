@@ -51,3 +51,22 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+@patch("requests.Session.get")
+def test_cross_drive_escape_handled_securely(mock_get, capsys, tmp_path):
+    """Ensure cross-drive path escapes on Windows (which raise ValueError in commonpath) are handled securely."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    # Force os.path.commonpath to raise a ValueError to simulate different drives
+    with patch("os.path.commonpath", side_effect=ValueError("Paths don't have the same drive")):
+        cli.main(["--url", "http://example.com/C:boot.ini", "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+    assert "Error: Output path escapes output directory." in outerr.err
+    assert "Success!" not in outerr.out
