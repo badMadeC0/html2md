@@ -119,10 +119,15 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
+
+            # Optimization: Deduplicate URLs to prevent redundant, expensive network requests
+            # and parsing when duplicate entries exist in the batch file.
+            seen = set()
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
-                    if u:
+                    if u and u not in seen:
+                        seen.add(u)
                         process_url(u)
 
         return 0

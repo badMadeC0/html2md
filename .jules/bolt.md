@@ -8,3 +8,9 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-25 - Avoid Risky Micro-Optimizations
+
+**Learning:** Optimizations like `type()` vs `isinstance()` or tweaking string `.startswith()` checks might show a microscopic gain in isolation but are rejected as "premature/micro optimizations with no measurable impact" and can cause breakage (e.g. subtyping, edge cases). True performance wins come from algorithmic changes (e.g. O(N^2) -> O(N), caching, deduplication) or eliminating network/IO bottlenecks. Also, never touch environment configs like `.python-version` unprompted.
+
+**Action:** Focus on measurable algorithmic improvements (like deduplicating network calls with a `set()`) instead of nano-second optimizations in Python hot loops.
