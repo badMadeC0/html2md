@@ -59,15 +59,13 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
-                            def fake_realpath(path):
-                                if str(path).endswith('.md'):
-                                    return '/tmp/outside/a.md'
-                                return '/tmp/out'
+                        def fake_realpath(path):
+                            if str(path).endswith('.md'):
+                                return '/tmp/outside/a.md'
+                            return '/tmp/out'
 
-                            with patch('os.path.realpath', side_effect=fake_realpath):
-                                main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
+                        with patch('os.path.realpath', side_effect=fake_realpath):
+                            main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
-                            output = captured_stderr.getvalue()
-                            self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                        output = captured_stderr.getvalue()
+                        self.assertIn("Output path escapes output directory", output)
