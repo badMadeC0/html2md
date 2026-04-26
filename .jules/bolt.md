@@ -11,4 +11,10 @@
 
 ## 2024-06-25 - Avoid String Copies in Hot Paths
 **Learning:** Python string methods like `lstrip()` create copies of the string, which causes memory allocations that can become a bottleneck when called thousands of times in a loop (like processing a CSV export).
-**Action:** Before applying expensive string mutations to check for patterns (e.g. `value.lstrip().startswith(...)`), add a fast-path check to avoid the call entirely if it's not needed. For whitespace removal, `value[0].isspace()` is a much cheaper initial check that avoids a string copy for the vast majority of non-whitespace-starting strings.
+4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
+
+**Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-06-25 - Avoid String Copies in Hot Paths
+**Learning:** Python string methods like `lstrip()` create copies of the string, which causes memory allocations that can become a bottleneck when called thousands of times in a loop (like processing a CSV export).
+**Action:** Before applying expensive string mutations to check for patterns (e.g. `value.lstrip().startswith(...)`), add a fast-path check to avoid the call entirely if it's not needed. For whitespace removal, `value and value[0].isspace()` is a much cheaper initial check that avoids a string copy for the vast majority of non-whitespace-starting strings.
