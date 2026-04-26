@@ -1,7 +1,4 @@
-## 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
+# 2024-05-24 - [Add labels to output directory field and screen reader polite announcement for status bar in GUI]
+
 **Learning:** For WPF applications using XAML to define UI (as in `gui-url-convert.ps1`), inputs should have `<Label>` associated with them, pointing to the input field using `Target="{Binding ElementName=...}"`. Status updates in elements like `TextBlock` do not inherently announce their text updates to screen readers unless configured with `AutomationProperties.LiveSetting="Polite"`.
 **Action:** When working on WPF UI files, ensure `TextBox` fields have a designated `Label` with `Target` bound properly, and status text blocks should have `AutomationProperties.LiveSetting="Polite"` for screen readers to pick up state changes unobtrusively.
-
-## 2025-02-28 - [Add keyboard shortcut hints to ToolTips for WPF access keys]
-**Learning:** While WPF allows setting access keys using `_` in Content or Label attributes (e.g. `_Paste URL(s):`), these keys are not always easily discoverable by users unless they happen to press the Alt key to reveal the underlines. For power users who rely heavily on keyboard navigation, this discoverability issue hinders speed.
-**Action:** Always append the shortcut hint explicitly in the `ToolTip` (e.g. "Select output folder (Alt+B)") for all elements that have assigned access keys. Ensure any dynamically updated tooltips also retain this hint.
