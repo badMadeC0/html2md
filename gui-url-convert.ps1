@@ -91,7 +91,7 @@ $xaml = @"
 
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
-                 ToolTip="Enter one or more URLs (one per line)" AutomationProperties.Name="URL Input List"/>
+                 ToolTip="Enter one or more URLs (one per line)"/>
 
         <StackPanel Grid.Row="2" Orientation="Vertical">
             <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
