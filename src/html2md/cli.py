@@ -80,9 +80,9 @@ def main(argv=None):
                     if chunk:
                         content_bytes.extend(chunk)
                         if len(content_bytes) > max_size:
-                            logging.error(f"Error: Response from {target_url} too large (>10MB). Skipping to prevent memory exhaustion.")
-                            response.close()
-                            return
+                            import sys
+                            print("Error: Response too large (>10MB). Aborting to prevent memory exhaustion.", file=sys.stderr)
+                            sys.exit(1)
 
                 encoding = response.encoding if isinstance(getattr(response, 'encoding', None), str) else 'utf-8'
                 text_content = content_bytes.decode(encoding, errors='replace')
