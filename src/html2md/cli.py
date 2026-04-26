@@ -76,7 +76,7 @@ def main(argv=None):
                 }
 
             try:
-                response = requests.get(target_url, headers=session.headers, timeout=30)
+                response = session.get(target_url, timeout=30)
                 response.raise_for_status()
                 md_content = md(response.text, heading_style="ATX")
                 return {"url": target_url, "content": md_content, "error": None}

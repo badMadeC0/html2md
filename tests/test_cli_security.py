@@ -14,7 +14,7 @@ from html2md import cli
         ("example.com/data.txt", ""),
     ],
 )
-@patch("requests.Session.get")
+@patch("requests.sessions.Session.get")
 def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme):
     """Unsupported schemes are rejected before any network call."""
     cli.main(["--url", url, "--outdir", str(tmp_path)])
@@ -23,7 +23,7 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
-@patch("requests.Session.get")
+@patch("requests.sessions.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"

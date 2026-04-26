@@ -12,7 +12,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
             # Patch requests.Session.get directly
-            with patch("requests.Session.get") as mock_get:
+            with patch("requests.sessions.Session.get") as mock_get:
                 mock_get.side_effect = requests.RequestException("Network unreachable")
 
                 try:
@@ -29,7 +29,7 @@ class TestCliExceptions(unittest.TestCase):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
-            with patch("requests.Session.get") as mock_get:
+            with patch("requests.sessions.Session.get") as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
@@ -58,7 +58,7 @@ class TestCliExceptions(unittest.TestCase):
         """Test that output containment check rejects prefix-matching escapes."""
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
-            with patch("requests.Session.get") as mock_get:
+            with patch("requests.sessions.Session.get") as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
