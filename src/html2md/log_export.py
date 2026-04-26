@@ -51,7 +51,7 @@ def _sanitize_value(value: object) -> object:
         return ""
     # ⚡ Bolt: Use type() is str instead of isinstance for slight performance gain
     # since json.loads will not produce subclasses of str.
-    if type(value) is str:
+    if isinstance(value, str):
         return _sanitize_formula(value)
     return value
 
