@@ -1,16 +1,20 @@
+"""Tests for html2md CLI error-handling paths."""
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
-import requests
+import requests  # type: ignore[import-untyped]
 
-# Ensure src is in path
+# Ensure src is in path before importing the local package.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-import html2md.cli
+import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
+
 
 class TestCliError(unittest.TestCase):
+    """Unit tests for CLI network and conversion error handling."""
+
     def test_cli_conversion_request_failure(self):
         """Test that requests.get failure is caught and printed."""
 
@@ -32,7 +36,7 @@ class TestCliError(unittest.TestCase):
             with patch('sys.stderr', captured_stderr):
                 try:
                     html2md.cli.main(['--url', 'http://example.com'])
-                except Exception as e:
+                except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
@@ -61,7 +65,7 @@ class TestCliError(unittest.TestCase):
             with patch('sys.stderr', captured_stderr):
                 try:
                     html2md.cli.main(['--url', 'http://example.com'])
-                except Exception as e:
+                except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
