@@ -247,15 +247,14 @@ $ClearBtn.Add_Click({
     $StatusText.Text = "Cleared."
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
-
-# --- Dynamic Convert button state ---
 $UrlBox.Add_TextChanged({
+    $shortcutHint = "(Alt+C)"
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
-        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion $shortcutHint"
     } else {
         $ConvertBtn.IsEnabled = $true
-        $ConvertBtn.ToolTip = "Start conversion process"
+        $ConvertBtn.ToolTip = "Start conversion process $shortcutHint"
     }
 })
 
