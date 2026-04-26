@@ -15,7 +15,10 @@ def _sanitize_formula(value: str) -> str:
         return value
 
     first_char = value[0]
-    if first_char in _DANGEROUS_PREFIXES or (first_char.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES)):
+    if (
+        first_char in _DANGEROUS_PREFIXES or
+        (first_char.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES))
+    ):
         return f"'{value}"
     return value
 
