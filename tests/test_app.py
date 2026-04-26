@@ -3,11 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-try:
-    import flask
-    from html2md.app import app, get_host_port
-except ImportError:
-    pytest.skip("Flask is not installed", allow_module_level=True)
+import flask
+from html2md.app import app, get_host_port, DEFAULT_PORT
 
 
 @pytest.fixture
