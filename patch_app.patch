@@ -1,0 +1,19 @@
+--- src/html2md/app.py
++++ src/html2md/app.py
+@@ -21,12 +21,14 @@
+     default_port = 10000
+     port_str = os.environ.get('PORT')
+     try:
+-        port_value = int(port_str) if port_str is not None else DEFAULT_PORT
++        port_value = int(port_str) if port_str is not None else default_port
++        if not (1 <= port_value <= 65535):
++            raise ValueError(f"Port {port_value} out of range")
+     except ValueError:
+         print(
+             f'Warning: Invalid PORT environment variable value '
+             f'{port_str!r}; falling back to default {default_port}.'
+         )
+-        port_value = DEFAULT_PORT
++        port_value = default_port
+
+     hostname = os.environ.get('HOST', '0.0.0.0')
