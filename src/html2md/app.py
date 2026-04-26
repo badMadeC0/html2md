@@ -26,7 +26,7 @@ def get_host_port():
     except ValueError:
         print(
             f"Warning: Invalid PORT environment variable value "
-            f"{port_str!r}; falling back to default {default_port}."
+            f"{port_str!r}; falling back to default {DEFAULT_PORT}."
         )
         port_value = DEFAULT_PORT
 
