@@ -97,12 +97,12 @@ def main(argv=None):
                     real_out_path = os.path.realpath(out_path)
                     try:
                         common = os.path.commonpath([real_outdir, real_out_path])
-                        if os.path.normcase(common) != os.path.normcase(real_outdir):
-                            print("Error: Output path escapes output directory.",
-                                  file=sys.stderr)
-                            return
+                        is_safe = os.path.normcase(common) == os.path.normcase(real_outdir)
                     except ValueError:
                         # Paths are on different drives on Windows, definitively an escape
+                        is_safe = False
+
+                    if not is_safe:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
