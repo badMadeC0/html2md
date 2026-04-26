@@ -56,9 +56,12 @@ def main(argv=None):
 
         real_outdir = None
         if args.outdir:
-            if not os.path.exists(args.outdir):
-                os.makedirs(args.outdir)
-            real_outdir = os.path.realpath(args.outdir)
+            try:
+                os.makedirs(args.outdir, exist_ok=True)
+                real_outdir = os.path.realpath(args.outdir)
+            except OSError as e:
+                print(f"Error creating output directory '{args.outdir}': {e}", file=sys.stderr)
+                return 1
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""
