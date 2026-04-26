@@ -111,29 +111,7 @@ def main(argv=None):  # pylint: disable=too-many-statements
 
             print(f"Processing URL: {target_url}")
 
-            parsed = urlparse(target_url)
-            # Resolve hostname to IP to prevent DNS rebinding
-            try:
-                addr_info = socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80))
-                ip = addr_info[0][4][0]
-            except socket.gaierror:
-                print(f"Error: Could not resolve {parsed.hostname}", file=sys.stderr)
-                return
-
             if not is_safe_url(target_url):
-                print(
-                    f"Error: URL '{target_url}' resolves to a non-public IP address.",
-                    file=sys.stderr,
-                )
-                return
-
-            # Use the resolved IP and set the Host header for SNI/TLS
-            safe_url = target_url.replace(parsed.hostname, ip, 1)
-            headers = {"Host": parsed.hostname}
-
-            try:
-                print("Fetching content...")
-                response = session.get(safe_url, headers=headers, timeout=30)
                 print(
                     f"Error: URL '{target_url}' resolves to a non-public IP address.",
                     file=sys.stderr,
