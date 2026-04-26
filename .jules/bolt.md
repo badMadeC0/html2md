@@ -11,4 +11,6 @@
 
 ## $(date +%Y-%m-%d) - [Optimize String Strip Operations]
 **Learning:** Calling `.lstrip()` and `.startswith()` in hot-loop string parsing can cause significant overhead due to memory allocation and iteration, especially when applied defensively against thousands of strings that don't need it.
-**Action:** When performing defensive `lstrip()` checks (like sanitizing strings to prevent CSV formula injection), guard the `lstrip()` behind a fast `str[0].isspace()` check. This bypasses the allocation overhead for normal alphanumeric strings. Also, avoid using `type(x) is str` to replace `isinstance(x, str)` unless strictly required, to avoid breaking polymorphism.
+4. **Fast type checks**: Use `isinstance(x, T)` as the default for type checking to support polymorphism. In extreme hot loops where performance is critical and subclassing is not expected, `type(x) is T` can be used as a micro-optimization.
+
+**Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`) and pre-compute list comprehension iterables. Use `type() is X` for exact type checking only when necessary for performance and where polymorphism is not required.
