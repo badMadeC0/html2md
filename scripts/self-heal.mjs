@@ -21,46 +21,63 @@ const passHealth = () => {
 };
 
 let fixed = false;
+let isHealthy = false;
 
 // 1) Lint/format
 trySh("pnpm -w run lint --fix");
 trySh("pnpm -w run format");
-if (passHealth()) fixed = fixed || changed();
+isHealthy = passHealth();
+if (isHealthy) {
+  fixed = changed();
+}
 
 // 2) Snapshot updates (only if tests fail with snapshots)
-if (!passHealth()) {
+if (!isHealthy) {
   trySh("pnpm -w exec vitest -u");
-  if (passHealth()) fixed = fixed || changed();
+  isHealthy = passHealth();
+  if (isHealthy) {
+    fixed = changed();
+  }
 }
 
 // 3) Type acquisition
-if (!passHealth()) {
+if (!isHealthy) {
   trySh("pnpm dlx typesync --save-dev");
   // In case typesync suggests @types/node et al.
   trySh("pnpm -w install");
-  if (passHealth()) fixed = fixed || changed();
+  isHealthy = passHealth();
+  if (isHealthy) {
+    fixed = changed();
+  }
 }
 
 // 4) Lockfile repair (only if integrity complaints)
-if (!passHealth()) {
+if (!isHealthy) {
   // Try a clean install + re-resolve
   trySh("pnpm install");
-  if (!passHealth()) {
+  isHealthy = passHealth();
+  if (!isHealthy) {
     // Last resort: refresh lockfile (scoped)
     trySh("pnpm -w up --latest --interactive=false");
+    isHealthy = passHealth();
   }
-  if (passHealth()) fixed = fixed || changed();
+  if (isHealthy) {
+    fixed = changed();
+  }
 }
 
 // 5) Known generators (icons/docs), if present
-if (!passHealth()) {
+if (!isHealthy) {
   if (existsSync("scripts/update-icon-docs.mjs")) {
     trySh("node scripts/update-icon-docs.mjs");
   }
   if (existsSync("scripts/verify-static.mjs")) {
     trySh("node scripts/verify-static.mjs");
   }
-  if (passHealth()) fixed = fixed || changed();
+  isHealthy = passHealth();
+  if (isHealthy) {
+    fixed = changed();
+  }
 }
 
 if (fixed) {
