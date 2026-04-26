@@ -58,7 +58,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.path.exists', return_value=True):
+                    with patch('os.path.exists', return_value=False), patch('os.makedirs'):
                         # We don't want to mock all of builtins.open, since argparse
                         # uses it when setting up translations for errors!
                         # We only mock opening the actual output file.
