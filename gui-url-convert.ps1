@@ -112,7 +112,7 @@ $xaml = @"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
-                ToolTipService.ShowOnDisabled="True"
+                ToolTip="Please enter at least one URL to enable conversion (Alt+C)"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
