@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Optional
 from urllib.parse import urlparse, unquote
 
 
@@ -15,7 +14,7 @@ def _load_dependencies():
         from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         return requests, md
     except ImportError as e:
-        print(f"Error: Missing dependency {e.name}. "
+        print(f"Error: Missing dependency {e.name}."
               "Please run: pip install requests markdownify", file=sys.stderr)
         return None, None
 
@@ -44,7 +43,7 @@ def _setup_session(requests_mod):
     })
     return session
 
-def _process_url(target_url: str, session, md_func, outdir: Optional[str], requests_mod) -> None:  # pylint: disable=too-many-locals
+def process_url(target_url: str, session, md_func, outdir: str | None, requests_mod) -> None:  # pylint: disable=too-many-locals
     """Process a single URL."""
     # Fix common URL typo: trailing slash before query parameters
     if '/?' in target_url:
@@ -127,7 +126,7 @@ def main(argv=None):
         session = _setup_session(requests_mod)
 
         if args.url:
-            _process_url(args.url, session, md_func, args.outdir, requests_mod)
+            process_url(args.url, session, md_func, args.outdir, requests_mod)
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -137,7 +136,7 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        _process_url(u, session, md_func, args.outdir, requests_mod)
+                        process_url(u, session, md_func, args.outdir, requests_mod)
 
         return 0
 
