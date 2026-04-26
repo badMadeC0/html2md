@@ -264,6 +264,7 @@ $validateInput = {
 
 $UrlBox.Add_TextChanged($validateInput)
 $OutBox.Add_TextChanged($validateInput)
+[System.Windows.Controls.ToolTipService]::SetShowOnDisabled($ConvertBtn, $true)
 
 # --- Convert button logic ---
 $ConvertBtn.Add_Click({
