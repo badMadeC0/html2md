@@ -14,7 +14,7 @@ def _load_dependencies():
         from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         return requests, md
     except ImportError as e:
-        print(f"Error: Missing dependency {e.name}."
+        print(f"Error: Missing dependency {e.name}. "
               "Please run: pip install requests markdownify", file=sys.stderr)
         return None, None
 
