@@ -256,7 +256,6 @@ $UrlBox.Add_TextChanged({
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
         $ClearBtn.IsEnabled = $false
         $ClearBtn.ToolTip = "URL list is already empty"
-        $LogBox.Text = "Ready. Conversion logs will appear here..."
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
