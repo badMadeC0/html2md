@@ -5,52 +5,26 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  issues: write
+  pull-requests: write
 
 jobs:
   request-review:
     runs-on: ubuntu-latest
     steps:
       - name: Request review from Jules bot
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_API_URL: ${{ github.api_url }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import sys
-          import urllib.error
-          import urllib.request
-
-          api_url = os.environ["GITHUB_API_URL"]
-          repo = os.environ["GITHUB_REPOSITORY"]
-          pr_number = os.environ["PR_NUMBER"]
-          token = os.environ["GITHUB_TOKEN"]
-
-          request = urllib.request.Request(
-              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
-              method="POST",
-          )
-
-          try:
-              with urllib.request.urlopen(request) as response:
-                  print(
-                      "Requested review from @google-labs-jules via comment on "
-                      f"PR #{pr_number} (status {response.status})"
-                  )
-          except urllib.error.HTTPError as error:
-              print(f"Could not request review: {error.read().decode('utf-8')}")
-              print("Ensure the workflow token has permission to comment.")
-              sys.exit(1)
-          PY
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            try {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                reviewers: ['google-labs-jules[bot]']
+              });
+              console.log(`Requested review from @google-labs-jules[bot] on PR #${pr.number}`);
+            } catch (error) {
+              console.log(`Could not request review: ${error.message}`);
+              console.log('Ensure @google-labs-jules[bot] has access to this repository.');
+            }
