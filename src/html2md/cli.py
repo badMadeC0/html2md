@@ -61,8 +61,8 @@ def main(argv=None):
                 target_url = target_url.replace('/?', '?')
 
             parsed = urlparse(target_url)
-            if not parsed.netloc:
-                print("Error: Invalid URL. Missing network location.", file=sys.stderr)
+            if not parsed.hostname:
+                print("Error: Invalid URL. Missing hostname.", file=sys.stderr)
                 return
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
