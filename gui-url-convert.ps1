@@ -101,9 +101,9 @@ $xaml = @"
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBox Name="OutBox" Grid.Column="0" FontSize="14" ToolTip="Directory where files will be saved"/>
-                <Button Name="BrowseBtn" Grid.Column="1" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
-                <Button Name="OpenFolderBtn" Grid.Column="2" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
+                <TextBox Name="OutBox" Grid.Column="0" FontSize="14" ToolTip="Directory where files will be saved" Margin="0,0,10,0"/>
+                <Button Name="BrowseBtn" Grid.Column="1" Width="90" Height="28" Margin="0,0,10,0" ToolTip="Select output folder">_Browse...</Button>
+                <Button Name="OpenFolderBtn" Grid.Column="2" Width="90" Height="28" ToolTip="Open output folder">_Open Folder</Button>
             </Grid>
         </StackPanel>
 
