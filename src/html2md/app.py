@@ -16,18 +16,11 @@ DEFAULT_PORT = 10000
 app = Flask(__name__) if Flask is not None else None
 
 
-def create_routes(application):
-    """Create routes for the application."""
-    if application is None:
-        return
-
-    @application.route('/health')
+if app:
+    @app.route('/health')
     def health():
         """Return health status of the application."""
         return jsonify({'status': 'ok', 'service': 'html2md', 'version': __version__})
-
-
-create_routes(app)
 
 
 def get_host_port():
