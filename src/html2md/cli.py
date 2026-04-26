@@ -80,7 +80,6 @@ def main(argv=None):
                     if chunk:
                         content_bytes.extend(chunk)
                         if len(content_bytes) > max_size:
-                            import sys
                             print("Error: Response too large (>10MB). Aborting to prevent memory exhaustion.", file=sys.stderr)
                             sys.exit(1)
 
