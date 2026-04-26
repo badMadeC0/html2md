@@ -59,11 +59,8 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-import builtins
-                        def my_open(*args, **kwargs):
-                            if len(args) > 0 and str(args[0]).endswith('.md'): return MagicMock()
-                            return builtins.open(*args, **kwargs)
-                        with patch('builtins.open', side_effect=my_open) as mock_open:
+                        import builtins
+                        real_open = builtins.open
                         def my_open(*args, **kwargs):
                             if len(args) > 0 and str(args[0]).endswith('.md'): return MagicMock()
                             return real_open(*args, **kwargs)
