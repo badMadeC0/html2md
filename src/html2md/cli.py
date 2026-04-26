@@ -43,7 +43,7 @@ def _setup_session(requests_mod):
     })
     return session
 
-def process_url(target_url: str, session, md_func, outdir: str | None, requests_mod) -> None:  # pylint: disable=too-many-locals
+def _process_url(target_url: str, session, md_func, outdir: str | None, requests_mod) -> None:  # pylint: disable=too-many-locals
     """Process a single URL."""
     # Fix common URL typo: trailing slash before query parameters
     if '/?' in target_url:
