@@ -286,9 +286,14 @@ $ConvertBtn.Add_Click({
         # AbsoluteUri is properly percent-encoded, preventing quote-based injection
         $url = $uriObj.AbsoluteUri
     } catch {
+$uri = $null
+    if (-not [System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uri) -or ($uri.Scheme -ne 'http' -and $uri.Scheme -ne 'https')) {
         $StatusText.Text = "Please enter a valid HTTP/HTTPS URL."
         $StatusText.Foreground = "Red"
         $ProgressBar.IsIndeterminate = $false
+        return
+    }
+    $url = $uri.AbsoluteUri
         return
     }
 
