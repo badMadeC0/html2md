@@ -252,14 +252,21 @@ $ClearBtn.Add_Click({
 
 # --- Dynamic Convert button state ---
 $UrlBox.Add_TextChanged({
-    if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
+    $currentText = $UrlBox.Text
+    if ([string]::IsNullOrWhiteSpace($currentText)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
-        $ClearBtn.IsEnabled = $false
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+    }
+
+    if ([string]::IsNullOrEmpty($currentText)) {
+        $ClearBtn.IsEnabled = $false
+        $ClearBtn.ToolTip = "The URL list is already empty"
+    } else {
         $ClearBtn.IsEnabled = $true
+        $ClearBtn.ToolTip = "Clear URL list"
     }
 })
 
