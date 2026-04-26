@@ -1,8 +1,7 @@
-import pytest
-from flask import Flask
-from html2md.app import app, health, get_host_port
 import os
 from unittest.mock import patch
+
+from html2md.app import DEFAULT_PORT, app, get_host_port
 
 
 def test_health():
