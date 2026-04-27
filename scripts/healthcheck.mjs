@@ -24,9 +24,9 @@ const tryRun = (name, cmd) => {
 
 try {
   // Root-level checks (best-effort if scripts exist)
-  tryRun("Typecheck", hasScript("typecheck") ? "pnpm -w run typecheck" : null);
-  tryRun("Lint", hasScript("lint") ? "pnpm -w run lint" : null);
-  tryRun("Unit tests", hasScript("test") ? "pnpm -w run test -- --run" : null);
+  tryRun("Typecheck", hasScript("typecheck") ? "pnpm run typecheck" : null);
+  tryRun("Lint", hasScript("lint") ? "pnpm run lint" : null);
+  tryRun("Unit tests", hasScript("test") ? "pnpm run test -- --run" : null);
 
   // Workspace smoke builds (apps/* and packages/* if build exists)
   const roots = ["apps", "packages"];
