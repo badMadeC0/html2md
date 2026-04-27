@@ -6,10 +6,10 @@ import os
 import sys
 import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+from urllib.parse import urljoin, urlparse, unquote
 
 
-def is_safe_url(url: str) -> bool:  # pylint: disable=too-many-boolean-expressions
+def is_safe_url(url: str) -> bool:
     """Check if the URL resolves to a safe, public IP address."""
     try:
         parsed = urlparse(url)
@@ -24,20 +24,45 @@ def is_safe_url(url: str) -> bool:  # pylint: disable=too-many-boolean-expressio
         for info in addr_info:
             ip_str = info[4][0]
             ip = ipaddress.ip_address(ip_str)
-            # Check if the IP is private, loopback, link-local, multicast, or reserved
-            if (  # pylint: disable=too-many-boolean-expressions
-                ip.is_loopback
-                or ip.is_private
-                or ip.is_link_local
-                or ip.is_multicast
-                or getattr(ip, "is_reserved", False)
-                or getattr(ip, "is_unspecified", False)
-            ):
+            # Require globally reachable IPs only.
+            if not ip.is_global:
                 return False
         return True
     except (socket.gaierror, ValueError):
         # If DNS resolution fails or IP parsing fails, consider it unsafe
         return False
+
+
+def fetch_with_safe_redirects(session, url: str, timeout: int, max_redirects: int = 10):
+    """Fetch URL while validating every redirect hop against SSRF rules."""
+    try:
+        import requests  # type: ignore  # pylint: disable=import-outside-toplevel
+    except ImportError:  # pragma: no cover
+        raise
+
+    current_url = url
+    for _ in range(max_redirects + 1):
+        if not is_safe_url(current_url):
+            raise requests.RequestException(
+                f"URL '{current_url}' resolves to a non-public IP address."
+            )
+
+        response = session.get(current_url, timeout=timeout, allow_redirects=False)
+
+        status_code = getattr(response, "status_code", 0)
+        if not isinstance(status_code, int):
+            status_code = 0
+        is_redirect = 300 <= status_code < 400
+        if not is_redirect:
+            return response
+
+        headers = getattr(response, "headers", {}) or {}
+        location = headers.get("Location") if hasattr(headers, "get") else None
+        if not isinstance(location, str) or not location:
+            return response
+        current_url = urljoin(current_url, location)
+
+    raise requests.TooManyRedirects(f"Exceeded {max_redirects} redirects for URL: {url}")
 
 
 def main(argv=None):  # pylint: disable=too-many-statements
@@ -111,16 +136,9 @@ def main(argv=None):  # pylint: disable=too-many-statements
 
             print(f"Processing URL: {target_url}")
 
-            if not is_safe_url(target_url):
-                print(
-                    f"Error: URL '{target_url}' resolves to a non-public IP address.",
-                    file=sys.stderr,
-                )
-                return
-
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = fetch_with_safe_redirects(session, target_url, timeout=30)
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
@@ -158,7 +176,11 @@ def main(argv=None):  # pylint: disable=too-many-statements
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                error_message = str(e)
+                if "resolves to a non-public IP address" in error_message:
+                    print(f"Error: {error_message}", file=sys.stderr)
+                else:
+                    print(f"Network error: {e}", file=sys.stderr)
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
