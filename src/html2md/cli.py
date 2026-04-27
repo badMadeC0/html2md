@@ -55,8 +55,13 @@ def main(argv=None):
         })
 
         # Bolt: Optimize by creating outdir once, outside the loop
-        if args.outdir and not os.path.exists(args.outdir):
-            os.makedirs(args.outdir)
+        if args.outdir:
+            try:
+                if not os.path.exists(args.outdir):
+                    os.makedirs(args.outdir)
+            except OSError as e:
+                print(f"File error: {e}", file=sys.stderr)
+                return 1
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""

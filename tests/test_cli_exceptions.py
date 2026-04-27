@@ -47,6 +47,19 @@ class TestCliExceptions(unittest.TestCase):
                              self.assertIn("File error", output)
                              self.assertIn("Permission denied", output)
 
+    def test_outdir_creation_error(self):
+        """Test that outdir creation errors are caught and surfaced."""
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            with patch('os.path.exists', return_value=False):
+                with patch('os.makedirs', side_effect=OSError("Permission denied")):
+                    exit_code = main(['--url', 'http://example.com', '--outdir', '/root/forbidden'])
+
+        output = captured_stderr.getvalue()
+        self.assertEqual(exit_code, 1)
+        self.assertIn("File error", output)
+        self.assertIn("Permission denied", output)
+
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
         captured_stderr = io.StringIO()
