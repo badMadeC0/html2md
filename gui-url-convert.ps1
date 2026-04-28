@@ -25,6 +25,9 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             $argsList = @("--url", "$url", "--outdir", "$outDir")
+            if ($BatchWholePage) {
+                $argsList += "--whole-page"
+            }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -371,11 +374,19 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'`""
+            $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
+            if ($WholePageChk.IsChecked) {
+                $singleArgs += "--whole-page"
+            }
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' $($singleArgs -join ' ')`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
+            $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
+            if ($WholePageChk.IsChecked) {
+                $singleArgs += "--whole-page"
+            }
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' $($singleArgs -join ' ')`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
