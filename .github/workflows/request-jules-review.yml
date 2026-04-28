@@ -22,7 +22,6 @@ jobs:
           python - <<'PY'
           import json
           import os
-          import sys
           import urllib.error
           import urllib.request
 
@@ -51,7 +50,17 @@ jobs:
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
-              print(f"Could not request review: {error.read().decode('utf-8')}")
+              error_body = error.read().decode("utf-8")
+              print(
+                  "Could not request review from @google-labs-jules; "
+                  "continuing without failing the workflow."
+              )
+              print(f"HTTP {error.code}: {error_body}")
               print("Ensure the workflow token has permission to comment.")
-              sys.exit(1)
+          except urllib.error.URLError as error:
+              print(
+                  "Could not request review from @google-labs-jules due to a "
+                  "network error; continuing without failing the workflow."
+              )
+              print(f"Error: {error}")
           PY
