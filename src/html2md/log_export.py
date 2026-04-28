@@ -1,4 +1,5 @@
 """Export html2md JSONL logs to CSV."""
+from __future__ import annotations
 
 import argparse
 import csv
@@ -13,7 +14,7 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    # O(1) character lookup is ~2x faster than startswith on a tuple
+    # Small fixed-size membership check over the 4 dangerous prefix characters.
     if value[0] in _DANGEROUS_CHARS:
         return f"'{value}"
     # Only lstrip if we know the first character is whitespace
