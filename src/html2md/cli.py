@@ -38,29 +38,26 @@ def main(argv=None):
             )
             return 1
 
-        session = requests.Session()
-        session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-                "Accept": (
-                    "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                    "image/avif,image/webp,image/apng,*/*;q=0.8"
-                ),
-                "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Referer": "https://www.google.com/",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "cross-site",
-                "Sec-Fetch-User": "?1",
-            }
-        )
+        session_headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8"
+            ),
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Referer": "https://www.google.com/",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-User": "?1",
+        }
 
         def fetch_url(target_url: str) -> dict:
             """Fetch a single URL and convert to markdown. Thread-safe."""
@@ -76,6 +73,8 @@ def main(argv=None):
                 }
 
             try:
+                session = requests.Session()
+                session.headers.update(session_headers)
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
                 md_content = md(response.text, heading_style="ATX")
@@ -92,6 +91,8 @@ def main(argv=None):
                     "error": f"Conversion failed: {e}",
                     "type": "conversion",
                 }
+            finally:
+                session.close()
 
         def output_result(result: dict) -> None:
             """Output the result of a single URL sequentially. Not thread-safe."""
