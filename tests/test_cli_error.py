@@ -28,7 +28,7 @@ class TestCliError(unittest.TestCase):
         # Capture stderr
         captured_stderr = io.StringIO()
 
-        with patch('requests.sessions.Session.get', mock_session.get), patch('markdownify.markdownify', mock_markdownify.markdownify):
+        with patch('requests.Session', return_value=mock_session), patch('markdownify.markdownify', mock_markdownify.markdownify):
             with patch('sys.stderr', captured_stderr):
                 try:
                     html2md.cli.main(['--url', 'http://example.com'])
@@ -57,7 +57,7 @@ class TestCliError(unittest.TestCase):
 
         captured_stderr = io.StringIO()
 
-        with patch('requests.sessions.Session.get', mock_session.get), patch('markdownify.markdownify', mock_markdownify.markdownify):
+        with patch('requests.Session', return_value=mock_session), patch('markdownify.markdownify', mock_markdownify.markdownify):
             with patch('sys.stderr', captured_stderr):
                 try:
                     html2md.cli.main(['--url', 'http://example.com'])

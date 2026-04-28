@@ -14,16 +14,16 @@ from html2md import cli
         ("example.com/data.txt", ""),
     ],
 )
-@patch("requests.sessions.Session.get")
+@patch("requests.Session")
 def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme):
     """Unsupported schemes are rejected before any network call."""
     cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
     assert f"Error: Unsupported URL scheme '{scheme}'." in outerr.err
-    mock_get.assert_not_called()
+    mock_get.return_value.get.assert_not_called()
 
 
-@patch("requests.sessions.Session.get")
+@patch("requests.Session")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
@@ -35,7 +35,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
     response.raise_for_status.return_value = None
-    mock_get.return_value = response
+    mock_get.return_value.get.return_value = response
 
     urls = [
         "http://example.com/foo/../..%2Fsecret.txt",

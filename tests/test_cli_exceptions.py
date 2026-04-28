@@ -12,8 +12,8 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
             # Patch requests.Session.get directly
-            with patch("requests.sessions.Session.get") as mock_get:
-                mock_get.side_effect = requests.RequestException("Network unreachable")
+            with patch("requests.Session") as mock_get:
+                mock_get.return_value.get.side_effect = requests.RequestException("Network unreachable")
 
                 try:
                     main(["--url", "http://example.com"])
@@ -29,11 +29,11 @@ class TestCliExceptions(unittest.TestCase):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
-            with patch("requests.sessions.Session.get") as mock_get:
+            with patch("requests.Session") as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+                mock_get.return_value.get.return_value = mock_resp
 
                 with patch("markdownify.markdownify", return_value="# Hello"):
                     with patch("os.makedirs"), patch(
@@ -58,11 +58,11 @@ class TestCliExceptions(unittest.TestCase):
         """Test that output containment check rejects prefix-matching escapes."""
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
-            with patch("requests.sessions.Session.get") as mock_get:
+            with patch("requests.Session") as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+                mock_get.return_value.get.return_value = mock_resp
 
                 with patch("markdownify.markdownify", return_value="# Hello"):
                     with patch("os.path.exists", return_value=True):
