@@ -3,20 +3,31 @@ name: Self-heal (auto-fix & PR)
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["build-and-test"]
+    workflows: ["ci"]
     types:
       - completed
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
 
 jobs:
   self-heal:
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'failure')
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'failure' &&
+        github.event.workflow_run.head_repository.fork == false &&
+        (
+          github.event.workflow_run.event == 'push' ||
+          github.event.workflow_run.event == 'workflow_dispatch'
+        )
+      )
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -24,29 +35,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          version: 9
+          python-version: '3.11'
 
-      - name: Install deps (best-effort frozen)
-        id: install_try_frozen
+      - name: Install Python deps
         run: |
           set -euxo pipefail
-          pnpm install --frozen-lockfile || echo "FROZEN_FAILED=1" >> $GITHUB_OUTPUT
-
-      - name: Install deps (fallback non-frozen)
-        if: steps.install_try_frozen.outputs.FROZEN_FAILED == '1'
-        run: |
-          set -euxo pipefail
-          pnpm install
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest black
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true

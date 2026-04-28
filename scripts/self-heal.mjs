@@ -3,7 +3,6 @@
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
@@ -16,69 +15,19 @@ const changed = () => {
   const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
   return (out.stdout || "").trim().length > 0;
 };
+let lastHealth = null;
 const passHealth = () => {
-  try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
+  if (lastHealth !== null) return lastHealth;
+  try { sh("node scripts/healthcheck.mjs"); lastHealth = true; return true; } catch { lastHealth = false; return false; }
 };
+const clearHealthCache = () => { lastHealth = null; };
 
 let fixed = false;
-let isHealthy = false;
 
-// 1) Lint/format
-trySh("pnpm -w run lint --fix");
-trySh("pnpm -w run format");
-isHealthy = passHealth();
-if (isHealthy) {
-  fixed = changed();
-}
-
-// 2) Snapshot updates (only if tests fail with snapshots)
-if (!isHealthy) {
-  trySh("pnpm -w exec vitest -u");
-  isHealthy = passHealth();
-  if (isHealthy) {
-    fixed = changed();
-  }
-}
-
-// 3) Type acquisition
-if (!isHealthy) {
-  trySh("pnpm dlx typesync --save-dev");
-  // In case typesync suggests @types/node et al.
-  trySh("pnpm -w install");
-  isHealthy = passHealth();
-  if (isHealthy) {
-    fixed = changed();
-  }
-}
-
-// 4) Lockfile repair (only if integrity complaints)
-if (!isHealthy) {
-  // Try a clean install + re-resolve
-  trySh("pnpm install");
-  isHealthy = passHealth();
-  if (!isHealthy) {
-    // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
-    isHealthy = passHealth();
-  }
-  if (isHealthy) {
-    fixed = changed();
-  }
-}
-
-// 5) Known generators (icons/docs), if present
-if (!isHealthy) {
-  if (existsSync("scripts/update-icon-docs.mjs")) {
-    trySh("node scripts/update-icon-docs.mjs");
-  }
-  if (existsSync("scripts/verify-static.mjs")) {
-    trySh("node scripts/verify-static.mjs");
-  }
-  isHealthy = passHealth();
-  if (isHealthy) {
-    fixed = changed();
-  }
-}
+// 1) Lint/format using black
+trySh("python -m black src tests");
+clearHealthCache();
+if (passHealth()) fixed = fixed || changed();
 
 if (fixed) {
   process.exit(0);
