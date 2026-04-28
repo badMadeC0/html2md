@@ -6,14 +6,12 @@ flask = pytest.importorskip("flask")
 from html2md import __version__
 from html2md.app import app
 
-
 @pytest.fixture
 def client():
     """A test client for the app."""
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
-
 
 def test_health(client):
     """Test the /health endpoint."""
