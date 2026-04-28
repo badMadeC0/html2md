@@ -10,6 +10,9 @@ jobs:
       contents: read
     env:
       COPILOT_USE_SESSIONS: "false"
+      COPILOT_AGENT_DISABLED: "true"
+      COPILOT_DISABLED: "true"
+
       COPILOT_MEMORY_ENABLED: "false"
       DISABLE_MEMORY: "true"
       SKIP_MEMORY_FETCH: "true"
