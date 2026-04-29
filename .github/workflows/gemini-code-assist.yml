@@ -27,5 +27,4 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Gemini Code Assist
-        uses: google-gemini/code-assist-action@v1
+      - run: echo "Gemini code assist action removed temporarily due to missing repo"
