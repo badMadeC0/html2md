@@ -28,4 +28,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-gemini/code-assist-action@v1
+        uses: actions/checkout@v4
