@@ -23,17 +23,26 @@ if ($BatchFile) {
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
-            Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
+            try {
+                $uriObj = [System.Uri]$url
+                if ($uriObj.Scheme -notmatch '^https?$') {
+                    throw "Invalid scheme"
+                }
+                $safeUrl = $uriObj.AbsoluteUri
+                Write-Host "Processing: $safeUrl"
+                $argsList = @("--url", "$safeUrl", "--outdir", "$outDir")
 
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
-            } elseif (Test-Path -LiteralPath $pyScript) {
-                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                $argsList = @("$pyScript") + $argsList
-                & $pyCmd $argsList
-            } else {
-                Write-Error "Could not find html2md executable or script."
+                if (Test-Path -LiteralPath $venvExe) {
+                    & $venvExe $argsList
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    $argsList = @("$pyScript") + $argsList
+                    & $pyCmd $argsList
+                } else {
+                    Write-Error "Could not find html2md executable or script."
+                }
+            } catch {
+                Write-Error "Skipping invalid URL: $url"
             }
         }
     }
