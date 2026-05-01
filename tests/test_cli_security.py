@@ -67,16 +67,16 @@ def test_is_safe_path_security(mock_normcase, mock_realpath):
     mock_normcase.side_effect = lambda x: x
 
     # Prefix collision attack
-    assert not is_safe_path("/tmp/foo", "/tmp/foobar/file.md")
+    assert not is_safe_path("/tmp/foo", f"/tmp/foobar{os.sep}file.md")
     # Exact match
     assert is_safe_path("/tmp/foo", "/tmp/foo")
     # Subdirectory match
-    assert is_safe_path("/tmp/foo", "/tmp/foo/file.md")
+    assert is_safe_path("/tmp/foo", f"/tmp/foo{os.sep}file.md")
 
     # Simulating os.path.realpath behavior for path traversal
     # Traversal should resolve to outside the directory
     mock_realpath.side_effect = lambda x: "/tmp/bar/file.md" if ".." in x else x
-    assert not is_safe_path("/tmp/foo", "/tmp/foo/../../bar/file.md")
+    assert not is_safe_path("/tmp/foo", f"/tmp/foo/../../bar{os.sep}file.md")
 
     # Windows different drives
     def mock_realpath_win(x):
