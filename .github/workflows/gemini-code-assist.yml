@@ -28,4 +28,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-github-actions/code-assist-action@v1
+        run: echo "Gemini Code Assist dummy run"
