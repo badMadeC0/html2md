@@ -48,6 +48,57 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
         assert "Success!" in outerr.out
 
     # Ensure any output files are contained under --outdir.
-    assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
+    assert list(
+        outdir.rglob("*.md")
+    ), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("os.path.realpath")
+@patch("html2md.cli.os.path.normcase")
+def test_is_safe_path_security(mock_normcase, mock_realpath):
+    """Test is_safe_path comprehensively for traversal and prefix-collision."""
+    from html2md.cli import is_safe_path
+    import os
+
+    # Mock behavior for basic Unix paths
+    mock_realpath.side_effect = lambda x: x
+    mock_normcase.side_effect = lambda x: x
+
+    # Prefix collision attack
+    assert not is_safe_path("/tmp/foo", "/tmp/foobar/file.md")
+    # Exact match
+    assert is_safe_path("/tmp/foo", "/tmp/foo")
+    # Subdirectory match
+    assert is_safe_path("/tmp/foo", "/tmp/foo/file.md")
+
+    # Simulating os.path.realpath behavior for path traversal
+    # Traversal should resolve to outside the directory
+    mock_realpath.side_effect = lambda x: "/tmp/bar/file.md" if ".." in x else x
+    assert not is_safe_path("/tmp/foo", "/tmp/foo/../../bar/file.md")
+
+    # Windows different drives
+    def mock_realpath_win(x):
+        return x
+
+    mock_realpath.side_effect = mock_realpath_win
+
+    def mock_normcase_win(x):
+        return x.lower().replace("/", "\\")
+
+    mock_normcase.side_effect = mock_normcase_win
+
+    # Test Windows drive mismatch using ValueError to simulate os.path.realpath/commonpath if we were using it,
+    # but since is_safe_path uses normcase + startswith, diff drives naturally fail startswith!
+    # Let's ensure C:\foo and D:\foo\file.md fails
+    # Windows path separator logic: os.sep is '/' on linux, so we need to patch os.sep for the test to truly simulate Windows,
+    # or just test the logic directly. The logic in is_safe_path relies on os.sep.
+
+    with patch("html2md.cli.os.sep", "\\\\"):
+        assert not is_safe_path("C:\\\\foo", "D:\\\\foo\\\\file.md")
+        assert is_safe_path("C:\\\\foo", "C:\\\\foo\\\\file.md")
+        assert is_safe_path(
+            "C:\\\\foo", "c:\\\\foo\\\\file.md"
+        )  # normcase makes it match
+        assert not is_safe_path("C:\\\\foo", "C:\\\\foobar\\\\file.md")
