@@ -14,8 +14,13 @@ from html2md import cli
         ("example.com/data.txt", ""),
     ],
 )
-@patch("requests.Session.get")
-def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme):
+@patch("html2md.cli._load_dependencies")
+def test_process_url_unsupported_scheme(mock_load, capsys, tmp_path, url, scheme):
+    mock_requests = MagicMock()
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_get = mock_session.get
+    mock_load.return_value = (mock_requests, MagicMock())
     """Unsupported schemes are rejected before any network call."""
     cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
@@ -23,8 +28,13 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
-@patch("requests.Session.get")
-def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
+@patch("html2md.cli._load_dependencies")
+def test_traversal_like_paths_stay_within_outdir(mock_load, capsys, tmp_path):
+    mock_requests = MagicMock()
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_get = mock_session.get
+    mock_load.return_value = (mock_requests, MagicMock(return_value="# dummy"))
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
     outdir.mkdir()
@@ -48,6 +58,8 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
         assert "Success!" in outerr.out
 
     # Ensure any output files are contained under --outdir.
-    assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
+    assert list(
+        outdir.rglob("*.md")
+    ), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
