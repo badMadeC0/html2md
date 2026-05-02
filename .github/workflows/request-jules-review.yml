@@ -27,4 +27,6 @@ jobs:
             } catch (error) {
               console.log(`Could not request review: ${error.message}`);
               console.log('Ensure @google-labs-jules[bot] has access to this repository.');
+              // We do not fail the step if requesting review fails because of permissions
+              // so we don't block the PR.
             }
