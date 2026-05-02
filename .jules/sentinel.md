@@ -1,0 +1,4 @@
+## 2025-05-02 - Limit response size for downloaded URLs
+**Vulnerability:** Denial of Service (DoS) risk via memory exhaustion. The application downloaded arbitrary URLs entirely into memory without a size limit.
+**Learning:** Calling `response.text` or `response.content` on unverified external URLs can crash the application if an attacker provides a URL returning massive payloads (e.g. "zip bombs" or infinite streams). The default `requests` behavior loads the full content into RAM.
+**Prevention:** Use `stream=True` on `requests.get()`, enforce a strict `Content-Length` maximum if present, and read data using `iter_content()` with an explicit length check inside the loop to catch massive responses missing the `Content-Length` header. Also, implement separate connection and read timeouts using a tuple `(connect_timeout, read_timeout)` to mitigate Slowloris attacks.
