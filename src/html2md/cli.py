@@ -93,9 +93,15 @@ def main(argv=None):
 
                     out_path = os.path.join(args.outdir, filename)
                     # Final safety check: ensure output stays within outdir
-                    real_outdir = os.path.realpath(args.outdir)
-                    real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                    try:
+                        real_outdir = os.path.abspath(os.path.realpath(args.outdir))
+                        real_out_path = os.path.abspath(os.path.realpath(out_path))
+                        common = os.path.commonpath([real_outdir, real_out_path])
+                        if os.path.normcase(common) != os.path.normcase(real_outdir):
+                            print("Error: Output path escapes output directory.",
+                                  file=sys.stderr)
+                            return
+                    except ValueError:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
