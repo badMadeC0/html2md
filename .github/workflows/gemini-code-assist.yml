@@ -1,0 +1,31 @@
+name: Gemini Code Assist
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  gemini-code-assist:
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(github.event.comment.body, '@gemini-code-assist')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@gemini-code-assist'))
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gemini Code Assist
+        uses: google-github-actions/gemini-code-review-action@v1
