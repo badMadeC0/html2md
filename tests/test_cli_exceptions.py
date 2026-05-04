@@ -59,7 +59,19 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        # Use a side_effect to return mock for .md files, but use real open for gettext (.mo files)
+                        import builtins
+                        original_open = builtins.open
+
+                        mock_file = MagicMock()
+                        mock_file.__enter__.return_value = mock_file
+
+                        def side_effect(path, *args, **kwargs):
+                            if str(path).endswith('.md'):
+                                return mock_file
+                            return original_open(path, *args, **kwargs)
+
+                        with patch('builtins.open', side_effect=side_effect) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +82,7 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                            # Ensure that we didn't open any .md files
+                            for call in mock_open.mock_calls:
+                                if len(call.args) > 0 and str(call.args[0]).endswith('.md'):
+                                    self.fail(f"Mock open was called with {call.args}")
