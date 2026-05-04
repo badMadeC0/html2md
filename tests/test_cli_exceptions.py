@@ -37,7 +37,12 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                        from builtins import open as real_open
+                        def custom_open(file, *args, **kwargs):
+                            if isinstance(file, str) and (file.endswith('.mo') or 'locale' in file):
+                                return real_open(file, *args, **kwargs)
+                            raise OSError("Permission denied")
+                        with patch('builtins.open', side_effect=custom_open):
                             try:
                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
                             except (SystemExit, RuntimeError, ValueError) as e:
@@ -59,7 +64,12 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        from builtins import open as real_open
+                        def custom_open(file, *args, **kwargs):
+                            if isinstance(file, str) and (file.endswith('.mo') or 'locale' in file):
+                                return real_open(file, *args, **kwargs)
+                            return MagicMock()
+                        with patch('builtins.open', side_effect=custom_open) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +80,5 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                            for call in mock_open.call_args_list:
+                                self.assertTrue(isinstance(call[0][0], str) and (call[0][0].endswith('.mo') or 'locale' in call[0][0]))
