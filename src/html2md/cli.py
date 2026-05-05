@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -65,6 +67,19 @@ def main(argv=None):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
                 return
+
+            hostname = parsed.hostname
+            if hostname:
+                try:
+                    ip = socket.gethostbyname(hostname)
+                    ip_obj = ipaddress.ip_address(ip)
+                    if (ip_obj.is_private or ip_obj.is_loopback or
+                        ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved):
+                        print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
+                        return
+                except (socket.gaierror, ValueError):
+                    print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
+                    return
 
             print(f"Processing URL: {target_url}")
 

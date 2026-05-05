@@ -23,6 +23,24 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1:8080/admin",
+        "http://localhost/secret",
+        "http://192.168.1.1/config",
+        "http://10.0.0.5/",
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
+    """Ensure that local, private, and loopback IPs are blocked to prevent SSRF."""
+    cli.main(["--url", url, "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert "Error: URL resolves to a restricted/private network address." in outerr.err
+    mock_get.assert_not_called()
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
