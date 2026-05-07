@@ -6,10 +6,13 @@ on:
 
 permissions:
   issues: write
+  pull-requests: write
 
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         env:
@@ -50,14 +53,12 @@ jobs:
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
-              print(f"Could not request review: {error.read().decode('utf-8')}")
+              body = error.read().decode("utf-8")
+              print(f"Could not request review: {body}")
+              # Don't fail the entire workflow if GitHub forbids commenting
               if error.code == 403:
-                  # Fork PRs and some restricted token contexts cannot create
-                  # issue comments with GITHUB_TOKEN. Treat this automation as
-                  # best-effort so review checks do not fail in those contexts.
-                  print("Notice: skipping failure because this context cannot post PR comments.")
+                  print("Skipping: token cannot comment in this PR context.")
                   sys.exit(0)
-              else:
-                  print("Ensure the workflow token has permission to comment.")
-                  sys.exit(1)
+              print("Ensure the workflow token has permission to comment.")
+              sys.exit(1)
           PY
