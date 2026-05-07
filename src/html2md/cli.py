@@ -72,6 +72,7 @@ def main(argv=None):
                     "type": "scheme",
                 }
 
+            session = None
             try:
                 session = requests.Session()
                 session.headers.update(session_headers)
@@ -92,7 +93,8 @@ def main(argv=None):
                     "type": "conversion",
                 }
             finally:
-                session.close()
+                if session is not None:
+                    session.close()
 
         def output_result(result: dict) -> None:
             """Output the result of a single URL sequentially. Not thread-safe."""

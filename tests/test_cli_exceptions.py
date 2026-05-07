@@ -25,6 +25,20 @@ class TestCliExceptions(unittest.TestCase):
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
+    def test_session_creation_error_is_reported(self):
+        """Test that session creation errors do not mask the original failure."""
+        captured_stderr = io.StringIO()
+        with patch("sys.stderr", captured_stderr):
+            with patch("requests.Session", side_effect=RuntimeError("Session failed")):
+                try:
+                    main(["--url", "http://example.com"])
+                except Exception as e:
+                    self.fail(f"main raised exception {e}")
+
+                output = captured_stderr.getvalue()
+                self.assertIn("Conversion failed", output)
+                self.assertIn("Session failed", output)
+
     def test_file_error(self):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
