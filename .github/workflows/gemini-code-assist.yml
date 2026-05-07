@@ -24,10 +24,12 @@ jobs:
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@gemini-cli'))
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
         uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: true
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
