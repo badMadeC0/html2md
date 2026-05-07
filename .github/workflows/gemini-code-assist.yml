@@ -13,6 +13,10 @@ permissions:
   pull-requests: write
   issues: write
 
+concurrency:
+  group: gemini-code-assist-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   preflight:
     runs-on: ubuntu-latest
@@ -48,6 +52,7 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Don't fail the workflow if Gemini's CLI/API is flaky;
     # surface the failure on the job itself instead.
     continue-on-error: true
@@ -55,8 +60,60 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare prompt context
+        env:
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          mkdir -p .gemini
+          jq -n \
+            --arg repo "$REPOSITORY" \
+            --arg pr "$PULL_REQUEST_NUMBER" \
+            '{repository: $repo, pull_request_number: $pr}' > .gemini/context.json
       - name: Gemini Code Assist
         uses: google-github-actions/run-gemini-cli@v0.1.22
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          prompt: "Review this pull request. Focus on code quality, potential bugs, and suggestions for improvement."
+          gemini_cli_version: "0.41.2"
+          # Resolve PR number for both pull_request and issue_comment events.
+          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          settings: |-
+            {
+              "model": {
+                "maxSessionTurns": 25
+              },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              "tools": {
+                "core": []
+              }
+            }
+          extensions: |
+            [
+              "https://github.com/gemini-cli-extensions/code-review"
+            ]
+          prompt: "/pr-code-review"
