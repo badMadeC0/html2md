@@ -31,15 +31,15 @@ def test_traversal_like_paths_stay_within_outdir(
     mock_get, mock_getaddrinfo, capsys, tmp_path
 ):
     """Traversal-like URL paths must never write outside of --outdir."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+    ]
+
     outdir = tmp_path / "output"
     outdir.mkdir()
 
     secret_file = tmp_path / "secret.txt"
     secret_file.write_text("secret content", encoding="utf-8")
-
-    mock_getaddrinfo.return_value = [
-        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
-    ]
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
@@ -74,6 +74,8 @@ def test_traversal_like_paths_stay_within_outdir(
         "http://192.168.1.1/",
         "http://172.16.0.1/",
         "http://0.0.0.0/",
+        "http://100.64.0.1/",
+        "http://198.18.0.1/",
         "http://[::1]/",
     ],
 )

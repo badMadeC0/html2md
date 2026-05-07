@@ -1,5 +1,6 @@
 """Tests for html2md CLI exception-handling paths."""
 
+import socket
 import unittest
 from unittest.mock import patch, MagicMock
 import io
@@ -10,8 +11,12 @@ from html2md.cli import main
 class TestCliExceptions(unittest.TestCase):
     """Unit tests for CLI network, file, and path-containment error handling."""
 
-    def test_network_error(self):
+    @patch("html2md.cli.socket.getaddrinfo")
+    def test_network_error(self, mock_getaddrinfo):
         """Test that network errors are caught and printed."""
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+        ]
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
             with patch("requests.Session.get") as mock_get:
@@ -26,8 +31,12 @@ class TestCliExceptions(unittest.TestCase):
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
-    def test_file_error(self):
+    @patch("html2md.cli.socket.getaddrinfo")
+    def test_file_error(self, mock_getaddrinfo):
         """Test that file I/O errors are caught and printed."""
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+        ]
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
             with patch("requests.Session.get") as mock_get:
