@@ -61,22 +61,16 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Prepare prompt context
-        env:
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-        run: |
-          mkdir -p .gemini
-          jq -n \
-            --arg repo "$REPOSITORY" \
-            --arg pr "$PULL_REQUEST_NUMBER" \
-            '{repository: $repo, pull_request_number: $pr}' > .gemini/context.json
       - name: Gemini Code Assist
         uses: google-github-actions/run-gemini-cli@v0.1.22
         env:
           GEMINI_CLI_TRUST_WORKSPACE: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Consumed by the code-review extension's /pr-code-review prompt
+          # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
