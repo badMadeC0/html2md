@@ -43,7 +43,7 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if isinstance(value, str):
+    if type(value) is str:
         return _sanitize_formula(value)
     return value
 
@@ -84,7 +84,7 @@ def main(argv=None):
                 continue
 
             # Strict/fast dict check
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
             writerow([
