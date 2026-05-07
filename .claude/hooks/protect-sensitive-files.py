@@ -6,9 +6,9 @@ diagnostic on stderr when the targeted path matches a sensitive pattern.
 Stdlib only.
 
 Sensitive patterns (matched against the file's basename and against the
-full path):
-    .env*  (covers .env, .env.local, .envrc, .envrc.local, ...),
-    *.pem, *.key, *.crt, credentials.json, id_rsa*
+full path) — covers the named patterns in pr-rules/common.md §3 plus
+common secret-naming conventions (`secrets.*`, `*.secret(s).*`,
+`*api[-_]token*`, `*-credentials.*`).
 """
 from __future__ import annotations
 
@@ -18,12 +18,31 @@ import sys
 
 
 SENSITIVE_BASENAME_PATTERNS = (
+    # Documented in pr-rules/common.md §3.
     ".env*",
     "*.pem",
     "*.key",
     "*.crt",
     "credentials.json",
     "id_rsa*",
+    # "any file matching a sensible secret naming convention" (per
+    # pr-rules/common.md §3). Conservative set — additions welcome via
+    # PR + edge-case ledger entry, but err on the side of false-positive
+    # block for unfamiliar names rather than false-negative leak.
+    "secrets.json",
+    "secret.json",
+    "secrets.yaml",
+    "secrets.yml",
+    "secret.yaml",
+    "secret.yml",
+    "*.secret",
+    "*.secret.*",
+    "*.secrets",
+    "*.secrets.*",
+    "*api-token*",
+    "*api_token*",
+    "*-credentials.*",
+    "*_credentials.*",
 )
 PATH_KEYS = {"file_path", "path", "notebook_path"}
 

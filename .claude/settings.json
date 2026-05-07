@@ -2,10 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(git rev-parse:*)",
+      "Bash(git diff --stat:*)",
+      "Bash(git diff --name-only:*)",
+      "Bash(git diff --name-status:*)",
+      "Bash(git log --oneline:*)",
+      "Bash(git log -1)",
+      "Bash(git log --pretty=format:*)",
       "Bash(pytest:*)",
       "Bash(python -m pytest:*)",
       "Bash(./scripts/check_agents_consistency.sh)",

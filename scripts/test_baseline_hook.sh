@@ -59,7 +59,12 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
             ".envrc" ".envrc.local" "config/.envrc" \
             "secrets.pem" "server.key" "credentials.json" \
             "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
-            "src/keys/id_rsa"; do
+            "src/keys/id_rsa" \
+            "secrets.json" "secret.json" "secrets.yaml" "secret.yml" \
+            "config/secrets.json" \
+            "prod.secret.yaml" "app.secrets.yml" \
+            "api-token.txt" "my_api_token.json" \
+            "team-credentials.toml" "service_credentials.txt"; do
   if run_hook "Write" "$path" >/dev/null 2>&1; then
     fail "hook should BLOCK Write to '$path' but allowed it"
   fi

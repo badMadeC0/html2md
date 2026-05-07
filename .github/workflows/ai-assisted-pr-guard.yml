@@ -31,10 +31,16 @@ jobs:
           # literal placeholder <CLAUDE_CHAT_URL> for drafts (warn only).
           body="${PR_BODY:-}"
 
-          # Anchor each accepted host with a host boundary so that a body
-          # containing "https://claude.ai.evil.example/..." does NOT pass.
-          # The chatgpt.com/codex form must keep its path segment.
-          if printf '%s' "$body" | grep -Eqi 'https?://(claude\.ai(/|:|\?|$)|cursor\.com(/|:|\?|$)|chatgpt\.com/codex(/|\?|$)|jules\.google\.com(/|:|\?|$))'; then
+          # Require a real chat/share path after each accepted host:
+          #   claude.ai/<path>, cursor.com/<path>, chatgpt.com/codex/<path>,
+          #   jules.google.com/<path>.
+          # This rejects:
+          #   - bare hosts like https://claude.ai or https://claude.ai?x=1
+          #     (which are not transcript links)
+          #   - lookalikes like https://claude.ai.evil.example/foo
+          # The trailing class `[^/[:space:]]` requires at least one non-slash,
+          # non-whitespace character of path so an empty `/` doesn't pass.
+          if printf '%s' "$body" | grep -Eqi 'https?://(claude\.ai|cursor\.com|chatgpt\.com/codex|jules\.google\.com)/[^/[:space:]]'; then
             echo "OK: PR body contains an agent chat URL."
             exit 0
           fi
