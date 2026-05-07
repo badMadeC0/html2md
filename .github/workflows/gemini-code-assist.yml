@@ -19,13 +19,15 @@ jobs:
     if: >
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
-       contains(github.event.comment.body, '@gemini-code-assist')) ||
+       contains(github.event.comment.body, '@gemini-cli')) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
-       contains(github.event.comment.body, '@gemini-code-assist'))
+       contains(github.event.comment.body, '@gemini-cli'))
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-gemini/code-assist-action@v1
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
