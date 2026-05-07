@@ -35,6 +35,11 @@ run_hook() {
 EOF
 }
 
+run_hook_payload() {
+  local payload="$1"
+  printf "%s\n" "$payload" | python3 "$HOOK"
+}
+
 # --- BLOCK cases (expect non-zero exit) ---
 for path in ".env" ".env.local" ".env.production" "config/.env" \
             "secrets.pem" "server.key" "credentials.json" \
@@ -49,6 +54,16 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
   fi
   pass "blocked Edit to '$path'"
 done
+
+if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"MultiEdit","tool_input":{"edits":[{"path":"src\\keys\\id_rsa"}]}}' >/dev/null 2>&1; then
+  fail "hook should BLOCK MultiEdit nested path 'src\\\\keys\\\\id_rsa' but allowed it"
+fi
+pass "blocked MultiEdit nested path 'src\\\\keys\\\\id_rsa'"
+
+if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"NotebookEdit","tool_input":{"edits":[{"notebook_path":"config/.env"}]}}' >/dev/null 2>&1; then
+  fail "hook should BLOCK NotebookEdit nested notebook_path 'config/.env' but allowed it"
+fi
+pass "blocked NotebookEdit nested notebook_path 'config/.env'"
 
 # --- ALLOW cases (expect zero exit) ---
 for path in "src/html2md/cli.py" "README.md" "tests/test_cli_smoke.py" \

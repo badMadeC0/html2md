@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import fnmatch
 import json
-import os
 import sys
 
 
@@ -33,20 +32,30 @@ SENSITIVE_BASENAME_PATTERNS = (
 def is_sensitive(path: str) -> bool:
     if not path:
         return False
-    normalized_path = path.lower()
-    normalized_base = os.path.basename(path).lower()
+    normalized_path = path.replace("\\", "/").lower()
+    normalized_base = normalized_path.rsplit("/", 1)[-1]
     for pat in SENSITIVE_BASENAME_PATTERNS:
         normalized_pat = pat.lower()
         if fnmatch.fnmatchcase(normalized_base, normalized_pat):
             return True
-    normalized_path = os.path.realpath(path)
-    base = os.path.basename(normalized_path).lower()
-    for pat in SENSITIVE_BASENAME_PATTERNS:
-        # Use case-insensitive matching and realpath to prevent bypasses
-        if fnmatch.fnmatch(base, pat):
+        if fnmatch.fnmatchcase(normalized_path, normalized_pat):
+            return True
+        if fnmatch.fnmatchcase(normalized_path, "*/" + normalized_pat):
             return True
     return False
-    return False
+
+
+def _collect_candidate_paths(value) -> list:
+    candidates = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in {"file_path", "path", "notebook_path"} and isinstance(item, str) and item:
+                candidates.append(item)
+            candidates.extend(_collect_candidate_paths(item))
+    elif isinstance(value, list):
+        for item in value:
+            candidates.extend(_collect_candidate_paths(item))
+    return candidates
 
 
 def main(argv=None) -> int:
@@ -72,20 +81,7 @@ def main(argv=None) -> int:
         return 0  # not our concern
 
     tool_input = payload.get("tool_input") or {}
-    candidates = []
-    tool_input = payload.get("tool_input") or {}
-    candidates = []
-    for key in ("file_path", "path", "notebook_path"):
-        val = tool_input.get(key)
-        if isinstance(val, str) and val:
-            candidates.append(val)
-
-    # Handle MultiEdit which provides a list of edits
-    for edit in tool_input.get("edits", []):
-        if isinstance(edit, dict):
-            p = edit.get("file_path")
-            if isinstance(p, str) and p:
-                candidates.append(p)
+    candidates = _collect_candidate_paths(tool_input)
 
     for path in candidates:
         if is_sensitive(path):
