@@ -17,19 +17,21 @@ jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
     if: >
-      secrets.GEMINI_API_KEY != '' &&
-      ((github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request') ||
        ((github.event_name == 'pull_request_review_comment' ||
          (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
         contains(github.event.comment.body, '@gemini-code-assist') &&
         (github.event.comment.author_association == 'MEMBER' ||
          github.event.comment.author_association == 'OWNER' ||
-         github.event.comment.author_association == 'COLLABORATOR')))
+         github.event.comment.author_association == 'COLLABORATOR'))
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
+        if: env.GEMINI_API_KEY != ''
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_api_key: ${{ env.GEMINI_API_KEY }}
