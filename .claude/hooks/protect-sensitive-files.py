@@ -6,8 +6,8 @@ on stderr when an Edit/Write-style tool targets a sensitive path. The hook is
 stdlib-only so it can run in minimal environments.
 
 Sensitive patterns are matched against both the basename and normalized path:
-    .env, .env.<anything>, *.pem, *.key, *.crt,
-    credentials.json, id_rsa, id_rsa.pub
+    .env, .env.<anything>, *.pem, *.key, *.crt, credentials.json,
+    id_rsa*, id_ed25519*, id_ecdsa*, id_dsa*
 """
 from __future__ import annotations
 
@@ -25,8 +25,10 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.key",
     "*.crt",
     "credentials.json",
-    "id_rsa",
-    "id_rsa.pub",
+    "id_rsa*",
+    "id_ed25519*",
+    "id_ecdsa*",
+    "id_dsa*",
 )
 
 PROTECTED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}

@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 HOOK_PATH = (
     Path(__file__).resolve().parents[1]
@@ -58,6 +60,28 @@ def test_blocks_notebook_edit_to_sensitive_notebook_path(monkeypatch, capsys):
 
     assert exit_code == 2
     assert "private.key" in captured.err
+
+
+@pytest.mark.parametrize(
+    "ssh_key_path",
+    [
+        "~/.ssh/id_ed25519",
+        "~/.ssh/id_ecdsa",
+        "~/.ssh/id_dsa",
+        "~/.ssh/id_rsa",
+        "~/.ssh/id_ed25519.pub",
+    ],
+)
+def test_blocks_common_openssh_key_basenames(ssh_key_path, monkeypatch, capsys):
+    exit_code, captured = run_hook(
+        {"tool_name": "Edit", "tool_input": {"file_path": ssh_key_path}},
+        monkeypatch,
+        capsys,
+    )
+
+    assert exit_code == 2
+    assert "BLOCKED" in captured.err
+    assert ssh_key_path in captured.err
 
 
 def test_allows_unprotected_tool_targeting_sensitive_file(monkeypatch, capsys):
