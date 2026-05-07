@@ -42,6 +42,9 @@ jobs:
             ["https://github.com/gemini-cli-extensions/code-review"]
           settings: |-
             {
+              "tools": {
+                "core": []
+              },
               "mcpServers": {
                 "github": {
                   "command": "docker",
