@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
-import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -163,25 +163,39 @@ def test_claude_settings_registers_pre_tool_use_hook():
     ]
 
 
+def registered_hook_command(settings):
+    return settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+
+
+def hook_path_from_registered_command(settings, project_dir):
+    command = registered_hook_command(settings)
+    expected_command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py"'
+    assert command == expected_command
+
+    relative_hook_path = expected_command.strip('"').removeprefix(
+        "$CLAUDE_PROJECT_DIR/"
+    )
+    return project_dir / Path(relative_hook_path)
+
+
+def run_registered_hook(settings, project_dir, payload):
+    return subprocess.run(
+        [sys.executable, str(hook_path_from_registered_command(settings, project_dir))],
+        input=json.dumps(payload),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
 def test_registered_hook_command_blocks_sensitive_file():
     repo_root = Path(__file__).resolve().parents[1]
     settings = json.loads(
         (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
-    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    payload = json.dumps(
-        {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
-    )
+    payload = {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
 
-    result = subprocess.run(
-        command,
-        input=payload,
-        text=True,
-        capture_output=True,
-        shell=True,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(repo_root)},
-        check=False,
-    )
+    result = run_registered_hook(settings, repo_root, payload)
 
     assert result.returncode == 2
     assert "BLOCKED" in result.stderr
@@ -190,25 +204,14 @@ def test_registered_hook_command_blocks_sensitive_file():
 
 def test_registered_hook_command_handles_project_dir_with_spaces(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
-    linked_repo = tmp_path / "repo with spaces"
-    linked_repo.symlink_to(repo_root, target_is_directory=True)
+    spaced_repo = tmp_path / "repo with spaces"
+    shutil.copytree(repo_root / ".claude", spaced_repo / ".claude")
     settings = json.loads(
         (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
-    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    payload = json.dumps(
-        {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
-    )
+    payload = {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
 
-    result = subprocess.run(
-        command,
-        input=payload,
-        text=True,
-        capture_output=True,
-        shell=True,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(linked_repo)},
-        check=False,
-    )
+    result = run_registered_hook(settings, spaced_repo, payload)
 
     assert result.returncode == 2
     assert "BLOCKED" in result.stderr
