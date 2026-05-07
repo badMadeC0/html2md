@@ -14,25 +14,23 @@ permissions:
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
-    # Skip cleanly when GEMINI_API_KEY is not configured (e.g. fork PRs that
-    # don't receive secrets) so CI doesn't fail on missing auth. Otherwise
-    # gate by event type as before.
     if: >
-      (secrets.GEMINI_API_KEY != '') &&
-      (
-        (github.event_name == 'workflow_dispatch') ||
-        (github.event_name == 'pull_request') ||
-        (github.event_name == 'pull_request_review_comment' &&
-         contains(github.event.comment.body, '@gemini-code-assist')) ||
-        (github.event_name == 'issue_comment' &&
-         github.event.issue.pull_request &&
-         contains(github.event.comment.body, '@gemini-code-assist'))
-      )
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(github.event.comment.body, '@gemini-code-assist')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
+        # Skip the action when GEMINI_API_KEY is not configured (e.g. fork PRs
+        # that don't receive repo secrets) instead of letting it exit 1 on
+        # missing auth. Same-repo PRs receive the secret normally.
+        if: ${{ secrets.GEMINI_API_KEY != '' }}
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
