@@ -6,17 +6,26 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
-def main(argv=None):
-    """Run the CLI."""
-    ap = argparse.ArgumentParser(
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the command-line argument parser."""
+    parser = argparse.ArgumentParser(
         prog='html2md',
         description='Convert HTML URL to Markdown.'
     )
-    ap.add_argument('--help-only', action='store_true', help=argparse.SUPPRESS)
-    ap.add_argument('--url', help='Input URL to convert')
-    ap.add_argument('--batch', help='File containing URLs to process (one per line)')
-    ap.add_argument('--outdir', help='Output directory to save the file')
+    parser.add_argument('--help-only', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--url', help='Input URL to convert')
+    parser.add_argument('--batch', help='File containing URLs to process (one per line)')
+    parser.add_argument('--outdir', help='Output directory to save the file')
+    return parser
 
+
+PARSER = build_parser()
+
+
+def main(argv=None):
+    """Run the CLI."""
+    ap = PARSER
     args = ap.parse_args(argv)
 
     if args.help_only:
