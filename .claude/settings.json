@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/protect-sensitive-files.py"
+            "command": "python .claude/hooks/protect-sensitive-files.py"
           }
         ]
       }
