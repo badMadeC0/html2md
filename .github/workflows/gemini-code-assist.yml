@@ -74,7 +74,10 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
-          # Resolve PR number for both pull_request and issue_comment events.
+          # Resolves the PR number across all three supported triggers:
+          # pull_request, pull_request_review_comment, and issue_comment.
+          # The first two populate github.event.pull_request.number; the
+          # last populates github.event.issue.number.
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           settings: |-
             {
