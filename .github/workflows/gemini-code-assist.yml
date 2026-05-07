@@ -12,6 +12,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  id-token: write
 
 jobs:
   gemini-code-assist:
@@ -19,13 +20,50 @@ jobs:
     if: >
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
-       contains(github.event.comment.body, '@gemini-code-assist')) ||
+       (contains(github.event.comment.body, '@gemini-code-assist') ||
+        contains(github.event.comment.body, '/gemini review'))) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
-       contains(github.event.comment.body, '@gemini-code-assist'))
+       (contains(github.event.comment.body, '@gemini-code-assist') ||
+        contains(github.event.comment.body, '/gemini review')))
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Gemini Code Assist
-        uses: google-gemini/code-assist-action@v1
+          persist-credentials: false
+
+      - name: Run Gemini pull request review
+        id: gemini-pr-review
+        uses: google-github-actions/run-gemini-cli@v0.1.22
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_cli_version: ${{ vars.GEMINI_CLI_VERSION }}
+          gemini_debug: ${{ fromJSON(vars.GEMINI_DEBUG || vars.ACTIONS_STEP_DEBUG || 'false') }}
+          gemini_model: ${{ vars.GEMINI_MODEL }}
+          google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          use_gemini_code_assist: ${{ vars.GOOGLE_GENAI_USE_GCA }}
+          use_vertex_ai: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
+          workflow_name: gemini-code-assist
+          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          extensions: |
+            [
+              "https://github.com/gemini-cli-extensions/code-review"
+            ]
+          settings: |-
+            {
+              "model": {
+                "maxSessionTurns": 25
+              },
+              "tools": {
+                "core": []
+              }
+            }
+          prompt: /pr-code-review
