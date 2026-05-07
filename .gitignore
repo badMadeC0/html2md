@@ -40,3 +40,9 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+# Node
+node_modules/
+.pnpm-store/
+
+# Self-heal workflow artifacts
+selfheal-*.txt
