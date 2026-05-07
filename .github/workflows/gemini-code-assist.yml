@@ -96,7 +96,9 @@ jobs:
                     "ghcr.io/github/github-mcp-server@sha256:a1d43076a36638ee24520fd6e83c3905ae41bc9850179081df1de2ba3a7afae0"
                   ],
                   "includeTools": [
+                    "create_pending_pull_request_review",
                     "add_comment_to_pending_review",
+                    "submit_pending_pull_request_review",
                     "pull_request_read",
                     "pull_request_review_write"
                   ],
