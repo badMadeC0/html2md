@@ -27,7 +27,7 @@
       "Edit(**/credentials.json)",
       "Edit(**/id_rsa*)",
       "Edit(**/*.crt)",
-      "Write(.env*)",
+      "Write(**/.env*)",
       "Write(**/.env*)",
       "Write(**/*.pem)",
       "Write(**/*.key)",
