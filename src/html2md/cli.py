@@ -24,8 +24,9 @@ def is_safe_url(url: str) -> bool:
         for info in addr_info:
             ip_str = info[4][0]
             ip = ipaddress.ip_address(ip_str)
-            # Require globally reachable IPs only.
-            if not ip.is_global:
+            # Require globally reachable IPs only, while explicitly rejecting
+            # multicast addresses because Python 3.12 may report them as global.
+            if not ip.is_global or ip.is_multicast:
                 return False
         return True
     except (socket.gaierror, ValueError):

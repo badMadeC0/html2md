@@ -65,11 +65,13 @@ import socket
         "http://localhost/",
         "http://169.254.169.254/latest/meta-data/",
         "http://100.64.0.1/",
+        "http://239.255.255.250/",
         "http://10.0.0.1/",
         "http://192.168.1.1/",
         "http://172.16.0.1/",
         "http://0.0.0.0/",
         "http://[::1]/",
+        "http://[ff02::1]/",
     ],
 )
 @patch("requests.Session.get")
@@ -80,6 +82,23 @@ def test_process_url_ssrf_protection_blocked(mock_get, capsys, tmp_path, url):
     assert f"Error: URL '{url}' resolves to a non-public IP address." in outerr.err
     mock_get.assert_not_called()
 
+
+@pytest.mark.parametrize(
+    "ip_address",
+    [
+        "239.255.255.250",
+        "ff02::1",
+    ],
+)
+@patch("socket.getaddrinfo")
+def test_is_safe_url_rejects_multicast_dns_results(mock_getaddrinfo, ip_address):
+    """SSRF protection should explicitly reject multicast DNS results."""
+    family = socket.AF_INET6 if ":" in ip_address else socket.AF_INET
+    mock_getaddrinfo.return_value = [
+        (family, socket.SOCK_STREAM, 6, "", (ip_address, 0))
+    ]
+
+    assert not cli.is_safe_url("http://example.com/")
 
 @patch("socket.getaddrinfo")
 @patch("requests.Session.get")
