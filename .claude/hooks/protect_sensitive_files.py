@@ -10,18 +10,17 @@ from __future__ import annotations
 import fnmatch
 import json
 import sys
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 
 SENSITIVE_BASENAME_PATTERNS = (
-    ".env",
-    ".env.*",
+    ".env*",
     "*.pem",
     "*.key",
     "*.crt",
     "credentials.json",
-    "id_rsa",
-    "id_rsa.pub",
+    "id_rsa*",
+    "id_ed25519*",
 )
 PROTECTED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 PATH_KEYS = ("file_path", "path", "notebook_path")
@@ -55,7 +54,7 @@ def is_sensitive(path: str) -> bool:
     return False
 
 
-def _load_payload() -> dict[str, Any] | None:
+def _load_payload() -> Optional[Dict[str, Any]]:
     """Read and parse a hook payload from standard input.
 
     Returns:
@@ -85,7 +84,7 @@ def _load_payload() -> dict[str, Any] | None:
     return payload
 
 
-def _target_paths(tool_input: Any) -> list[str]:
+def _target_paths(tool_input: Any) -> List[str]:
     """Extract candidate target paths from a Claude Code tool input.
 
     Args:
@@ -94,18 +93,22 @@ def _target_paths(tool_input: Any) -> list[str]:
     Returns:
         A list of non-empty path strings to inspect.
     """
-    if not isinstance(tool_input, dict):
-        return []
-
     candidates = []
-    for key in PATH_KEYS:
-        value = tool_input.get(key)
-        if isinstance(value, str) and value:
-            candidates.append(value)
+
+    if isinstance(tool_input, dict):
+        for key, value in tool_input.items():
+            if key in PATH_KEYS and isinstance(value, str) and value:
+                candidates.append(value)
+            elif isinstance(value, (dict, list)):
+                candidates.extend(_target_paths(value))
+    elif isinstance(tool_input, list):
+        for item in tool_input:
+            candidates.extend(_target_paths(item))
+
     return candidates
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     """Run the PreToolUse sensitive-file guard.
 
     Args:
