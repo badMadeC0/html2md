@@ -21,6 +21,9 @@ jobs:
           set -euo pipefail
           echo "PR title: $PR_TITLE"
 
+          # The guard is opt-in: human-authored PRs without the explicit
+          # [AI-Assisted] marker must pass so this required check does not
+          # block unrelated work.
           if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
             echo "OK: PR title is not tagged [AI-Assisted]; skipping AI-assisted transcript checks."
             exit 0
