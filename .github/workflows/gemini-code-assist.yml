@@ -17,53 +17,24 @@ jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'pull_request') ||
-      (((github.event_name == 'pull_request_review_comment') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
-       (github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'COLLABORATOR') &&
-       contains(github.event.comment.body, '@gemini-code-assist'))
+       contains(github.event.comment.body, '@gemini-code-assist') &&
+       (github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR'))
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_CLI_TRUST_WORKSPACE: "true"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-github-actions/run-gemini-cli@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        if: env.GEMINI_API_KEY != ''
+        continue-on-error: true
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
-          prompt: '/pr-code-review'
-          extensions: |
-            ["https://github.com/gemini-cli-extensions/code-review"]
-          settings: |-
-            {
-              "tools": {
-                "core": []
-              },
-              "mcpServers": {
-                "github": {
-                  "command": "docker",
-                  "args": [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "-e",
-                    "GITHUB_PERSONAL_ACCESS_TOKEN",
-                    "ghcr.io/github/github-mcp-server:v0.27.0"
-                  ],
-                  "includeTools": [
-                    "add_comment_to_pending_review",
-                    "pull_request_read",
-                    "pull_request_review_write"
-                  ],
-                  "env": {
-                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-                  }
-                }
-              }
-            }
+          gemini_api_key: ${{ env.GEMINI_API_KEY }}
