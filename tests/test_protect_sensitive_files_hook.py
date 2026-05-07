@@ -139,7 +139,7 @@ def test_non_object_json_allows_and_reports_error(payload_raw, monkeypatch, caps
 
 
 def expand_project_dir(command, project_dir):
-    """Return ``command`` with ``$CLAUDE_PROJECT_DIR`` replaced by ``project_dir``.
+    """Return a testable hook command with ``$CLAUDE_PROJECT_DIR`` expanded.
 
     Args:
         command: Hook command template from Claude settings.
