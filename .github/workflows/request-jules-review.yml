@@ -49,7 +49,7 @@ jobs:
                       link_header = list_response.headers.get("Link", "")
               except urllib.error.HTTPError as error:
                   body = error.read().decode("utf-8")
-                  # 403/404 are non-actionable (permissions, missing PR); skip silently
+                  # 403/404 are non-actionable (permissions, missing PR); log and skip
                   # like the fork guard above. Surface every other failure so a transient
                   # API error shows up as a red check the maintainer can retry.
                   if error.code in (403, 404):
