@@ -344,6 +344,7 @@ $ConvertBtn.Add_Click({
     $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
+    $wholePageSelected = ($WholePageChk.IsChecked -eq $true)
 
     if ($urlList.Count -gt 1) {
         # --- BATCH MODE ---
@@ -359,7 +360,7 @@ $ConvertBtn.Add_Click({
         # Relaunch this script in batch mode
         # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
-        if ($WholePageChk.IsChecked) {
+        if ($wholePageSelected) {
             $psi.Arguments += " -BatchWholePage"
         }
     } else {
@@ -372,20 +373,19 @@ $ConvertBtn.Add_Click({
         $safeVenvExe = $venvExe -replace "'", "''"
         $safePyScript = $pyScript -replace "'", "''"
 
+        # Build single-URL CLI arguments once so the Whole Page checkbox
+        # consistently affects both executable and script launch paths.
+        $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
+        if ($wholePageSelected) {
+            $singleArgs += "--whole-page"
+        }
+
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-            if ($WholePageChk.IsChecked) {
-                $singleArgs += "--whole-page"
-            }
             $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' $($singleArgs -join ' ')`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-            if ($WholePageChk.IsChecked) {
-                $singleArgs += "--whole-page"
-            }
             $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' $($singleArgs -join ' ')`""
         }
         else {
