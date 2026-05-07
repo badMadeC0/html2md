@@ -23,6 +23,25 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost:8080/admin",
+        "http://127.0.0.1/status",
+        "http://169.254.169.254/latest/meta-data/",
+        "https://192.168.1.1/config",
+        "http://[::1]/",
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
+    """Ensure URLs pointing to private/internal IPs are rejected to prevent SSRF."""
+    cli.main(["--url", url, "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert "Unsafe URL pointing to internal IP" in outerr.err or "Error validating hostname" in outerr.err
+    mock_get.assert_not_called()
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
