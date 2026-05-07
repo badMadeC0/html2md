@@ -2,7 +2,11 @@
 /* Targeted, ordered repairs. Each step is idempotent and re-runs healthcheck.
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
-import { execSync, spawnSync } from "node:child_process";
+import { execFileSync, execSync, spawnSync } from "node:child_process";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const trustedHealthcheck = join(dirname(fileURLToPath(import.meta.url)), "healthcheck.mjs");
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
@@ -18,7 +22,12 @@ const changed = () => {
 let lastHealth = null;
 const passHealth = () => {
   if (lastHealth !== null) return lastHealth;
-  try { sh("node scripts/healthcheck.mjs"); lastHealth = true; return true; } catch { lastHealth = false; return false; }
+  try {
+    console.log(`\n$ node ${trustedHealthcheck}`);
+    execFileSync(process.execPath, [trustedHealthcheck], { stdio: "inherit" });
+    lastHealth = true;
+    return true;
+  } catch { lastHealth = false; return false; }
 };
 const clearHealthCache = () => { lastHealth = null; };
 

@@ -31,11 +31,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout
+      - name: Checkout trusted repair driver
         uses: actions/checkout@v4
         with:
+          path: self-heal-driver
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Checkout failed ref
+        uses: actions/checkout@v4
+        with:
+          path: worktree
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
+          persist-credentials: false
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -48,6 +57,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python deps
+        working-directory: worktree
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip
@@ -55,21 +65,24 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
+        working-directory: worktree
         run: |
           set -euo pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          node ../self-heal-driver/scripts/healthcheck.mjs | tee ../selfheal-pre.txt
 
       - name: Attempt self-heal repairs
+        working-directory: worktree
         run: |
           set -euo pipefail
-          node scripts/self-heal.mjs | tee selfheal-repair.txt
+          node ../self-heal-driver/scripts/self-heal.mjs | tee ../selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
+        working-directory: worktree
         run: |
           set -euo pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          node ../self-heal-driver/scripts/healthcheck.mjs | tee ../selfheal-post.txt
 
       - name: Collect logs
         if: always()
@@ -85,6 +98,8 @@ jobs:
         if: steps.post.outcome == 'success'
         uses: peter-evans/create-pull-request@v6
         with:
+          path: worktree
+          base: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
           commit-message: "chore: auto-fix lint/format and lockfiles"
           title: "🔧 Auto-healing fixes"
           body: |
