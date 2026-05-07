@@ -26,7 +26,7 @@ jobs:
         github.event.comment.author_association == 'COLLABORATOR'))
     steps:
       - name: Check Gemini API key availability
-        id: gemini-api-key
+        id: gemini_api_key
         shell: bash
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -37,11 +37,11 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@v4
-        if: steps.gemini-api-key.outputs.available == 'true'
+        if: steps.gemini_api_key.outputs.available == 'true'
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        if: steps.gemini-api-key.outputs.available == 'true'
+        if: steps.gemini_api_key.outputs.available == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
