@@ -2,6 +2,7 @@
 
 import socket
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from html2md import cli

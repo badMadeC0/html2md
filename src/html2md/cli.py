@@ -174,7 +174,7 @@ def main(argv=None):
 
                 location = response.headers.get('Location') if response.headers else None
                 if not location:
-                    print("Error: Redirect response missing Location header.", file=sys.stderr)
+                    print(f"Error: Redirect response missing Location header for {current_url}.", file=sys.stderr)
                     return None
 
                 current_url = urljoin(current_url, location)
