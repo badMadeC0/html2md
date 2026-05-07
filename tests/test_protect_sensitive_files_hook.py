@@ -34,7 +34,12 @@ def run_hook_raw(payload: str) -> subprocess.CompletedProcess:
 
 
 def test_blocks_sensitive_file_path() -> None:
-    sensitive_env = SENSITIVE_BASENAME_PATTERNS[1].replace("*", "production")
+    sensitive_env_pattern = next(
+        (pattern for pattern in SENSITIVE_BASENAME_PATTERNS if pattern.startswith(".env.")),
+        None,
+    )
+    assert sensitive_env_pattern is not None
+    sensitive_env = sensitive_env_pattern.replace("*", "production")
     result = run_hook(
         {
             "tool_name": "Write",
@@ -111,10 +116,14 @@ def test_blocks_common_ssh_key_basenames() -> None:
 
 def test_blocks_nested_multi_edit_sensitive_file_path() -> None:
     ssh_private_key = next(
-        pattern
-        for pattern in SENSITIVE_BASENAME_PATTERNS
-        if pattern.startswith("id_ed") and not pattern.endswith(".pub")
+        (
+            pattern
+            for pattern in SENSITIVE_BASENAME_PATTERNS
+            if pattern.startswith("id_ed") and not pattern.endswith(".pub")
+        ),
+        None,
     )
+    assert ssh_private_key is not None
 
     result = run_hook(
         {
@@ -144,7 +153,11 @@ def test_blocks_nested_multi_edit_sensitive_file_path() -> None:
 
 
 def test_blocks_notebook_edit_sensitive_notebook_path() -> None:
-    certificate_pattern = SENSITIVE_BASENAME_PATTERNS[4]
+    certificate_pattern = next(
+        (pattern for pattern in SENSITIVE_BASENAME_PATTERNS if pattern == "*.crt"),
+        None,
+    )
+    assert certificate_pattern is not None
     sensitive_certificate = certificate_pattern.replace("*", "client")
     result = run_hook(
         {
