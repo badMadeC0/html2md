@@ -53,6 +53,9 @@ class TestCliError(unittest.TestCase):
         mock_requests.Session.return_value = mock_session
         mock_response = MagicMock()
         mock_response.text = "<html></html>"
+        mock_response.iter_content.return_value = [b"<html></html>"]
+        mock_response.encoding = "utf-8"
+        mock_response.apparent_encoding = "utf-8"
         mock_session.get.return_value = mock_response
 
         mock_markdownify = MagicMock()

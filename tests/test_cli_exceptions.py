@@ -6,6 +6,16 @@ import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
 
+def make_streaming_response(chunks, encoding="utf-8"):
+    """Create a mocked streaming HTTP response."""
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.iter_content.return_value = chunks
+    response.encoding = encoding
+    response.apparent_encoding = encoding
+    return response
+
+
 class TestCliExceptions(unittest.TestCase):
     """Unit tests for CLI network, file, and path-containment error handling."""
 
@@ -30,8 +40,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
+                mock_resp = make_streaming_response([b"<h1>Hello</h1>"])
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
@@ -64,8 +73,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
+                mock_resp = make_streaming_response([b"<h1>Hello</h1>"])
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
@@ -94,3 +102,31 @@ class TestCliExceptions(unittest.TestCase):
 
                         output = captured_stderr.getvalue()
                         self.assertIn("Output path escapes output directory", output)
+
+    def test_oversized_response_skips_batch_item_without_exiting(self):
+        """Test oversized downloads do not terminate subsequent batch items."""
+        max_size = 10 * 1024 * 1024
+        oversized_resp = make_streaming_response([b"x" * max_size, b"x"])
+        ok_resp = make_streaming_response([b"<h1>Hello</h1>"])
+
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            with patch('requests.Session.get', side_effect=[oversized_resp, ok_resp]):
+                with patch('markdownify.markdownify', return_value="# Hello") as mock_md:
+                    with patch('os.path.exists', return_value=True):
+                        with patch('html2md.cli.open', create=True) as mock_open:
+                            mock_open.return_value.__enter__.return_value.__iter__.return_value = [
+                                'http://example.com/too-large\n',
+                                'http://example.com/ok\n',
+                            ]
+
+                            try:
+                                exit_code = main(['--batch', 'urls.txt'])
+                            except (SystemExit, RuntimeError, ValueError) as e:
+                                self.fail(f"main raised exception {e}")
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("Response too large", captured_stderr.getvalue())
+        oversized_resp.close.assert_called_once()
+        ok_resp.close.assert_called_once()
+        mock_md.assert_called_once()

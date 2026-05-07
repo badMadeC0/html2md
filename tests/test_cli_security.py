@@ -34,6 +34,9 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
+    response.iter_content.return_value = [b"<h1>dummy</h1>"]
+    response.encoding = "utf-8"
+    response.apparent_encoding = "utf-8"
     response.raise_for_status.return_value = None
     mock_get.return_value = response
 

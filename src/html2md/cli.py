@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import argparse
+from contextlib import closing
 import os
 import sys
 from urllib.parse import urlparse, unquote
@@ -54,8 +55,12 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
+        def process_url(target_url: str) -> bool:
+            """Process a single URL.
+
+            Returns True when conversion succeeds and False for recoverable
+            per-URL errors so batch processing can continue.
+            """
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
@@ -64,27 +69,54 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return
+                return False
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                # Stream response to prevent memory exhaustion DoS
-                response = session.get(target_url, timeout=30, stream=True)
-                response.raise_for_status()
+                # Stream response to prevent memory exhaustion DoS.
+                with closing(
+                    session.get(target_url, timeout=30, stream=True)
+                ) as response:
+                    response.raise_for_status()
 
-                content_bytes = bytearray()
-                max_size = 10 * 1024 * 1024  # 10 MB limit
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        content_bytes.extend(chunk)
-                        if len(content_bytes) > max_size:
-                            print("Error: Response too large (>10MB). Aborting to prevent memory exhaustion.", file=sys.stderr)
-                            sys.exit(1)
+                    content_bytes = bytearray()
+                    max_size = 10 * 1024 * 1024  # 10 MB limit
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            if len(content_bytes) + len(chunk) > max_size:
+                                print(
+                                    "Error: Response too large (>10MB). "
+                                    "Skipping to prevent memory exhaustion.",
+                                    file=sys.stderr,
+                                )
+                                return False
+                            content_bytes.extend(chunk)
 
-                encoding = response.encoding if isinstance(getattr(response, 'encoding', None), str) else 'utf-8'
-                text_content = content_bytes.decode(encoding, errors='replace')
+                    encoding_candidates = [
+                        getattr(response, 'encoding', None),
+                        getattr(response, 'apparent_encoding', None),
+                        'utf-8',
+                    ]
+                    text_content = None
+                    tried_encodings = set()
+                    for encoding in encoding_candidates:
+                        if not isinstance(encoding, str) or not encoding:
+                            continue
+                        normalized_encoding = encoding.lower()
+                        if normalized_encoding in tried_encodings:
+                            continue
+                        tried_encodings.add(normalized_encoding)
+                        try:
+                            text_content = content_bytes.decode(
+                                encoding, errors='replace'
+                            )
+                            break
+                        except LookupError:
+                            continue
+                    if text_content is None:
+                        text_content = content_bytes.decode('utf-8', errors='replace')
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")
@@ -111,12 +143,14 @@ def main(argv=None):
                     if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
-                        return
+                        return False
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
                     print(md_content)
+
+                return True
 
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
@@ -124,9 +158,11 @@ def main(argv=None):
                 print(f"File error: {e}", file=sys.stderr)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
+            return False
 
+        had_error = False
         if args.url:
-            process_url(args.url)
+            had_error = not process_url(args.url)
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -136,9 +172,10 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        if not process_url(u):
+                            had_error = True
 
-        return 0
+        return 1 if had_error else 0
 
     ap.print_help()
     return 0
