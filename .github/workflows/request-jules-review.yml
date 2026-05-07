@@ -18,6 +18,10 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           python - <<'PY'
           import json
@@ -30,6 +34,15 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
+          head_repo = os.environ["PR_HEAD_REPO"]
+          base_repo = os.environ["PR_BASE_REPO"]
+          pr_author = os.environ["PR_AUTHOR"]
+          actor = os.environ["GITHUB_ACTOR"]
+          is_read_only_context = (
+              head_repo != base_repo
+              or pr_author == "dependabot[bot]"
+              or actor == "dependabot[bot]"
+          )
 
           request = urllib.request.Request(
               url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
@@ -53,10 +66,11 @@ jobs:
           except urllib.error.HTTPError as error:
               details = error.read().decode("utf-8")
               print(f"Could not request review (HTTP {error.code}): {details}")
-              if error.code == 403:
+              if error.code == 403 and is_read_only_context:
                   print(
-                      "Skipping failure: workflow tokens from forks/Dependabot "
-                      "are often read-only and cannot post PR comments."
+                      "Skipping failure: this PR is from a fork or Dependabot, "
+                      "where workflow tokens are often read-only and cannot "
+                      "post PR comments."
                   )
               else:
                   print("Ensure the workflow token has permission to comment.")
