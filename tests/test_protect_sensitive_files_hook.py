@@ -5,12 +5,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Dict, Union
 
 
 HOOK = Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "protect_sensitive_files.py"
 
 
-def run_hook(payload: dict[str, object] | str) -> subprocess.CompletedProcess[str]:
+def run_hook(payload: Union[Dict[str, object], str]) -> subprocess.CompletedProcess[str]:
     """Run the sensitive-file hook with a JSON payload."""
     data = payload if isinstance(payload, str) else json.dumps(payload)
     return subprocess.run(
@@ -22,7 +23,7 @@ def run_hook(payload: dict[str, object] | str) -> subprocess.CompletedProcess[st
     )
 
 
-def hook_payload(tool_name: str, path: str, key: str = "file_path") -> dict[str, object]:
+def hook_payload(tool_name: str, path: str, key: str = "file_path") -> Dict[str, object]:
     """Build a minimal Claude Code hook payload."""
     return {"tool_name": tool_name, "tool_input": {key: path}}
 
@@ -42,6 +43,41 @@ def test_blocks_sensitive_notebook_paths() -> None:
 
     assert result.returncode == 2
     assert "notebooks/id_rsa" in result.stderr
+
+
+def test_blocks_all_dotenv_variants() -> None:
+    """Dotenv variants such as .envrc and .env-local are rejected."""
+    for path in (".envrc", "config/.env-local"):
+        result = run_hook(hook_payload("Write", path))
+
+        assert result.returncode == 2
+        assert path in result.stderr
+
+
+def test_blocks_windows_separator_paths() -> None:
+    """Backslash-separated paths are normalized before matching."""
+    result = run_hook(hook_payload("Write", r"C:\repo\credentials.json"))
+
+    assert result.returncode == 2
+    assert "credentials.json" in result.stderr
+
+
+def test_blocks_sensitive_multiedit_paths() -> None:
+    """Nested MultiEdit edit targets are rejected."""
+    result = run_hook(
+        {
+            "tool_name": "MultiEdit",
+            "tool_input": {
+                "edits": [
+                    {"file_path": "src/html2md/cli.py", "old_string": "a", "new_string": "b"},
+                    {"file_path": "secrets/id_rsa_backup", "old_string": "a", "new_string": "b"},
+                ]
+            },
+        }
+    )
+
+    assert result.returncode == 2
+    assert "id_rsa_backup" in result.stderr
 
 
 def test_allows_non_sensitive_edit_paths() -> None:
