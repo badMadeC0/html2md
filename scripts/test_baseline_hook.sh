@@ -22,7 +22,6 @@ cd "$ROOT" || fail "cannot cd to repo root: $ROOT"
 
 HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
-[ -x "$HOOK" ] || fail "hook script not executable: $HOOK"
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {

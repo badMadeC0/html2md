@@ -22,8 +22,8 @@ jobs:
           echo "PR title: $PR_TITLE"
 
           if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "::warning::PR title does not start with [AI-Assisted]. If this PR is fully human-authored, ignore this warning. AI-assisted PRs MUST start with [AI-Assisted]."
-            exit 0
+            echo "::error::PR title does not start with [AI-Assisted]. AI-assisted PRs MUST start with [AI-Assisted]."
+            exit 1
           fi
 
           # Body must reference a Claude chat URL or other agent transcript.

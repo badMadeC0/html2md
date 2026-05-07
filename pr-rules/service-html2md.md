@@ -37,7 +37,8 @@ for any PR in this repository specifically.
   without symlink support it may render as a text file containing the
   string `AGENTS.md`. Do not "fix" this by replacing it with a copy of
   AGENTS.md content — it would diverge silently. The consistency check
-  `scripts/check_agents_consistency.sh` enforces the symlink.
+  `scripts/check_agents_consistency.sh` accepts either form (symlink or
+  materialized text-file target).
 
 ## 5. No runtime fetches in tests
 

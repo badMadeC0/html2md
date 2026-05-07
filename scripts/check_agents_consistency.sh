@@ -8,8 +8,10 @@
 #   2. AGENTS.md contains <!-- BEGIN BASELINE --> and <!-- END BASELINE --> markers
 #      (BEGIN must precede END).
 #   3. AGENTS.md is <= 80 lines.
-#   4. CLAUDE.md exists and is a symbolic link.
-#   5. CLAUDE.md points at AGENTS.md (relative target literally "AGENTS.md").
+#   4. CLAUDE.md exists and is either:
+#      - a symbolic link to AGENTS.md, or
+#      - a regular file with exact content "AGENTS.md" (Windows materialized symlink).
+#   5. CLAUDE.md points at AGENTS.md (directly or materialized form).
 #   6. BASELINE_VERSION exists and contains a single semver line MAJOR.MINOR.PATCH.
 
 set -u
@@ -37,12 +39,18 @@ end_line=$(grep -n -F '<!-- END BASELINE -->' AGENTS.md | head -n1 | cut -d: -f1
 agents_lines=$(wc -l < AGENTS.md | tr -d ' ')
 [ "$agents_lines" -le 200 ] || fail "AGENTS.md has $agents_lines lines (> 200)"
 
-# 4. CLAUDE.md is a symlink
-[ -L CLAUDE.md ] || fail "CLAUDE.md must be a symbolic link"
-
-# 5. CLAUDE.md points at AGENTS.md
-target=$(readlink CLAUDE.md)
-[ "$target" = "AGENTS.md" ] || fail "CLAUDE.md points at '$target', expected 'AGENTS.md'"
+# 4-5. CLAUDE.md symlink target (or Windows materialized symlink file)
+if [ -L CLAUDE.md ]; then
+  target=$(readlink CLAUDE.md)
+  [ "$target" = "AGENTS.md" ] || fail "CLAUDE.md points at '$target', expected 'AGENTS.md'"
+  claude_ref="CLAUDE.md -> AGENTS.md"
+elif [ -f CLAUDE.md ]; then
+  target=$(tr -d '\r\n' < CLAUDE.md)
+  [ "$target" = "AGENTS.md" ] || fail "CLAUDE.md file content is '$target', expected 'AGENTS.md'"
+  claude_ref="CLAUDE.md materialized as file content 'AGENTS.md'"
+else
+  fail "CLAUDE.md missing (expected symlink to AGENTS.md or materialized file)"
+fi
 
 # 6. BASELINE_VERSION exists and is a valid semver line
 [ -f BASELINE_VERSION ] || fail "BASELINE_VERSION missing"
@@ -50,4 +58,4 @@ ver=$(tr -d ' \t\n\r' < BASELINE_VERSION)
 echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
   || fail "BASELINE_VERSION must contain MAJOR.MINOR.PATCH (got '$ver')"
 
-echo "OK: AGENTS.md ($agents_lines lines), CLAUDE.md -> AGENTS.md, BASELINE_VERSION=$ver"
+echo "OK: AGENTS.md ($agents_lines lines), $claude_ref, BASELINE_VERSION=$ver"
