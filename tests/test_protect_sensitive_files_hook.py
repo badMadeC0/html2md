@@ -69,3 +69,13 @@ def test_malformed_payload_does_not_block() -> None:
 
     assert result.returncode == 0
     assert "bad JSON payload" in result.stderr
+
+
+def test_hook_settings_use_project_dir() -> None:
+    """Claude Code should resolve the hook from the project root."""
+    settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text())
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+
+    assert "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" in command
+    assert ".claude/hooks/protect_sensitive_files.py" in command
