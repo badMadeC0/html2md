@@ -14,17 +14,19 @@ permissions:
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
+    # NOTE: do not add `secrets.X != ''` to this job-level `if:`. GitHub
+    # Actions rejects `secrets` references at job-level `if:` as a workflow
+    # validation error (the run shows `name: <file path>` instead of the
+    # workflow's `name:` field, with a 0s "workflow file issue" failure).
+    # See PR #614 history (87a8113, 24264c7, 0c4f451 all hit this).
     if: >
-      secrets.GEMINI_API_KEY != '' &&
-      (
-        (github.event_name == 'workflow_dispatch') ||
-        (github.event_name == 'pull_request') ||
-        (github.event_name == 'pull_request_review_comment' &&
-         contains(github.event.comment.body, '@gemini-code-assist')) ||
-        (github.event_name == 'issue_comment' &&
-         github.event.issue.pull_request &&
-         contains(github.event.comment.body, '@gemini-code-assist'))
-      )
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(github.event.comment.body, '@gemini-code-assist')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
       - uses: actions/checkout@v4
         with:
