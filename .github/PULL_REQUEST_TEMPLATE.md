@@ -1,6 +1,6 @@
 <!--
-  Title format: [AI-Assisted] <imperative summary>   (drop the tag for
-  fully human-authored PRs). Required by .github/workflows/ai-assisted-pr-guard.yml.
+  Title format: [AI-Assisted] <imperative summary>. Required by
+  .github/workflows/ai-assisted-pr-guard.yml.
 -->
 
 ## Summary
