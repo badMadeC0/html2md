@@ -47,7 +47,7 @@ Repo-local overrides go in `pr-rules/python.local.md` (loaded after this).
 
 ## 5. Testing
 
-- All tests use **pytest**; no `unittest` subclasses for new tests.
+- Tests are executed with **pytest**; avoid adding new `unittest` subclasses.
 - Smoke tests for CLI commands shell out via `subprocess.run` and assert on
   return codes.
 - Every new entry point or utility needs at least a smoke test that
