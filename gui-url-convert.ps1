@@ -159,8 +159,8 @@ $OutBox.Text = "$env:USERPROFILE\Downloads"
 $BrowseBtn.Add_Click({
     $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
     $path = $OutBox.Text.Trim()
-    if (Test-Path -LiteralPath $path) {
-        $dlg.SelectedPath = $path
+    if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path -LiteralPath $path -PathType Container)) {
+        $dlg.SelectedPath = (Get-Item -LiteralPath $path).FullName
     }
     if ($dlg.ShowDialog() -eq "OK") {
         $OutBox.Text = $dlg.SelectedPath
