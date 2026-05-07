@@ -43,6 +43,9 @@ html2md-upload = "html2md.upload:main"
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.package-data]
+html2md = ["py.typed"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
