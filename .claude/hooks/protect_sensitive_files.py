@@ -12,7 +12,7 @@ import fnmatch
 import json
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 
 SENSITIVE_BASENAME_PATTERNS = (
@@ -30,6 +30,7 @@ SENSITIVE_BASENAME_PATTERNS = (
     "id_ecdsa.pub",
     "id_dsa",
     "id_dsa.pub",
+    "authorized_keys",
 )
 
 PROTECTED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -55,18 +56,24 @@ def is_sensitive(path: str) -> bool:
     return False
 
 
-def candidate_paths(tool_input: Dict[str, Any]) -> List[str]:
-    """Extract target file paths from a Claude Code tool input object."""
+def candidate_paths(tool_input: Any) -> List[str]:
+    """Extract and normalize target file paths recursively."""
     candidates = []
-    for key in PATH_KEYS:
-        value = tool_input.get(key)
-        if isinstance(value, str) and value:
-            candidates.append(value)
+    if isinstance(tool_input, dict):
+        for key, value in tool_input.items():
+            if key in PATH_KEYS and isinstance(value, str) and value:
+                candidates.append(os.path.realpath(value))
+            elif isinstance(value, (dict, list)):
+                candidates.extend(candidate_paths(value))
+    elif isinstance(tool_input, list):
+        for item in tool_input:
+            candidates.extend(candidate_paths(item))
     return candidates
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     """Run the hook and return a process exit status."""
+    del argv
     try:
         payload_raw = sys.stdin.read()
     except Exception as exc:  # pragma: no cover - defensive
@@ -74,10 +81,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"protect-sensitive-files: failed to read stdin: {exc}",
             file=sys.stderr,
         )
-        return 0
+        return 1
 
     if not payload_raw.strip():
-        return 0
+        print(
+            "protect-sensitive-files: empty hook payload",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         payload = json.loads(payload_raw)
@@ -86,15 +97,20 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"protect-sensitive-files: bad JSON payload: {exc}",
             file=sys.stderr,
         )
-        return 0
+        return 1
+
+    if not isinstance(payload, dict):
+        print(
+            "protect-sensitive-files: hook payload must be a JSON object",
+            file=sys.stderr,
+        )
+        return 1
 
     tool_name = payload.get("tool_name") or ""
     if tool_name not in PROTECTED_TOOLS:
         return 0
 
     tool_input = payload.get("tool_input") or {}
-    if not isinstance(tool_input, dict):
-        return 0
 
     for path in candidate_paths(tool_input):
         if is_sensitive(path):
