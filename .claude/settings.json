@@ -20,7 +20,7 @@
       "Read(**/credentials.json)",
       "Read(**/id_rsa*)",
       "Read(**/*.crt)",
-      "Edit(.env*)",
+      "Edit(**/.env*)",
       "Edit(**/.env*)",
       "Edit(**/*.pem)",
       "Edit(**/*.key)",
