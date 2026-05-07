@@ -37,3 +37,8 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # GitHub-hosted runners are ephemeral and isolated; mark the
+          # checked-out workspace as trusted so the CLI proceeds non-
+          # interactively. Without this the action fails with:
+          # "Gemini CLI is not running in a trusted directory."
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
