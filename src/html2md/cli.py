@@ -4,9 +4,47 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import contextlib
 import socket
 import ipaddress
 from urllib.parse import urlparse, unquote
+from typing import Optional
+
+
+def _validate_ip_address(ip_address: str):
+    """Return a parsed public IP address or raise ValueError for unsafe targets."""
+    ip_obj = ipaddress.ip_address(ip_address)
+    if (ip_obj.is_private or ip_obj.is_loopback or
+        ip_obj.is_link_local or ip_obj.is_unspecified or
+        ip_obj.is_reserved or ip_obj.is_multicast):
+        raise ValueError(f"Unsafe URL pointing to internal IP '{ip_obj}'.")
+    return ip_obj
+
+
+def _validate_hostname(hostname: str, port: Optional[int] = None) -> None:
+    """Resolve and validate that every address for hostname is public."""
+    addr_info = socket.getaddrinfo(hostname, port)
+    for addr in addr_info:
+        _validate_ip_address(addr[4][0])
+
+
+@contextlib.contextmanager
+def _validated_dns_lookups():
+    """Validate DNS results performed during the subsequent network request."""
+    original_getaddrinfo = socket.getaddrinfo
+
+    def validating_getaddrinfo(host, port, *args, **kwargs):
+        addr_info = original_getaddrinfo(host, port, *args, **kwargs)
+        for addr in addr_info:
+            _validate_ip_address(addr[4][0])
+        return addr_info
+
+    socket.getaddrinfo = validating_getaddrinfo
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -75,15 +113,8 @@ def main(argv=None):
                 return
 
             try:
-                addr_info = socket.getaddrinfo(hostname, None)
-                for addr in addr_info:
-                    ip_obj = ipaddress.ip_address(addr[4][0])
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_unspecified or
-                        ip_obj.is_reserved or ip_obj.is_multicast):
-                        print(f"Error: Unsafe URL pointing to internal IP '{ip_obj}'.", file=sys.stderr)
-                        return
-            except Exception as e:
+                _validate_hostname(hostname)
+            except (OSError, ValueError) as e:
                 print(f"Error validating hostname: {e}", file=sys.stderr)
                 return
 
@@ -91,7 +122,17 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                with _validated_dns_lookups():
+                    response = session.get(
+                        target_url, timeout=30, allow_redirects=False
+                    )
+                status_code = getattr(response, "status_code", 0)
+                if isinstance(status_code, int) and 300 <= status_code < 400:
+                    print(
+                        "Error: Redirects are not allowed for URL inputs.",
+                        file=sys.stderr,
+                    )
+                    return
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
@@ -126,6 +167,8 @@ def main(argv=None):
                 else:
                     print(md_content)
 
+            except ValueError as e:
+                print(f"Error validating hostname: {e}", file=sys.stderr)
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
             except OSError as e:

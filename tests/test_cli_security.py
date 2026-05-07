@@ -1,5 +1,6 @@
 """Security-focused tests for CLI URL and output path handling."""
 
+import socket
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -70,3 +71,44 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_blocks_redirects(mock_get, mock_getaddrinfo, capsys, tmp_path):
+    """Redirect responses are rejected instead of following to unvalidated hosts."""
+    mock_getaddrinfo.return_value = [
+        (2, 1, 6, "", ("93.184.216.34", 443)),
+    ]
+    response = MagicMock()
+    response.status_code = 302
+    mock_get.return_value = response
+
+    cli.main(["--url", "https://example.com/redirect", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Redirects are not allowed" in outerr.err
+    mock_get.assert_called_once_with(
+        "https://example.com/redirect", timeout=30, allow_redirects=False
+    )
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_revalidates_dns_during_fetch(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
+    """DNS answers used by the actual fetch are revalidated to reduce rebinding risk."""
+    public_answer = [(2, 1, 6, "", ("93.184.216.34", 443))]
+    private_answer = [(2, 1, 6, "", ("127.0.0.1", 443))]
+    mock_getaddrinfo.side_effect = [public_answer, private_answer]
+
+    def fetch_with_rebound_dns(*_args, **_kwargs):
+        socket.getaddrinfo("example.com", 443)
+
+    mock_get.side_effect = fetch_with_rebound_dns
+
+    cli.main(["--url", "https://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Unsafe URL pointing to internal IP '127.0.0.1'" in outerr.err
