@@ -1,25 +1,29 @@
 """CLI entry point for html2md."""
 
 from __future__ import annotations
+
 import argparse
-import os
-import sys
-import socket
 import ipaddress
-from urllib.parse import urljoin, urlparse, unquote
+import os
+import socket
+import sys
+from urllib.parse import unquote, urljoin, urlparse
 
 
 def is_safe_url(url: str) -> bool:
-    """Check if the URL resolves to a safe, public IP address."""
+    """Check if the URL resolves only to globally reachable IP addresses."""
     try:
         parsed = urlparse(url)
         hostname = parsed.hostname
         if not hostname:
             return False
 
-        # Resolve hostname to all associated IPs
-        # This handles IPv4 and IPv6
+        # Resolve hostname to all associated IPv4 and IPv6 addresses. Treat any
+        # address that is not globally routable as unsafe, including shared,
+        # documentation, benchmarking, private, loopback, and link-local ranges.
         addr_info = socket.getaddrinfo(hostname, None)
+        if not addr_info:
+            return False
 
         for info in addr_info:
             ip_str = info[4][0]

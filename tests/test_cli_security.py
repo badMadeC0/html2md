@@ -1,6 +1,8 @@
 """Security-focused tests for CLI URL and output path handling."""
 
+import socket
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from html2md import cli
@@ -23,9 +25,16 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@patch("html2md.cli.socket.getaddrinfo")
 @patch("requests.Session.get")
-def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
+def test_traversal_like_paths_stay_within_outdir(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
     """Traversal-like URL paths must never write outside of --outdir."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+    ]
+
     outdir = tmp_path / "output"
     outdir.mkdir()
 
@@ -55,9 +64,6 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert not (tmp_path / "secret.txt.md").exists()
 
 
-import socket
-
-
 @pytest.mark.parametrize(
     "url",
     [
@@ -65,6 +71,7 @@ import socket
         "http://localhost/",
         "http://169.254.169.254/latest/meta-data/",
         "http://100.64.0.1/",
+        "http://198.18.0.1/",
         "http://239.255.255.250/",
         "http://10.0.0.1/",
         "http://192.168.1.1/",
@@ -90,7 +97,7 @@ def test_process_url_ssrf_protection_blocked(mock_get, capsys, tmp_path, url):
         "ff02::1",
     ],
 )
-@patch("socket.getaddrinfo")
+@patch("html2md.cli.socket.getaddrinfo")
 def test_is_safe_url_rejects_multicast_dns_results(mock_getaddrinfo, ip_address):
     """SSRF protection should explicitly reject multicast DNS results."""
     family = socket.AF_INET6 if ":" in ip_address else socket.AF_INET
@@ -100,7 +107,8 @@ def test_is_safe_url_rejects_multicast_dns_results(mock_getaddrinfo, ip_address)
 
     assert not cli.is_safe_url("http://example.com/")
 
-@patch("socket.getaddrinfo")
+
+@patch("html2md.cli.socket.getaddrinfo")
 @patch("requests.Session.get")
 def test_process_url_ssrf_protection_allowed(
     mock_get, mock_getaddrinfo, capsys, tmp_path
@@ -122,7 +130,7 @@ def test_process_url_ssrf_protection_allowed(
     mock_get.assert_called_once()
 
 
-@patch("socket.getaddrinfo")
+@patch("html2md.cli.socket.getaddrinfo")
 @patch("requests.Session.get")
 def test_process_url_redirect_to_blocked_ip_is_rejected(
     mock_get, mock_getaddrinfo, capsys, tmp_path
