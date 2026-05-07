@@ -7,7 +7,7 @@
 #   1. AGENTS.md exists and is a regular file.
 #   2. AGENTS.md contains <!-- BEGIN BASELINE --> and <!-- END BASELINE --> markers
 #      (BEGIN must precede END).
-#   3. AGENTS.md is <= 80 lines.
+#   3. AGENTS.md is <= 200 lines.
 #   4. CLAUDE.md exists and is either:
 #      - a symbolic link to AGENTS.md, or
 #      - a regular file with exact content "AGENTS.md" (Windows materialized symlink).
@@ -35,7 +35,7 @@ end_line=$(grep -n -F '<!-- END BASELINE -->' AGENTS.md | head -n1 | cut -d: -f1
 [ -n "$end_line" ] || fail "AGENTS.md missing <!-- END BASELINE --> marker"
 [ "$begin_line" -lt "$end_line" ] || fail "AGENTS.md baseline markers out of order"
 
-# 3. AGENTS.md <= 80 lines
+# 3. AGENTS.md <= 200 lines
 agents_lines=$(wc -l < AGENTS.md | tr -d ' ')
 [ "$agents_lines" -le 200 ] || fail "AGENTS.md has $agents_lines lines (> 200)"
 
