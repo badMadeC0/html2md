@@ -48,6 +48,9 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+    # Don't fail the workflow if Gemini's CLI/API is flaky;
+    # surface the failure on the job itself instead.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
