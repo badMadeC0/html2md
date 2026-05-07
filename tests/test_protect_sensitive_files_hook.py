@@ -207,7 +207,7 @@ def test_registered_hook_command_handles_project_dir_with_spaces(tmp_path):
     try:
         linked_repo.symlink_to(repo_root, target_is_directory=True)
     except OSError as exc:
-        pytest.skip("symlinks are unavailable in this test environment: {0}".format(exc))
+        pytest.skip(f"symlinks are unavailable in this test environment: {exc}")
     settings = json.loads(
         (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
