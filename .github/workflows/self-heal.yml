@@ -20,10 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout
+      - name: Checkout failing revision
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # For workflow_run failures, repair the commit/repository that actually failed CI.
+          # Manual runs keep the current workflow ref.
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
           repository: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name || github.repository }}
 
