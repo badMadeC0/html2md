@@ -123,6 +123,6 @@ jobs:
             }
           extensions: |
             [
-              "https://github.com/gemini-cli-extensions/code-review#dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04"
+              "https://github.com/gemini-cli-extensions/code-review"
             ]
           prompt: "/pr-code-review"
