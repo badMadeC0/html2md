@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 import argparse
-from contextlib import closing
 import os
 import sys
 from urllib.parse import urlparse, unquote
@@ -55,12 +54,18 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> bool:
-            """Process a single URL.
+        def decode_response_content(response, content_bytes: bytearray) -> str:
+            """Decode streamed bytes using Requests' response.text fallback order."""
+            encoding = response.encoding
+            if not encoding:
+                encoding = response.apparent_encoding
+            try:
+                return bytes(content_bytes).decode(encoding, errors='replace')
+            except (LookupError, TypeError):
+                return bytes(content_bytes).decode(errors='replace')
 
-            Returns True when conversion succeeds and False for recoverable
-            per-URL errors so batch processing can continue.
-            """
+        def process_url(target_url: str) -> bool:
+            """Process a single URL. Return True when conversion succeeds."""
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
@@ -75,10 +80,9 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                # Stream response to prevent memory exhaustion DoS.
-                with closing(
-                    session.get(target_url, timeout=30, stream=True)
-                ) as response:
+                # Stream response to prevent memory exhaustion DoS. Use a context
+                # manager so the connection is released even on errors/early returns.
+                with session.get(target_url, timeout=30, stream=True) as response:
                     response.raise_for_status()
 
                     content_bytes = bytearray()
@@ -94,29 +98,7 @@ def main(argv=None):
                                 return False
                             content_bytes.extend(chunk)
 
-                    encoding_candidates = [
-                        getattr(response, 'encoding', None),
-                        getattr(response, 'apparent_encoding', None),
-                        'utf-8',
-                    ]
-                    text_content = None
-                    tried_encodings = set()
-                    for encoding in encoding_candidates:
-                        if not isinstance(encoding, str) or not encoding:
-                            continue
-                        normalized_encoding = encoding.lower()
-                        if normalized_encoding in tried_encodings:
-                            continue
-                        tried_encodings.add(normalized_encoding)
-                        try:
-                            text_content = content_bytes.decode(
-                                encoding, errors='replace'
-                            )
-                            break
-                        except LookupError:
-                            continue
-                    if text_content is None:
-                        text_content = content_bytes.decode('utf-8', errors='replace')
+                    text_content = decode_response_content(response, content_bytes)
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")
@@ -160,9 +142,9 @@ def main(argv=None):
                 print(f"Conversion failed: {e}", file=sys.stderr)
             return False
 
-        had_error = False
-        if args.url:
-            had_error = not process_url(args.url)
+        exit_code = 0
+        if args.url and not process_url(args.url):
+            exit_code = 1
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -171,11 +153,10 @@ def main(argv=None):
             with open(args.batch, 'r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
-                    if u:
-                        if not process_url(u):
-                            had_error = True
+                    if u and not process_url(u):
+                        exit_code = 1
 
-        return 1 if had_error else 0
+        return exit_code
 
     ap.print_help()
     return 0
