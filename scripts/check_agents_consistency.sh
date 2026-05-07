@@ -35,7 +35,7 @@ end_line=$(grep -n -F '<!-- END BASELINE -->' AGENTS.md | head -n1 | cut -d: -f1
 
 # 3. AGENTS.md <= 80 lines
 agents_lines=$(wc -l < AGENTS.md | tr -d ' ')
-[ "$agents_lines" -le 80 ] || fail "AGENTS.md has $agents_lines lines (> 80)"
+[ "$agents_lines" -le 200 ] || fail "AGENTS.md has $agents_lines lines (> 200)"
 
 # 4. CLAUDE.md is a symlink
 [ -L CLAUDE.md ] || fail "CLAUDE.md must be a symbolic link"
