@@ -7,6 +7,8 @@ from flask import Flask, jsonify
 from html2md import __version__
 
 DEFAULT_PORT = 10000
+LOCAL_HOST = '127.0.0.1'
+DEPLOY_HOST = '0.0.0.0'
 
 app = Flask(__name__)
 
@@ -30,7 +32,11 @@ def get_host_port():
         )
         port_value = DEFAULT_PORT
 
-    hostname = os.environ.get('HOST', '127.0.0.1')
+    # Keep direct local runs private by default, but preserve the common
+    # container/PaaS convention where the platform provides PORT and expects
+    # the process to listen on all interfaces unless HOST is explicitly set.
+    default_host = DEPLOY_HOST if port_str is not None else LOCAL_HOST
+    hostname = os.environ.get('HOST', default_host)
     return hostname, port_value
 
 
