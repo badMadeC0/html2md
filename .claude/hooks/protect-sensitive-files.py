@@ -73,10 +73,19 @@ def main(argv=None) -> int:
 
     tool_input = payload.get("tool_input") or {}
     candidates = []
+    tool_input = payload.get("tool_input") or {}
+    candidates = []
     for key in ("file_path", "path", "notebook_path"):
         val = tool_input.get(key)
         if isinstance(val, str) and val:
             candidates.append(val)
+
+    # Handle MultiEdit which provides a list of edits
+    for edit in tool_input.get("edits", []):
+        if isinstance(edit, dict):
+            p = edit.get("file_path")
+            if isinstance(p, str) and p:
+                candidates.append(p)
 
     for path in candidates:
         if is_sensitive(path):
