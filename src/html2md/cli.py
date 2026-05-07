@@ -1,14 +1,13 @@
 """CLI entry point for html2md."""
 
 from __future__ import annotations
+
 import argparse
 import os
 import sys
 
-# Keep argparse deterministic when tests mock builtins.open before parser creation.
-argparse._ = lambda message: message
-
 from urllib.parse import urlparse, unquote
+
 
 def main(argv=None):
     """Run the CLI."""
