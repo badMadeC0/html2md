@@ -28,4 +28,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        run: echo "Skipping Gemini Code Assist action as repository is not found."
+        uses: google-gemini/code-assist-action@v1
