@@ -1,27 +1,28 @@
+"""Tests for html2md CLI exception-handling paths."""
 import unittest
 from unittest.mock import patch, MagicMock
 import io
-import requests
+import requests  # type: ignore[import-untyped]
 from pathlib import Path
 from html2md.cli import main
 
+
 class TestCliExceptions(unittest.TestCase):
+    """Unit tests for CLI network, file, and path-containment error handling."""
+
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        # Mock sys.stderr to capture output
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
-            # Patch requests.Session.get directly
             with patch('requests.Session.get') as mock_get:
                 mock_get.side_effect = requests.RequestException("Network unreachable")
 
                 try:
                     main(['--url', 'http://example.com'])
-                except Exception as e:
+                except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
 
                 output = captured_stderr.getvalue()
-                # Expect "Network error: Network unreachable"
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
@@ -43,13 +44,25 @@ class TestCliExceptions(unittest.TestCase):
                     ):
                         try:
                             main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                        except Exception as e:
+                        except (SystemExit, RuntimeError, ValueError) as e:
                             self.fail(f"main raised exception {e}")
 
                         output = captured_stderr.getvalue()
-                        # Expect "File error: Permission denied"
                         self.assertIn("File error", output)
                         self.assertIn("Permission denied", output)
+
+    def test_outdir_is_file_returns_error(self):
+        """Test that --outdir pointing at an existing file returns a non-zero exit code."""
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            with (
+                patch('pathlib.Path.exists', return_value=True),
+                patch('pathlib.Path.is_dir', return_value=False),
+            ):
+                result = main(['--url', 'http://example.com', '--outdir', '/tmp/file.txt'])
+
+        assert result != 0
+        assert "--outdir must be a directory" in captured_stderr.getvalue()
 
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
