@@ -6,7 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+from urllib.parse import urljoin, urlparse, unquote
 
 
 def is_safe_url(url: str) -> bool:  # pylint: disable=too-many-boolean-expressions
@@ -120,7 +120,57 @@ def main(argv=None):  # pylint: disable=too-many-statements
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                max_redirects = 5
+                current_url = target_url
+                for redirect_count in range(max_redirects + 1):
+                    response = session.get(
+                        current_url, timeout=30, allow_redirects=False
+                    )
+
+                    status_code = getattr(response, "status_code", None)
+                    is_redirect = (
+                        status_code in range(300, 400)
+                        or getattr(response, "is_redirect", False) is True
+                    )
+                    if not is_redirect:
+                        target_url = current_url
+                        break
+
+                    if redirect_count == max_redirects:
+                        print(
+                            "Network error: Exceeded maximum redirects.",
+                            file=sys.stderr,
+                        )
+                        return
+
+                    location = response.headers.get("Location")
+                    if not location:
+                        target_url = current_url
+                        break
+
+                    next_url = urljoin(current_url, location)
+                    if "/?" in next_url:
+                        next_url = next_url.replace("/?", "?")
+
+                    parsed = urlparse(next_url)
+                    if parsed.scheme not in ("http", "https"):
+                        print(
+                            f"Error: Unsupported URL scheme '{parsed.scheme}'. "
+                            "Only http and https are allowed.",
+                            file=sys.stderr,
+                        )
+                        return
+
+                    if not is_safe_url(next_url):
+                        print(
+                            f"Error: URL '{next_url}' resolves to a non-public "
+                            "IP address.",
+                            file=sys.stderr,
+                        )
+                        return
+
+                    current_url = next_url
+
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
