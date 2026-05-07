@@ -6,12 +6,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Dict, Union
 
 
 HOOK_SCRIPT = Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "protect_sensitive_files.py"
 
 
-def run_hook(payload: dict[str, object] | str) -> subprocess.CompletedProcess[str]:
+def run_hook(payload: Union[Dict[str, object], str]) -> subprocess.CompletedProcess[str]:
     """Run the hook with a JSON payload or raw stdin text."""
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
     return subprocess.run(
@@ -23,7 +24,7 @@ def run_hook(payload: dict[str, object] | str) -> subprocess.CompletedProcess[st
     )
 
 
-def tool_payload(tool_name: str, path: str) -> dict[str, object]:
+def tool_payload(tool_name: str, path: str) -> Dict[str, object]:
     """Build a minimal Claude Code hook payload."""
     return {"tool_name": tool_name, "tool_input": {"file_path": path}}
 
@@ -71,11 +72,11 @@ def test_malformed_payload_does_not_block() -> None:
     assert "bad JSON payload" in result.stderr
 
 
-def test_hook_settings_use_project_dir() -> None:
-    """Claude Code should resolve the hook from the project root."""
+def test_hook_settings_uses_cross_platform_python_and_project_dir() -> None:
+    """Claude Code should use a broadly available Python command from the project root."""
     settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
     settings = json.loads(settings_path.read_text())
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
-    assert "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" in command
-    assert ".claude/hooks/protect_sensitive_files.py" in command
+    assert command == 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py"'
+    assert not command.startswith("python3 ")

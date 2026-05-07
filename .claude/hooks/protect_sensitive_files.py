@@ -11,7 +11,7 @@ import fnmatch
 import json
 import os
 import sys
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 
 BLOCKED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -47,7 +47,7 @@ def is_sensitive(path: str) -> bool:
     return _matches_sensitive_pattern(path)
 
 
-def _candidate_paths(tool_input: dict[str, Any]) -> list[str]:
+def _candidate_paths(tool_input: Dict[str, Any]) -> List[str]:
     """Collect path-like fields from a Claude Code tool input payload."""
     return [
         value
@@ -56,7 +56,7 @@ def _candidate_paths(tool_input: dict[str, Any]) -> list[str]:
     ]
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     """Validate a Claude Code hook payload from stdin.
 
     Args:
