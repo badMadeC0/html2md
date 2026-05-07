@@ -1,7 +1,7 @@
 """Security-focused tests for CLI URL and output path handling."""
 
-from unittest.mock import MagicMock, patch
 import socket
+from unittest.mock import MagicMock, patch
 import pytest
 
 from html2md import cli
@@ -155,3 +155,50 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, _mock_getaddrinfo, ca
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_blocks_redirects(mock_get, mock_getaddrinfo, capsys, tmp_path):
+    """A redirect response without a Location header is treated as an error."""
+    mock_getaddrinfo.return_value = [
+        (2, 1, 6, "", ("93.184.216.34", 443)),
+    ]
+    response = MagicMock()
+    response.status_code = 302
+    response.headers = {}  # No Location header
+    mock_get.return_value = response
+
+    cli.main(["--url", "https://example.com/redirect", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Redirect response missing Location header" in outerr.err
+    mock_get.assert_called_once_with(
+        "https://example.com/redirect", timeout=30, allow_redirects=False
+    )
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_revalidates_dns_during_fetch(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
+    """DNS answers for the active URL are pinned during the fetch to prevent rebinding."""
+    public_answer = [(2, 1, 6, "", ("93.184.216.34", 443))]
+    mock_getaddrinfo.return_value = public_answer
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Secure</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "https://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    assert "Unsafe URL pointing to internal IP" not in outerr.err
+    # validate_url calls getaddrinfo once; further DNS lookups during the
+    # request go through the pinned context manager, not the real resolver.
+    assert mock_getaddrinfo.call_count == 1

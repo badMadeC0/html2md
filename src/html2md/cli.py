@@ -160,7 +160,7 @@ def main(argv=None):
             max_redirects = 10
             redirect_statuses = (301, 302, 303, 307, 308)
 
-            for _ in range(max_redirects + 1):
+            for _ in range(max_redirects):
                 validation = validate_url(current_url)
                 if validation is None:
                     return None
@@ -174,7 +174,8 @@ def main(argv=None):
 
                 location = response.headers.get('Location') if response.headers else None
                 if not location:
-                    return response
+                    print("Error: Redirect response missing Location header.", file=sys.stderr)
+                    return None
 
                 current_url = urljoin(current_url, location)
 
