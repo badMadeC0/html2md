@@ -29,17 +29,62 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
+          comment_body = (
+              "@google-labs-jules please review this pull request.\n\n"
+              "<!-- html2md-jules-review-request -->"
+          )
+          legacy_comment_body = "@google-labs-jules please review this pull request."
+          marker = "html2md-jules-review-request"
+          comments_url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+          }
+
+          def request_json(url):
+              request = urllib.request.Request(url=url, headers=headers, method="GET")
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          def jules_request_already_posted():
+              page = 1
+              while True:
+                  comments = request_json(f"{comments_url}?per_page=100&page={page}")
+                  for comment in comments:
+                      body = comment.get("body", "")
+                      if marker in body or body.strip() == legacy_comment_body:
+                          return True
+                  if len(comments) < 100:
+                      return False
+                  page += 1
+
+          try:
+              if jules_request_already_posted():
+                  print(
+                      "Review request for @google-labs-jules already exists on "
+                      f"PR #{pr_number}; skipping duplicate comment."
+                  )
+                  raise SystemExit(0)
+          except urllib.error.HTTPError as error:
+              error_body = error.read().decode("utf-8")
+              print(
+                  "Could not check existing @google-labs-jules comments; "
+                  "continuing without failing the workflow."
+              )
+              print(f"HTTP {error.code}: {error_body}")
+              raise SystemExit(0)
+          except urllib.error.URLError as error:
+              print(
+                  "Could not check existing @google-labs-jules comments due to a "
+                  "network error; continuing without failing the workflow."
+              )
+              print(f"Error: {error}")
+              raise SystemExit(0)
 
           request = urllib.request.Request(
-              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
+              url=comments_url,
+              data=json.dumps({"body": comment_body}).encode("utf-8"),
+              headers={**headers, "Content-Type": "application/json"},
               method="POST",
           )
 
