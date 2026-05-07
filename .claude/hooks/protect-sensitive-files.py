@@ -107,6 +107,24 @@ def main(argv=None) -> int:
     tool_input = payload.get("tool_input") or {}
     candidates = _collect_candidate_paths(tool_input)
 
+    # Fail-closed when an in-scope tool has no recognized path keys: a
+    # future Claude Code version that uses different keys (e.g. `target`,
+    # `file`) would otherwise bypass this hook silently. Block and surface
+    # the unknown shape so a human can update PATH_KEYS rather than learn
+    # about the bypass after the fact.
+    if not candidates:
+        try:
+            shape = sorted(tool_input.keys()) if isinstance(tool_input, dict) else type(tool_input).__name__
+        except Exception:
+            shape = "<unknown>"
+        print(
+            f"protect-sensitive-files: BLOCKED — {tool_name} payload has no "
+            f"recognized path keys (saw: {shape}). Update PATH_KEYS in "
+            f".claude/hooks/protect-sensitive-files.py if this is a real tool.",
+            file=sys.stderr,
+        )
+        return 2
+
     for path in candidates:
         if is_sensitive(path):
             print(

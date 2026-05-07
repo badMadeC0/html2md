@@ -96,6 +96,18 @@ if printf 'not-json{' | "$PYTHON_BIN" "$HOOK" >/dev/null 2>&1; then
 fi
 pass "blocked malformed JSON (fail-closed)"
 
+# In-scope tool with no recognized path keys must fail closed (unknown
+# payload shape — could be a new tool variant the hook doesn't know).
+if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"Edit","tool_input":{"target":"src/foo.py"}}' >/dev/null 2>&1; then
+  fail "hook should BLOCK in-scope tool with no recognized path keys (fail-closed) but allowed it"
+fi
+pass "blocked in-scope tool with unknown payload shape (fail-closed)"
+
+if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{}}' >/dev/null 2>&1; then
+  fail "hook should BLOCK in-scope tool with empty tool_input (fail-closed) but allowed it"
+fi
+pass "blocked in-scope tool with empty tool_input (fail-closed)"
+
 # --- ALLOW cases (expect zero exit) ---
 for path in "src/html2md/cli.py" "README.md" "tests/test_cli_smoke.py" \
             "docs/overview.md" "pyproject.toml" "envoy.yaml" \

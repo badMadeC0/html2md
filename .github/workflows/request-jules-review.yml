@@ -1,7 +1,12 @@
 name: Request Jules Review
 
 on:
-  pull_request_target:
+  # Use `pull_request` (not `pull_request_target`) — least privilege.
+  # The job below already hard-skips fork PRs, so we don't need the
+  # base-repo security context that `pull_request_target` provides,
+  # and avoiding it limits the blast radius if this workflow ever
+  # checks out untrusted code.
+  pull_request:
     types: [opened, reopened, synchronize]
 
 permissions:
@@ -11,7 +16,9 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
-    # Skip forks: the token typically can't write comments there
+    # Skip forks: the `pull_request` event provides a read-only token
+    # for fork PRs anyway, so commenting would 403. (This guard also
+    # makes `pull_request_target` unnecessary — see `on:` above.)
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
