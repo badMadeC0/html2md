@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -89,3 +91,53 @@ def test_bad_json_allows_and_reports_error(monkeypatch, capsys):
 
     assert exit_code == 0
     assert "bad JSON payload" in captured.err
+
+
+def test_claude_settings_registers_pre_tool_use_hook():
+    settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
+
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    pre_tool_use = settings["hooks"]["PreToolUse"]
+
+    protected_entry = next(
+        entry
+        for entry in pre_tool_use
+        if entry.get("matcher") == "Edit|Write|MultiEdit|NotebookEdit"
+    )
+    commands = [
+        hook
+        for hook in protected_entry["hooks"]
+        if hook.get("type") == "command"
+    ]
+
+    assert commands == [
+        {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py",
+        }
+    ]
+
+
+def test_registered_hook_command_blocks_sensitive_file():
+    repo_root = Path(__file__).resolve().parents[1]
+    settings = json.loads(
+        (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
+    )
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    payload = json.dumps(
+        {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
+    )
+
+    result = subprocess.run(
+        command,
+        input=payload,
+        text=True,
+        capture_output=True,
+        shell=True,
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(repo_root)},
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "BLOCKED" in result.stderr
+    assert "secrets/.env" in result.stderr
