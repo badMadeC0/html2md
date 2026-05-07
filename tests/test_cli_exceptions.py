@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import io
 import requests
+from pathlib import Path
 from html2md.cli import main
 
 class TestCliExceptions(unittest.TestCase):
@@ -35,17 +36,20 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
-                             try:
-                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                             except Exception as e:
-                                 self.fail(f"main raised exception {e}")
+                    with (
+                        patch('pathlib.Path.exists', return_value=False),
+                        patch('pathlib.Path.mkdir'),
+                        patch('pathlib.Path.open', side_effect=OSError("Permission denied")),
+                    ):
+                        try:
+                            main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                        except Exception as e:
+                            self.fail(f"main raised exception {e}")
 
-                             output = captured_stderr.getvalue()
-                             # Expect "File error: Permission denied"
-                             self.assertIn("File error", output)
-                             self.assertIn("Permission denied", output)
+                        output = captured_stderr.getvalue()
+                        # Expect "File error: Permission denied"
+                        self.assertIn("File error", output)
+                        self.assertIn("Permission denied", output)
 
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
@@ -58,14 +62,18 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
-                            def fake_realpath(path):
+                    with (
+                        patch('pathlib.Path.exists', return_value=True),
+                        patch('pathlib.Path.is_dir', return_value=True),
+                        patch('pathlib.Path.mkdir'),
+                    ):
+                        with patch('pathlib.Path.open') as mock_open:
+                            def fake_resolve(path):
                                 if str(path).endswith('.md'):
-                                    return '/tmp/outside/a.md'
-                                return '/tmp/out'
+                                    return Path('/tmp/outside/a.md')
+                                return Path('/tmp/out')
 
-                            with patch('os.path.realpath', side_effect=fake_realpath):
+                            with patch('pathlib.Path.resolve', fake_resolve):
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
