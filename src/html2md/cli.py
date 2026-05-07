@@ -6,7 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
 
 def main(argv=None):
     """Run the CLI."""
@@ -56,25 +56,23 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
-            # Fix common URL typo: trailing slash before query parameters
-            if '/?' in target_url:
-                target_url = target_url.replace('/?', '?')
-
+        def validate_url(target_url: str) -> bool:
+            """Validate a URL before fetching it to reduce SSRF risk."""
             parsed = urlparse(target_url)
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return
+                return False
 
-            # SSRF Protection: Resolve and validate IP against internal/private ranges
             hostname = parsed.hostname
             if not hostname:
                 print("Error: Invalid URL.", file=sys.stderr)
-                return
+                return False
 
             try:
+                # SSRF Protection: Resolve and validate every IP for this host.
+                # This function is called for the original URL and each redirect
+                # target before any request is made to that URL.
                 addr_info = socket.getaddrinfo(hostname, None)
                 for addr in addr_info:
                     ip_obj = ipaddress.ip_address(addr[4][0])
@@ -82,16 +80,50 @@ def main(argv=None):
                         ip_obj.is_link_local or ip_obj.is_unspecified or
                         ip_obj.is_reserved or ip_obj.is_multicast):
                         print(f"Error: Unsafe URL pointing to internal IP '{ip_obj}'.", file=sys.stderr)
-                        return
+                        return False
             except Exception as e:
                 print(f"Error validating hostname: {e}", file=sys.stderr)
-                return
+                return False
+
+            return True
+
+        def fetch_validated_url(target_url: str):
+            """Fetch a URL while validating each redirect target before following."""
+            current_url = target_url
+            max_redirects = 10
+            redirect_statuses = (301, 302, 303, 307, 308)
+
+            for _ in range(max_redirects + 1):
+                if not validate_url(current_url):
+                    return None
+
+                response = session.get(current_url, timeout=30, allow_redirects=False)
+                status_code = getattr(response, 'status_code', None)
+                if status_code not in redirect_statuses:
+                    return response
+
+                location = response.headers.get('Location') if response.headers else None
+                if not location:
+                    return response
+
+                current_url = urljoin(current_url, location)
+
+            print("Error: Too many redirects.", file=sys.stderr)
+            return None
+
+        def process_url(target_url: str) -> None:
+            """Process a single URL."""
+            # Fix common URL typo: trailing slash before query parameters
+            if '/?' in target_url:
+                target_url = target_url.replace('/?', '?')
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = fetch_validated_url(target_url)
+                if response is None:
+                    return
                 response.raise_for_status()
 
                 print("Converting to Markdown...")

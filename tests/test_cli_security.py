@@ -42,8 +42,60 @@ def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
     mock_get.assert_not_called()
 
 
+@patch("socket.getaddrinfo")
 @patch("requests.Session.get")
-def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
+def test_redirect_to_internal_ip_is_blocked(mock_get, mock_getaddrinfo, capsys):
+    """Redirect targets are validated before a follow-up request is sent."""
+    mock_getaddrinfo.side_effect = [
+        [(None, None, None, None, ("8.8.8.8", 0))],
+        [(None, None, None, None, ("169.254.169.254", 0))],
+    ]
+
+    redirect_response = MagicMock()
+    redirect_response.status_code = 302
+    redirect_response.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    mock_get.return_value = redirect_response
+
+    cli.main(["--url", "http://public.example/redirect"])
+
+    outerr = capsys.readouterr()
+    assert "Unsafe URL pointing to internal IP '169.254.169.254'" in outerr.err
+    mock_get.assert_called_once_with(
+        "http://public.example/redirect", timeout=30, allow_redirects=False
+    )
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_safe_redirect_is_manually_followed(mock_get, mock_getaddrinfo, capsys):
+    """Safe redirect targets are validated and then fetched without auto-redirects."""
+    mock_getaddrinfo.return_value = [(None, None, None, None, ("8.8.8.8", 0))]
+
+    redirect_response = MagicMock()
+    redirect_response.status_code = 302
+    redirect_response.headers = {"Location": "/final"}
+
+    final_response = MagicMock()
+    final_response.status_code = 200
+    final_response.headers = {}
+    final_response.text = "<h1>Safe</h1>"
+    final_response.raise_for_status.return_value = None
+
+    mock_get.side_effect = [redirect_response, final_response]
+
+    cli.main(["--url", "http://public.example/start"])
+
+    outerr = capsys.readouterr()
+    assert "# Safe" in outerr.out
+    assert mock_get.call_args_list[0].args == ("http://public.example/start",)
+    assert mock_get.call_args_list[0].kwargs["allow_redirects"] is False
+    assert mock_get.call_args_list[1].args == ("http://public.example/final",)
+    assert mock_get.call_args_list[1].kwargs["allow_redirects"] is False
+
+
+@patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("8.8.8.8", 0))])
+@patch("requests.Session.get")
+def test_traversal_like_paths_stay_within_outdir(mock_get, _mock_getaddrinfo, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
     outdir.mkdir()
