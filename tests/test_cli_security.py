@@ -51,3 +51,11 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+def test_whole_page_option_is_accepted_for_gui_batch_mode(capsys):
+    """GUI batch mode may pass --whole-page through to the CLI."""
+    rc = cli.main(["--whole-page", "--help-only"])
+    outerr = capsys.readouterr()
+    assert rc == 0
+    assert "--whole-page" in outerr.out

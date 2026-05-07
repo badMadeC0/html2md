@@ -2,6 +2,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import os
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
@@ -58,7 +59,14 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.path.exists', return_value=True):
+                    real_exists = os.path.exists
+
+                    def fake_exists(path):
+                        if path == '/tmp/out':
+                            return True
+                        return real_exists(path)
+
+                    with patch('os.path.exists', side_effect=fake_exists):
                         with patch('builtins.open') as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
