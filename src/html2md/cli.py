@@ -78,6 +78,24 @@ def main(argv=None):
                     ip_obj.is_link_local or ip_obj.is_unspecified or
                     ip_obj.is_reserved or ip_obj.is_multicast)
 
+        def _normalize_hostname(hostname):
+            """Return the canonical form used for DNS validation and pinning."""
+            normalized = hostname.rstrip('.').lower()
+            try:
+                ipaddress.ip_address(normalized)
+                return normalized
+            except ValueError:
+                pass
+
+            try:
+                return normalized.encode('ascii').decode('ascii')
+            except UnicodeEncodeError:
+                import idna  # pylint: disable=import-outside-toplevel
+
+                return idna.encode(
+                    normalized, strict=True, std3_rules=True
+                ).decode('ascii')
+
         def validate_url(target_url: str):
             """Validate a URL and return the DNS answers approved for fetching it."""
             parsed = urlparse(target_url)
@@ -91,6 +109,12 @@ def main(argv=None):
                 print("Error: Invalid URL.", file=sys.stderr)
                 return None
 
+            try:
+                dns_hostname = _normalize_hostname(hostname)
+            except UnicodeError as e:
+                print(f"Error: Invalid IDNA hostname: {e}", file=sys.stderr)
+                return None
+
             port = _url_port(parsed)
             if port is None:
                 return None
@@ -100,7 +124,7 @@ def main(argv=None):
                 # The approved DNS answers are returned and pinned for the
                 # matching request so a second lookup cannot rebind to an
                 # internal address after validation.
-                addr_info = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+                addr_info = socket.getaddrinfo(dns_hostname, port, type=socket.SOCK_STREAM)
                 if not addr_info:
                     print("Error: Hostname did not resolve to any addresses.", file=sys.stderr)
                     return None
@@ -114,16 +138,20 @@ def main(argv=None):
                 print(f"Error validating hostname: {e}", file=sys.stderr)
                 return None
 
-            return hostname, port, addr_info
+            return dns_hostname, port, addr_info
 
         @contextmanager
         def _pin_validated_dns(hostname, port, addr_info):
             """Pin requests DNS resolution to the already-validated answers."""
             original_getaddrinfo = socket.getaddrinfo
-            pinned_hostname = hostname.rstrip('.').lower()
+            pinned_hostname = _normalize_hostname(hostname)
 
             def pinned_getaddrinfo(host, requested_port, family=0, type=0, proto=0, flags=0):
-                if host and host.rstrip('.').lower() == pinned_hostname:
+                try:
+                    requested_hostname = _normalize_hostname(host) if host else None
+                except UnicodeError:
+                    requested_hostname = host.rstrip('.').lower() if host else None
+                if requested_hostname == pinned_hostname:
                     resolved_port = requested_port if requested_port is not None else port
                     pinned = []
                     for family_, type_, proto_, canonname, sockaddr in addr_info:
