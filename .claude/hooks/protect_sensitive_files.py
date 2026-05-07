@@ -12,7 +12,7 @@ import fnmatch
 import json
 import os
 import sys
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 
 SENSITIVE_BASENAME_PATTERNS = (
@@ -24,6 +24,12 @@ SENSITIVE_BASENAME_PATTERNS = (
     "credentials.json",
     "id_rsa",
     "id_rsa.pub",
+    "id_ed25519",
+    "id_ed25519.pub",
+    "id_ecdsa",
+    "id_ecdsa.pub",
+    "id_dsa",
+    "id_dsa.pub",
 )
 
 PROTECTED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -49,7 +55,7 @@ def is_sensitive(path: str) -> bool:
     return False
 
 
-def candidate_paths(tool_input: dict[str, Any]) -> list[str]:
+def candidate_paths(tool_input: Dict[str, Any]) -> List[str]:
     """Extract target file paths from a Claude Code tool input object."""
     candidates = []
     for key in PATH_KEYS:
@@ -59,7 +65,7 @@ def candidate_paths(tool_input: dict[str, Any]) -> list[str]:
     return candidates
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     """Run the hook and return a process exit status."""
     try:
         payload_raw = sys.stdin.read()
