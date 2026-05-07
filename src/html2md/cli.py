@@ -81,6 +81,9 @@ def main(argv=None):
                         content_bytes.extend(chunk)
                         if len(content_bytes) > max_size:
                             print("Error: Response too large (>10MB). Aborting to prevent memory exhaustion.", file=sys.stderr)
+                            response.close()
+                            if not args.batch:
+                                sys.exit(1)
                             return
 
                 encoding = response.encoding if isinstance(getattr(response, 'encoding', None), str) else 'utf-8'

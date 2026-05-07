@@ -51,3 +51,50 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_oversize_single_url_closes_response_and_exits(mock_get, capsys):
+    """Oversized streamed responses are closed and fail single-URL runs."""
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.iter_content.return_value = [b"x" * (10 * 1024 * 1024 + 1)]
+    mock_get.return_value = response
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["--url", "http://example.com/huge"])
+
+    assert excinfo.value.code == 1
+    response.close.assert_called_once_with()
+    outerr = capsys.readouterr()
+    assert "Response too large" in outerr.err
+
+
+@patch("requests.Session.get")
+def test_oversize_batch_closes_response_and_continues(mock_get, capsys, tmp_path):
+    """Oversized batch entries are closed without aborting later URLs."""
+    batch_file = tmp_path / "urls.txt"
+    batch_file.write_text(
+        "http://example.com/huge\nhttp://example.com/small\n",
+        encoding="utf-8",
+    )
+
+    huge_response = MagicMock()
+    huge_response.raise_for_status.return_value = None
+    huge_response.iter_content.return_value = [b"x" * (10 * 1024 * 1024 + 1)]
+
+    small_response = MagicMock()
+    small_response.raise_for_status.return_value = None
+    small_response.iter_content.return_value = [b"<h1>ok</h1>"]
+    small_response.encoding = "utf-8"
+
+    mock_get.side_effect = [huge_response, small_response]
+
+    result = cli.main(["--batch", str(batch_file)])
+
+    assert result == 0
+    huge_response.close.assert_called_once_with()
+    assert mock_get.call_count == 2
+    outerr = capsys.readouterr()
+    assert "Response too large" in outerr.err
+    assert "# ok" in outerr.out.lower()
