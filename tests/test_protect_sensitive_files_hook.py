@@ -106,7 +106,7 @@ def test_node_launcher_blocks_sensitive_file_without_pyenv_version() -> None:
 def test_hook_settings_uses_node_launcher_and_project_dir() -> None:
     """Claude Code should use the Node launcher from the project root."""
     settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
-    settings = json.loads(settings_path.read_text())
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
     assert command == 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/run_protect_sensitive_files.js"'
@@ -121,7 +121,7 @@ def test_node_launcher_prefers_python3_before_bare_python() -> None:
         / "hooks"
         / "run_protect_sensitive_files.js"
     )
-    launcher = launcher_path.read_text()
+    launcher = launcher_path.read_text(encoding="utf-8")
 
     python3_index = launcher.index('command: "python3"')
     py_index = launcher.index('command: "py"')
