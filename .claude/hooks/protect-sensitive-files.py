@@ -7,8 +7,8 @@ Stdlib only.
 
 Sensitive patterns (matched against the file's basename and against the
 full path):
-    .env, .env.<anything>, *.pem, *.key, *.crt,
-    credentials.json, id_rsa*
+    .env*  (covers .env, .env.local, .envrc, .envrc.local, ...),
+    *.pem, *.key, *.crt, credentials.json, id_rsa*
 """
 from __future__ import annotations
 
@@ -18,8 +18,7 @@ import sys
 
 
 SENSITIVE_BASENAME_PATTERNS = (
-    ".env",
-    ".env.*",
+    ".env*",
     "*.pem",
     "*.key",
     "*.crt",

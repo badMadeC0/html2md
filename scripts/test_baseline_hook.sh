@@ -56,6 +56,7 @@ run_hook_payload() {
 
 # --- BLOCK cases (expect non-zero exit) ---
 for path in ".env" ".env.local" ".env.production" "config/.env" \
+            ".envrc" ".envrc.local" "config/.envrc" \
             "secrets.pem" "server.key" "credentials.json" \
             "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
             "src/keys/id_rsa"; do
