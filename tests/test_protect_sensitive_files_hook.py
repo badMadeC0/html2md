@@ -113,17 +113,21 @@ def test_claude_settings_registers_pre_tool_use_hook():
     assert commands == [
         {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-sensitive-files.py",
         }
     ]
 
 
-def test_registered_hook_command_blocks_sensitive_file():
+def test_registered_hook_command_blocks_sensitive_file_from_path_with_spaces(
+    tmp_path,
+):
     repo_root = Path(__file__).resolve().parents[1]
     settings = json.loads(
         (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    project_dir_with_spaces = tmp_path / "project path with spaces"
+    project_dir_with_spaces.symlink_to(repo_root, target_is_directory=True)
     payload = json.dumps(
         {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
     )
@@ -134,7 +138,7 @@ def test_registered_hook_command_blocks_sensitive_file():
         text=True,
         capture_output=True,
         shell=True,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(repo_root)},
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(project_dir_with_spaces)},
         check=False,
     )
 
