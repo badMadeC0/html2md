@@ -14,9 +14,7 @@ from typing import Optional
 def _validate_ip_address(ip_address: str):
     """Return a parsed public IP address or raise ValueError for unsafe targets."""
     ip_obj = ipaddress.ip_address(ip_address)
-    if (ip_obj.is_private or ip_obj.is_loopback or
-        ip_obj.is_link_local or ip_obj.is_unspecified or
-        ip_obj.is_reserved or ip_obj.is_multicast):
+    if not ip_obj.is_global:
         raise ValueError(f"Unsafe URL pointing to internal IP '{ip_obj}'.")
     return ip_obj
 

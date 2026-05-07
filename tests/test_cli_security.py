@@ -25,32 +25,36 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
 
 
 @pytest.mark.parametrize(
-    "url",
+    "url,internal_ip",
     [
-        "http://localhost:8080/admin",
-        "http://127.0.0.1/status",
-        "http://169.254.169.254/latest/meta-data/",
-        "https://192.168.1.1/config",
-        "http://[::1]/",
+        ("http://localhost:8080/admin", "127.0.0.1"),
+        ("http://127.0.0.1/status", "127.0.0.1"),
+        ("http://169.254.169.254/latest/meta-data/", "169.254.169.254"),
+        ("https://192.168.1.1/config", "192.168.1.1"),
+        ("http://[::1]/", "::1"),
     ],
 )
 @patch("requests.Session.get")
-def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
+def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url, internal_ip):
     """Ensure URLs pointing to private/internal IPs are rejected to prevent SSRF."""
-    cli.main(["--url", url, "--outdir", str(tmp_path)])
+    with patch("socket.getaddrinfo", return_value=[(2, 1, 6, "", (internal_ip, 0))]):
+        cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
-    assert "Unsafe URL pointing to internal IP" in outerr.err or "Error validating hostname" in outerr.err
+    assert "Unsafe URL pointing to internal IP" in outerr.err
     mock_get.assert_not_called()
 
 
+@patch("socket.getaddrinfo")
 @patch("requests.Session.get")
-def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
+def test_traversal_like_paths_stay_within_outdir(mock_get, mock_getaddrinfo, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
     outdir.mkdir()
 
     secret_file = tmp_path / "secret.txt"
     secret_file.write_text("secret content", encoding="utf-8")
+
+    mock_getaddrinfo.return_value = [(2, 1, 6, "", ("93.184.216.34", 80))]
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
