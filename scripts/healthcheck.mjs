@@ -1,20 +1,20 @@
 #!/usr/bin/env node
-/* Minimal, opinionated healthcheck for a pnpm monorepo:
-   - root: typecheck? test? lint? build?
-   - workspaces: smoke build where available
+/* Repository healthcheck used by the self-heal workflow.
+   Run checks only when this repository is configured for them; do not assume
+   a pnpm workspace or a TypeScript project exists.
 */
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
-const hasScript = (name) => {
-  try {
-    const out = execSync("pnpm run -r", { stdio: "pipe" }).toString();
-    return out.includes(name);
-  } catch { return false; }
+const readPackageJson = () => {
+  if (!existsSync("package.json")) return {};
+  return JSON.parse(readFileSync("package.json", "utf8"));
 };
+const packageJson = readPackageJson();
+const scripts = packageJson.scripts ?? {};
+const hasScript = (name) => Object.prototype.hasOwnProperty.call(scripts, name);
+const hasTypeScriptConfig = () => existsSync("tsconfig.json") || existsSync("jsconfig.json");
 
 const tryRun = (name, cmd) => {
   if (!cmd) return;
@@ -23,27 +23,17 @@ const tryRun = (name, cmd) => {
 };
 
 try {
-  // Root-level checks (best-effort if scripts exist)
-  tryRun("Typecheck", hasScript("typecheck") ? "pnpm -w run typecheck" : null);
-  tryRun("Lint", hasScript("lint") ? "pnpm -w run lint" : null);
-  tryRun("Unit tests", hasScript("test") ? "pnpm -w run test -- --run" : null);
+  // JavaScript checks are opt-in and run at the package root. This repository
+  // is not a pnpm workspace, so avoid workspace-only flags such as `-w`.
+  tryRun("Typecheck", hasScript("typecheck") && hasTypeScriptConfig() ? "pnpm run typecheck" : null);
+  tryRun("Lint", hasScript("lint") ? "pnpm run lint" : null);
+  tryRun("Unit tests", hasScript("test") ? "pnpm run test" : null);
+  tryRun("Build", hasScript("build") ? "pnpm run build" : null);
 
-  // Workspace smoke builds (apps/* and packages/* if build exists)
-  const roots = ["apps", "packages"];
-  for (const base of roots) {
-    if (!existsSync(base)) continue;
-    for (const name of readdirSync(base)) {
-      const dir = join(base, name);
-      if (!statSync(dir).isDirectory()) continue;
-      try {
-        execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
-      } catch (e) {
-        console.error(`[healthcheck] build failed in ${dir}`);
-        process.exitCode = 1;
-      }
-    }
-  }
-  process.exit(process.exitCode ?? 0);
+  // Native Python project checks.
+  tryRun("Python tests", existsSync("pyproject.toml") && existsSync("tests") ? "python3 -m pytest" : null);
+
+  process.exit(0);
 } catch (e) {
   console.error(e);
   process.exit(1);

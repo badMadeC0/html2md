@@ -3,13 +3,13 @@
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
-const sh = (cmd, opts={}) => {
+const sh = (cmd, opts = {}) => {
   console.log(`\n$ ${cmd}`);
   return execSync(cmd, { stdio: "inherit", ...opts });
 };
-const trySh = (cmd, opts={}) => {
+const trySh = (cmd, opts = {}) => {
   try { sh(cmd, opts); return true; } catch { return false; }
 };
 const changed = () => {
@@ -19,40 +19,48 @@ const changed = () => {
 const passHealth = () => {
   try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
 };
+const readPackageJson = () => {
+  if (!existsSync("package.json")) return {};
+  return JSON.parse(readFileSync("package.json", "utf8"));
+};
+const scripts = readPackageJson().scripts ?? {};
+const hasScript = (name) => Object.prototype.hasOwnProperty.call(scripts, name);
+const hasTypeScriptConfig = () => existsSync("tsconfig.json") || existsSync("jsconfig.json");
 
 let fixed = false;
 
-// 1) Lint/format
-trySh("pnpm -w run lint --fix");
-trySh("pnpm -w run format");
+// 1) Lint/format. This repository is not a pnpm workspace, so use root package
+// scripts directly when they exist rather than workspace-only `pnpm -w` flags.
+if (hasScript("lint")) trySh("pnpm run lint -- --fix");
+if (hasScript("format")) trySh("pnpm run format");
 if (passHealth()) fixed = fixed || changed();
 
-// 2) Snapshot updates (only if tests fail with snapshots)
-if (!passHealth()) {
-  trySh("pnpm -w exec vitest -u");
+// 2) Snapshot updates (only when a Vitest-backed test script is configured).
+if (!passHealth() && hasScript("test") && /vitest/.test(scripts.test)) {
+  trySh("pnpm exec vitest -u");
   if (passHealth()) fixed = fixed || changed();
 }
 
-// 3) Type acquisition
-if (!passHealth()) {
+// 3) Type acquisition (only for actual TypeScript projects).
+if (!passHealth() && hasScript("typecheck") && hasTypeScriptConfig()) {
   trySh("pnpm dlx typesync --save-dev");
   // In case typesync suggests @types/node et al.
-  trySh("pnpm -w install");
+  trySh("pnpm install");
   if (passHealth()) fixed = fixed || changed();
 }
 
-// 4) Lockfile repair (only if integrity complaints)
-if (!passHealth()) {
-  // Try a clean install + re-resolve
+// 4) Lockfile repair (only when this repository already tracks a pnpm lockfile).
+if (!passHealth() && existsSync("pnpm-lock.yaml")) {
+  // Try a clean install + re-resolve.
   trySh("pnpm install");
   if (!passHealth()) {
-    // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
+    // Last resort: refresh lockfile (scoped to the root package).
+    trySh("pnpm up --latest --interactive=false");
   }
   if (passHealth()) fixed = fixed || changed();
 }
 
-// 5) Known generators (icons/docs), if present
+// 5) Known generators (icons/docs), if present.
 if (!passHealth()) {
   if (existsSync("scripts/update-icon-docs.mjs")) {
     trySh("node scripts/update-icon-docs.mjs");
