@@ -25,7 +25,8 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             $argsList = @("--url", "$url", "--outdir", "$outDir")
-            if ($BatchWholePage) {
+            # Preserve the GUI's Convert Whole Page checkbox when running queued URLs.
+            if ($BatchWholePage.IsPresent) {
                 $argsList += "--whole-page"
             }
 
