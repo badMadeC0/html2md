@@ -24,13 +24,18 @@ HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
 PYTHON_BIN=""
-if command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-elif command -v python3 >/dev/null 2>&1; then
+if command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
 else
   fail "python interpreter not found (expected 'python' or 'python3')"
 fi
+
+"$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || fail "python interpreter must be >= 3.8"
+import sys
+sys.exit(0 if sys.version_info >= (3, 8) else 1)
+PY
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {

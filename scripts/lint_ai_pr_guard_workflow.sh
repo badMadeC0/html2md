@@ -29,10 +29,17 @@ WF=".github/workflows/ai-assisted-pr-guard.yml"
 # Prefer pyyaml-based parse; fall back to grep checks.
 have_yaml=0
 PYTHON_BIN=""
-if command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-elif command -v python3 >/dev/null 2>&1; then
+if command -v python3 >/dev/null 2>&1; then
   PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+fi
+
+if [ -n "$PYTHON_BIN" ]; then
+  "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || PYTHON_BIN=""
+import sys
+sys.exit(0 if sys.version_info >= (3, 8) else 1)
+PY
 fi
 
 if [ -n "$PYTHON_BIN" ] && "$PYTHON_BIN" -c "import yaml" >/dev/null 2>&1; then
