@@ -61,6 +61,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Strip PR-supplied Gemini config
+        # Project-local .gemini/commands/*.toml shadow extension commands
+        # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
+        # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
+        # so wiping it is safe and removes the attack surface.
+        run: rm -rf .gemini
       - name: Gemini Code Assist
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
@@ -106,7 +112,13 @@ jobs:
                 }
               },
               "tools": {
-                "core": []
+                "core": [
+                  "read_file",
+                  "read_many_files",
+                  "list_directory",
+                  "glob",
+                  "grep_search"
+                ]
               }
             }
           extensions: |
