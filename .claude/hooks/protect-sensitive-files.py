@@ -77,10 +77,10 @@ def collect_candidate_paths(tool_input: object) -> List[str]:
         return paths
 
     if isinstance(tool_input, list):
-        paths: List[str] = []
+        collected_paths: List[str] = []
         for item in tool_input:
-            paths.extend(collect_candidate_paths(item))
-        return paths
+            collected_paths.extend(collect_candidate_paths(item))
+        return collected_paths
 
     return []
 
