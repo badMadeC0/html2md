@@ -1,12 +1,11 @@
 import os
-import pytest
 from unittest.mock import patch
 
-try:
-    import flask
-    from html2md.app import app, get_host_port
-except ImportError:
-    pytest.skip("Flask is not installed", allow_module_level=True)
+import pytest
+
+pytest.importorskip("flask")
+
+from html2md.app import DEFAULT_PORT, app, get_host_port
 
 
 @pytest.fixture
@@ -28,7 +27,7 @@ def test_health_endpoint(client):
 def test_get_host_port_defaults():
     host, port = get_host_port()
     assert host == "0.0.0.0"
-    assert port == 10000
+    assert port == DEFAULT_PORT
 
 
 @patch.dict(os.environ, {"HOST": "127.0.0.1", "PORT": "8080"}, clear=True)
@@ -42,7 +41,7 @@ def test_get_host_port_custom():
 def test_get_host_port_invalid_port(capsys):
     host, port = get_host_port()
     assert host == "0.0.0.0"
-    assert port == 10000
+    assert port == DEFAULT_PORT
 
     captured = capsys.readouterr()
     assert "Warning: Invalid PORT environment variable value" in captured.out
