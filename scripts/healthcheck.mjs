@@ -1,4 +1,6 @@
-/* Repository healthcheck aligned with the actual Python CI:
+/* Repository healthcheck aligned with the actual Python CI.
+   This repository is not a pnpm workspace, so keep these checks on
+   Python commands instead of workspace-only pnpm invocations.
    - install the package in editable mode
    - run the pytest suite
 */
