@@ -2,7 +2,7 @@ name: Request Jules Review
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, reopened]
 
 permissions:
   issues: write
@@ -49,14 +49,26 @@ jobs:
                       link_header = list_response.headers.get("Link", "")
               except urllib.error.HTTPError as error:
                   body = error.read().decode("utf-8")
-                  print(f"Could not list existing comments: {body}")
+                  # 403/404 are non-actionable (permissions, missing PR); skip silently
+                  # like the fork guard above. Surface every other failure so a transient
+                  # API error shows up as a red check the maintainer can retry.
+                  if error.code in (403, 404):
+                      print(
+                          f"Could not list existing comments ({error.code}): {body}"
+                      )
+                      print(
+                          "Skipping: token cannot list comments in this PR context."
+                      )
+                      sys.exit(0)
                   print(
-                      "Refusing to post review request without verifying it is absent; "
-                      "skipping to avoid duplicate comments."
+                      f"Failed to list existing comments ({error.code}): {body}"
                   )
-                  sys.exit(0)
+                  raise
 
               for comment in comments:
+                  user = comment.get("user") or {}
+                  if user.get("login") != "github-actions[bot]":
+                      continue
                   if marker in (comment.get("body") or ""):
                       print(
                           f"Review request already present on PR #{pr_number}; skipping."
