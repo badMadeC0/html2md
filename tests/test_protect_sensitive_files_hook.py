@@ -4,6 +4,7 @@ import importlib.util
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -166,8 +167,6 @@ def test_claude_settings_registers_pre_tool_use_hook():
 def test_registered_hook_command_blocks_sensitive_file_from_path_with_spaces(
     tmp_path,
 ):
-    import shutil
-
     repo_root = Path(__file__).resolve().parents[1]
     hook_src = repo_root / ".claude" / "hooks" / "protect-sensitive-files.py"
     settings = json.loads(
