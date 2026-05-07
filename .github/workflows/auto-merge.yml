@@ -158,7 +158,7 @@ jobs:
                 (response) => response.data.check_runs
               );
               const currentRunId = process.env.GITHUB_RUN_ID;
-              let observedGreenSignal = false;
+              let observedExternalCheckRun = false;
               for (const c of runs) {
                 if (!c) continue;
                 // Skip this workflow's own currently running check to avoid self-deadlock.
@@ -168,7 +168,7 @@ jobs:
                   c.details_url &&
                   c.details_url.includes(`/actions/runs/${currentRunId}`)
                 ) continue;
-                observedGreenSignal = true;
+                observedExternalCheckRun = true;
                 if (c.status !== 'completed') return { ok: false, reason: `check "${c.name}" status=${c.status}` };
                 if (!['success', 'neutral', 'skipped'].includes(c.conclusion)) {
                   return { ok: false, reason: `check "${c.name}" conclusion=${c.conclusion}` };
@@ -177,14 +177,12 @@ jobs:
               const { data: combined } = await github.rest.repos.getCombinedStatusForRef({
                 owner, repo, ref: sha,
               });
-              if (combined.statuses.length > 0) {
-                observedGreenSignal = true;
-                if (combined.state !== 'success') {
-                  return { ok: false, reason: `combined status state=${combined.state}` };
-                }
+              const observedCommitStatus = combined.statuses.length > 0;
+              if (observedCommitStatus && combined.state !== 'success') {
+                return { ok: false, reason: `combined status state=${combined.state}` };
               }
-              if (!observedGreenSignal) {
-                return { ok: false, reason: 'no check runs or commit statuses found for head SHA yet' };
+              if (!observedExternalCheckRun && !observedCommitStatus) {
+                return { ok: false, reason: 'no non-self check runs or commit statuses found for head SHA yet' };
               }
               return { ok: true };
             }
@@ -205,6 +203,10 @@ jobs:
 
               if (pr.state !== 'open' || pr.draft || pr.merged) {
                 core.info(`PR #${num}: skip (state=${pr.state}, draft=${pr.draft}, merged=${pr.merged}).`);
+                continue;
+              }
+              if (pr.mergeable === null) {
+                core.info(`PR #${num}: mergeability is still being computed.`);
                 continue;
               }
               if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
