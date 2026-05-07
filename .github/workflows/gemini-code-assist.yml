@@ -48,28 +48,11 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        uses: google-gemini/code-assist-action@v1
-
-  gemini-code-assist-fallback:
-    needs: [preflight, gemini-code-assist]
-    if: >
-      always() &&
-      needs.preflight.outputs.enabled == 'true' &&
-      needs.gemini-code-assist.result != 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Gemini Code Assist (run-gemini-cli fallback)
         uses: google-github-actions/run-gemini-cli@v0.1.22
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
