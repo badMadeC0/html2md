@@ -56,9 +56,9 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
 done
 
 if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"MultiEdit","tool_input":{"edits":[{"path":"src\\keys\\id_rsa"}]}}' >/dev/null 2>&1; then
-  fail "hook should BLOCK MultiEdit nested path 'src\\\\keys\\\\id_rsa' but allowed it"
+  fail "hook should BLOCK MultiEdit nested path 'src\\keys\\id_rsa' but allowed it"
 fi
-pass "blocked MultiEdit nested path 'src\\\\keys\\\\id_rsa'"
+pass "blocked MultiEdit nested path 'src\\keys\\id_rsa'"
 
 if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"NotebookEdit","tool_input":{"edits":[{"notebook_path":"config/.env"}]}}' >/dev/null 2>&1; then
   fail "hook should BLOCK NotebookEdit nested notebook_path 'config/.env' but allowed it"

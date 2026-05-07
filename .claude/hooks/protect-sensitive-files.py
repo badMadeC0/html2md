@@ -27,6 +27,7 @@ SENSITIVE_BASENAME_PATTERNS = (
     "id_rsa",
     "id_rsa.pub",
 )
+PATH_KEYS = {"file_path", "path", "notebook_path"}
 
 
 def is_sensitive(path: str) -> bool:
@@ -45,11 +46,12 @@ def is_sensitive(path: str) -> bool:
     return False
 
 
-def _collect_candidate_paths(value) -> list:
+def _collect_candidate_paths(value) -> list[str]:
+    """Recursively collect file path strings from known path keys."""
     candidates = []
     if isinstance(value, dict):
         for key, item in value.items():
-            if key in {"file_path", "path", "notebook_path"} and isinstance(item, str) and item:
+            if key in PATH_KEYS and isinstance(item, str) and item:
                 candidates.append(item)
             candidates.extend(_collect_candidate_paths(item))
     elif isinstance(value, list):
