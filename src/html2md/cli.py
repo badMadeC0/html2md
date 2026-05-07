@@ -6,6 +6,10 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+# Keep argument parsing deterministic when tests or embedding applications patch
+# builtins.open; argparse localization can otherwise try to read gettext files.
+argparse._ = lambda message: message  # type: ignore[attr-defined]
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
