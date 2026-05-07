@@ -55,6 +55,8 @@ jobs:
                   f"Could not request review (HTTP {error.code}): "
                   f"{error.read().decode('utf-8')}"
               )
-              print("Ensure the workflow token has permission to comment.")
-              sys.exit(1)
+              if 400 <= error.code < 500 and error.code != 429:
+                  print("Ensure the workflow token has permission to comment.")
+                  sys.exit(1)
+              print("Treating as transient; not failing the workflow.")
           PY
