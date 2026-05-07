@@ -18,7 +18,6 @@ on:
 permissions:
   pull-requests: write
   issues: write
-  contents: write
   checks: read
   statuses: read
 
@@ -28,6 +27,12 @@ concurrency:
 
 jobs:
   evaluate:
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target' ||
+        github.event.pull_request.head.repo.full_name == github.repository ||
+        contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+      }}
     runs-on: ubuntu-latest
     steps:
       - name: Resolve target PR numbers
