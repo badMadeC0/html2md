@@ -44,6 +44,15 @@ def test_blocks_sensitive_notebook_paths() -> None:
     assert "notebooks/id_rsa" in result.stderr
 
 
+def test_blocks_backslash_separated_sensitive_paths() -> None:
+    """Windows-style paths are normalized before basename matching."""
+    result = run_hook(hook_payload("Write", r"C:\repo\credentials.json"))
+
+    assert result.returncode == 2
+    assert "BLOCKED" in result.stderr
+    assert r"C:\repo\credentials.json" in result.stderr
+
+
 def test_allows_non_sensitive_edit_paths() -> None:
     """Non-sensitive paths are allowed for protected editing tools."""
     result = run_hook(hook_payload("Edit", "src/html2md/cli.py"))
