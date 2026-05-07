@@ -50,8 +50,11 @@ jobs:
               except urllib.error.HTTPError as error:
                   body = error.read().decode("utf-8")
                   print(f"Could not list existing comments: {body}")
-                  comments = []
-                  link_header = ""
+                  print(
+                      "Refusing to post review request without verifying it is absent; "
+                      "skipping to avoid duplicate comments."
+                  )
+                  sys.exit(0)
 
               for comment in comments:
                   if marker in (comment.get("body") or ""):
