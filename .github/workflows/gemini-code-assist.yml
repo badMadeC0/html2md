@@ -2,8 +2,12 @@ name: Gemini Code Assist
 
 on:
   pull_request:
+  # Restrict comment events to `created`; otherwise editing an old comment
+  # that contains "@gemini-code-assist" re-triggers a (paid) Gemini run.
   pull_request_review_comment:
+    types: [created]
   issue_comment:
+    types: [created]
   workflow_dispatch:
 
 permissions:

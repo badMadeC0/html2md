@@ -59,22 +59,27 @@ def _collect_candidate_paths(value) -> list[str]:
 
 
 def main(argv=None) -> int:
+    # Fail-closed: a sensitive-file guard that returns 0 (allow) on
+    # malformed input would silently leak protection. If we cannot read or
+    # parse the payload, block the tool call so the human investigates.
     try:
         payload_raw = sys.stdin.read()
-    except Exception as exc:  # pragma: no cover - defensive
-        print(f"protect-sensitive-files: failed to read stdin: {exc}",
+    except Exception as exc:
+        print(f"protect-sensitive-files: BLOCKED — failed to read stdin: {exc}",
               file=sys.stderr)
-        return 0  # do not block on internal errors
+        return 2
 
     if not payload_raw.strip():
-        return 0  # nothing to inspect, allow
+        print("protect-sensitive-files: BLOCKED — empty hook payload",
+              file=sys.stderr)
+        return 2
 
     try:
         payload = json.loads(payload_raw)
     except json.JSONDecodeError as exc:
-        print(f"protect-sensitive-files: bad JSON payload: {exc}",
+        print(f"protect-sensitive-files: BLOCKED — bad JSON payload: {exc}",
               file=sys.stderr)
-        return 0  # allow rather than break the agent on malformed input
+        return 2
 
     tool_name = payload.get("tool_name") or ""
     if tool_name not in {"Edit", "Write", "MultiEdit", "NotebookEdit"}:

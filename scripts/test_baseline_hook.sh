@@ -80,6 +80,17 @@ if run_hook_payload '{"hook_event_name":"PreToolUse","tool_name":"NotebookEdit",
 fi
 pass "blocked NotebookEdit nested notebook_path 'config/.env'"
 
+# --- FAIL-CLOSED cases: malformed input must block, not allow ---
+if printf '' | "$PYTHON_BIN" "$HOOK" >/dev/null 2>&1; then
+  fail "hook should BLOCK on empty stdin (fail-closed) but allowed it"
+fi
+pass "blocked empty stdin (fail-closed)"
+
+if printf 'not-json{' | "$PYTHON_BIN" "$HOOK" >/dev/null 2>&1; then
+  fail "hook should BLOCK on malformed JSON (fail-closed) but allowed it"
+fi
+pass "blocked malformed JSON (fail-closed)"
+
 # --- ALLOW cases (expect zero exit) ---
 for path in "src/html2md/cli.py" "README.md" "tests/test_cli_smoke.py" \
             "docs/overview.md" "pyproject.toml" "envoy.yaml" \
