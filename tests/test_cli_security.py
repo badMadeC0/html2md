@@ -33,8 +33,12 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     secret_file.write_text("secret content", encoding="utf-8")
 
     response = MagicMock()
-    response.text = "<h1>dummy</h1>"
+    response.encoding = "utf-8"
+    response.apparent_encoding = "utf-8"
+    response.iter_content.return_value = [b"<h1>dummy</h1>"]
     response.raise_for_status.return_value = None
+    response.__enter__.return_value = response
+    response.__exit__.return_value = None
     mock_get.return_value = response
 
     urls = [
@@ -54,18 +58,21 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 
 
 @patch("requests.Session.get")
-def test_oversize_single_url_closes_response_and_exits(mock_get, capsys):
-    """Oversized streamed responses are closed and fail single-URL runs."""
+def test_oversize_single_url_fails_without_system_exit(mock_get, capsys):
+    """Oversized streamed responses fail single-URL runs without exiting."""
     response = MagicMock()
+    response.encoding = "utf-8"
+    response.apparent_encoding = "utf-8"
     response.raise_for_status.return_value = None
     response.iter_content.return_value = [b"x" * (10 * 1024 * 1024 + 1)]
+    response.__enter__.return_value = response
+    response.__exit__.return_value = None
     mock_get.return_value = response
 
-    with pytest.raises(SystemExit) as excinfo:
-        cli.main(["--url", "http://example.com/huge"])
+    result = cli.main(["--url", "http://example.com/huge"])
 
-    assert excinfo.value.code == 1
-    response.close.assert_called_once_with()
+    assert result == 1
+    response.__exit__.assert_called_once()
     outerr = capsys.readouterr()
     assert "Response too large" in outerr.err
 
@@ -80,20 +87,27 @@ def test_oversize_batch_closes_response_and_continues(mock_get, capsys, tmp_path
     )
 
     huge_response = MagicMock()
+    huge_response.encoding = "utf-8"
+    huge_response.apparent_encoding = "utf-8"
     huge_response.raise_for_status.return_value = None
     huge_response.iter_content.return_value = [b"x" * (10 * 1024 * 1024 + 1)]
+    huge_response.__enter__.return_value = huge_response
+    huge_response.__exit__.return_value = None
 
     small_response = MagicMock()
     small_response.raise_for_status.return_value = None
     small_response.iter_content.return_value = [b"<h1>ok</h1>"]
     small_response.encoding = "utf-8"
+    small_response.apparent_encoding = "utf-8"
+    small_response.__enter__.return_value = small_response
+    small_response.__exit__.return_value = None
 
     mock_get.side_effect = [huge_response, small_response]
 
     result = cli.main(["--batch", str(batch_file)])
 
-    assert result == 0
-    huge_response.close.assert_called_once_with()
+    assert result == 1
+    huge_response.__exit__.assert_called_once()
     assert mock_get.call_count == 2
     outerr = capsys.readouterr()
     assert "Response too large" in outerr.err
