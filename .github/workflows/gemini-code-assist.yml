@@ -29,3 +29,5 @@ jobs:
           fetch-depth: 0
       - name: Gemini Code Assist
         uses: google-gemini/code-assist-action@v1
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
