@@ -40,3 +40,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Self-heal workflow logs
+selfheal-*.txt

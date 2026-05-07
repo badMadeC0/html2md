@@ -69,6 +69,7 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git checkout -b self-heal-fixes-${{ github.run_id }}
           git add -A -- . ':(exclude)selfheal-*.txt'
+          git restore --staged -- 'selfheal-*.txt' 2>/dev/null || true
           if git diff --staged --quiet; then
             echo "No changes to commit. Exiting."
             exit 0
