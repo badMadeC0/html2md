@@ -8,7 +8,7 @@ Stdlib only.
 Sensitive patterns (matched against the file's basename and against the
 full path):
     .env, .env.<anything>, *.pem, *.key, *.crt,
-    credentials.json, id_rsa, id_rsa.pub
+    credentials.json, id_rsa*
 """
 from __future__ import annotations
 
@@ -24,8 +24,7 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.key",
     "*.crt",
     "credentials.json",
-    "id_rsa",
-    "id_rsa.pub",
+    "id_rsa*",
 )
 PATH_KEYS = {"file_path", "path", "notebook_path"}
 

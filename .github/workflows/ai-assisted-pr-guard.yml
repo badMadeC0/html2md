@@ -22,8 +22,8 @@ jobs:
           echo "PR title: $PR_TITLE"
 
           if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "::notice::PR title is not tagged [AI-Assisted]; skipping AI chat link validation."
-            exit 0
+            echo "::error::PR title must start with [AI-Assisted]."
+            exit 1
           fi
 
           # Body must reference a Claude chat URL or other agent transcript.

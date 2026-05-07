@@ -1,6 +1,9 @@
 name: Gemini Code Assist
 
 on:
+  pull_request:
+  pull_request_review_comment:
+  issue_comment:
   workflow_dispatch:
 
 permissions:
@@ -12,6 +15,7 @@ jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
     if: >
+      (github.event_name == 'workflow_dispatch') ||
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
        contains(github.event.comment.body, '@gemini-code-assist')) ||

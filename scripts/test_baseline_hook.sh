@@ -4,7 +4,7 @@
 #
 # The hook reads a Claude Code PreToolUse JSON payload on stdin and must:
 #   - Exit non-zero (block) when the tool would Edit/Write a sensitive path
-#     (.env, .env.*, *.pem, *.key, credentials.json, *.crt, id_rsa, id_rsa.pub).
+#     (.env, .env.*, *.pem, *.key, credentials.json, *.crt, id_rsa*).
 #   - Exit zero (allow) for normal source paths.
 #
 # Usage: scripts/test_baseline_hook.sh
@@ -23,10 +23,19 @@ cd "$ROOT" || fail "cannot cd to repo root: $ROOT"
 HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
+PYTHON_BIN=""
+if command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON_BIN="python3"
+else
+  fail "python interpreter not found (expected 'python' or 'python3')"
+fi
+
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
   local tool="$1" path="$2"
-  python3 "$HOOK" <<EOF
+  "$PYTHON_BIN" "$HOOK" <<EOF
 {
   "hook_event_name": "PreToolUse",
   "tool_name": "$tool",
@@ -37,13 +46,13 @@ EOF
 
 run_hook_payload() {
   local payload="$1"
-  printf "%s\n" "$payload" | python3 "$HOOK"
+  printf "%s\n" "$payload" | "$PYTHON_BIN" "$HOOK"
 }
 
 # --- BLOCK cases (expect non-zero exit) ---
 for path in ".env" ".env.local" ".env.production" "config/.env" \
             "secrets.pem" "server.key" "credentials.json" \
-            "deploy.crt" "id_rsa" "id_rsa.pub" \
+            "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
             "src/keys/id_rsa"; do
   if run_hook "Write" "$path" >/dev/null 2>&1; then
     fail "hook should BLOCK Write to '$path' but allowed it"
