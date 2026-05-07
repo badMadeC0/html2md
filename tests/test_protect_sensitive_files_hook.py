@@ -204,7 +204,10 @@ def test_registered_hook_command_blocks_sensitive_file():
 def test_registered_hook_command_handles_project_dir_with_spaces(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
     linked_repo = tmp_path / "repo with spaces"
-    linked_repo.symlink_to(repo_root, target_is_directory=True)
+    try:
+        linked_repo.symlink_to(repo_root, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip("symlinks are unavailable in this test environment: {0}".format(exc))
     settings = json.loads(
         (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
