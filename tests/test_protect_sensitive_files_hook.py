@@ -77,5 +77,6 @@ def test_hook_settings_use_project_dir() -> None:
     settings = json.loads(settings_path.read_text())
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
-    assert "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" in command
-    assert ".claude/hooks/protect_sensitive_files.py" in command
+    assert command == 'python "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py"'
+    assert not command.startswith('python ".claude/')
+    assert not command.startswith('python3 ')
