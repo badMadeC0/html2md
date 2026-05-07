@@ -6,6 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
+from contextlib import contextmanager
 from urllib.parse import urlparse, unquote, urljoin
 
 def main(argv=None):
@@ -56,36 +57,102 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def validate_url(target_url: str) -> bool:
-            """Validate a URL before fetching it to reduce SSRF risk."""
+        def _url_port(parsed):
+            """Return the explicit or default network port for a parsed URL."""
+            try:
+                if parsed.port is not None:
+                    return parsed.port
+            except ValueError as e:
+                print(f"Error: Invalid URL port: {e}", file=sys.stderr)
+                return None
+
+            if parsed.scheme == 'http':
+                return 80
+            if parsed.scheme == 'https':
+                return 443
+            return None
+
+        def _is_unsafe_ip(ip_obj):
+            """Return whether an IP address should be blocked for SSRF protection."""
+            return (ip_obj.is_private or ip_obj.is_loopback or
+                    ip_obj.is_link_local or ip_obj.is_unspecified or
+                    ip_obj.is_reserved or ip_obj.is_multicast)
+
+        def validate_url(target_url: str):
+            """Validate a URL and return the DNS answers approved for fetching it."""
             parsed = urlparse(target_url)
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return False
+                return None
 
             hostname = parsed.hostname
             if not hostname:
                 print("Error: Invalid URL.", file=sys.stderr)
-                return False
+                return None
+
+            port = _url_port(parsed)
+            if port is None:
+                return None
 
             try:
                 # SSRF Protection: Resolve and validate every IP for this host.
-                # This function is called for the original URL and each redirect
-                # target before any request is made to that URL.
-                addr_info = socket.getaddrinfo(hostname, None)
+                # The approved DNS answers are returned and pinned for the
+                # matching request so a second lookup cannot rebind to an
+                # internal address after validation.
+                addr_info = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+                if not addr_info:
+                    print("Error: Hostname did not resolve to any addresses.", file=sys.stderr)
+                    return None
+
                 for addr in addr_info:
                     ip_obj = ipaddress.ip_address(addr[4][0])
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_unspecified or
-                        ip_obj.is_reserved or ip_obj.is_multicast):
+                    if _is_unsafe_ip(ip_obj):
                         print(f"Error: Unsafe URL pointing to internal IP '{ip_obj}'.", file=sys.stderr)
-                        return False
+                        return None
             except Exception as e:
                 print(f"Error validating hostname: {e}", file=sys.stderr)
-                return False
+                return None
 
-            return True
+            return hostname, port, addr_info
+
+        @contextmanager
+        def _pin_validated_dns(hostname, port, addr_info):
+            """Pin requests DNS resolution to the already-validated answers."""
+            original_getaddrinfo = socket.getaddrinfo
+            pinned_hostname = hostname.rstrip('.').lower()
+
+            def pinned_getaddrinfo(host, requested_port, family=0, type=0, proto=0, flags=0):
+                if host and host.rstrip('.').lower() == pinned_hostname:
+                    resolved_port = requested_port if requested_port is not None else port
+                    pinned = []
+                    for family_, type_, proto_, canonname, sockaddr in addr_info:
+                        if family and family_ != family:
+                            continue
+                        if type and type_ != type:
+                            continue
+                        if proto and proto_ != proto:
+                            continue
+
+                        if len(sockaddr) == 2:
+                            pinned_sockaddr = (sockaddr[0], resolved_port)
+                        else:
+                            pinned_sockaddr = (sockaddr[0], resolved_port, *sockaddr[2:])
+                        pinned.append((family_, type_, proto_, canonname, pinned_sockaddr))
+
+                    if pinned:
+                        return pinned
+                    raise socket.gaierror(
+                        f"No pinned DNS answers match requested socket parameters for {host}"
+                    )
+
+                return original_getaddrinfo(host, requested_port, family, type, proto, flags)
+
+            socket.getaddrinfo = pinned_getaddrinfo
+            try:
+                yield
+            finally:
+                socket.getaddrinfo = original_getaddrinfo
 
         def fetch_validated_url(target_url: str):
             """Fetch a URL while validating each redirect target before following."""
@@ -94,10 +161,13 @@ def main(argv=None):
             redirect_statuses = (301, 302, 303, 307, 308)
 
             for _ in range(max_redirects + 1):
-                if not validate_url(current_url):
+                validation = validate_url(current_url)
+                if validation is None:
                     return None
+                hostname, port, addr_info = validation
 
-                response = session.get(current_url, timeout=30, allow_redirects=False)
+                with _pin_validated_dns(hostname, port, addr_info):
+                    response = session.get(current_url, timeout=30, allow_redirects=False)
                 status_code = getattr(response, 'status_code', None)
                 if status_code not in redirect_statuses:
                     return response

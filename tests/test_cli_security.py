@@ -1,6 +1,7 @@
 """Security-focused tests for CLI URL and output path handling."""
 
 from unittest.mock import MagicMock, patch
+import socket
 import pytest
 
 from html2md import cli
@@ -91,6 +92,38 @@ def test_safe_redirect_is_manually_followed(mock_get, mock_getaddrinfo, capsys):
     assert mock_get.call_args_list[0].kwargs["allow_redirects"] is False
     assert mock_get.call_args_list[1].args == ("http://public.example/final",)
     assert mock_get.call_args_list[1].kwargs["allow_redirects"] is False
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_validated_dns_answer_is_pinned_during_fetch(mock_get, mock_getaddrinfo, capsys):
+    """The request uses the DNS answer validated before fetching."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_pinned_dns(*_args, **_kwargs):
+        resolved = socket.getaddrinfo("rebinding.example", 80, type=socket.SOCK_STREAM)
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_pinned_dns
+
+    cli.main(["--url", "http://rebinding.example/"])
+
+    outerr = capsys.readouterr()
+    assert "# Pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    assert mock_getaddrinfo.call_count == 1
+    mock_get.assert_called_once_with(
+        "http://rebinding.example/", timeout=30, allow_redirects=False
+    )
 
 
 @patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("8.8.8.8", 0))])
