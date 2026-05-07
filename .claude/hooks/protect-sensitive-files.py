@@ -5,10 +5,11 @@ Reads a Claude Code hook payload from stdin and exits non-zero with a diagnostic
 on stderr when an Edit/Write-style tool targets a sensitive path. The hook is
 stdlib-only so it can run in minimal environments.
 
-Sensitive patterns are matched against both the basename and normalized path:
+Sensitive patterns are matched against the resolved path basename:
     .env, .env.<anything>, *.pem, *.key, *.crt,
-    credentials.json, id_rsa, id_rsa.pub
+    credentials.json, id_rsa*, id_ed25519*, id_ecdsa*, id_dsa*
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -17,7 +18,6 @@ import os
 import sys
 from typing import List, Optional, Sequence
 
-
 SENSITIVE_BASENAME_PATTERNS = (
     ".env",
     ".env.*",
@@ -25,8 +25,10 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.key",
     "*.crt",
     "credentials.json",
-    "id_rsa",
-    "id_rsa.pub",
+    "id_rsa*",
+    "id_ed25519*",
+    "id_ecdsa*",
+    "id_dsa*",
 )
 
 PROTECTED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -40,22 +42,17 @@ def is_sensitive(path: str) -> bool:
         path: Candidate path from a tool input payload.
 
     Returns:
-        True when the candidate basename or normalized path matches a protected
-        pattern; otherwise False.
+        True when the candidate resolved basename matches a protected pattern;
+        otherwise False.
     """
     if not path:
         return False
 
-    normalized_path = os.path.normpath(path)
-    base = os.path.basename(normalized_path)
-    for pattern in SENSITIVE_BASENAME_PATTERNS:
-        if fnmatch.fnmatch(base, pattern):
-            return True
-        if fnmatch.fnmatch(normalized_path, "*/" + pattern) or fnmatch.fnmatch(
-            normalized_path, pattern
-        ):
-            return True
-    return False
+    resolved_path = os.path.realpath(path)
+    base = os.path.basename(resolved_path)
+    return any(
+        fnmatch.fnmatch(base, pattern) for pattern in SENSITIVE_BASENAME_PATTERNS
+    )
 
 
 def collect_candidate_paths(tool_input: object) -> List[str]:
@@ -65,16 +62,27 @@ def collect_candidate_paths(tool_input: object) -> List[str]:
         tool_input: The ``tool_input`` value from a Claude Code hook payload.
 
     Returns:
-        Non-empty string values for path-like keys used by Edit/Write tools.
+        Non-empty string values for path-like keys used by Edit/Write tools,
+        including path values nested inside list-valued edit payloads.
     """
-    if not isinstance(tool_input, dict):
-        return []
+    if isinstance(tool_input, dict):
+        paths = [
+            value
+            for key in PATH_KEYS
+            if isinstance((value := tool_input.get(key)), str) and value
+        ]
+        for value in tool_input.values():
+            if isinstance(value, (dict, list)):
+                paths.extend(collect_candidate_paths(value))
+        return paths
 
-    return [
-        value
-        for key in PATH_KEYS
-        if isinstance((value := tool_input.get(key)), str) and value
-    ]
+    if isinstance(tool_input, list):
+        paths: List[str] = []
+        for item in tool_input:
+            paths.extend(collect_candidate_paths(item))
+        return paths
+
+    return []
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -105,6 +113,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except json.JSONDecodeError as exc:
         print(
             f"protect-sensitive-files: bad JSON payload: {exc}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if not isinstance(payload, dict):
+        print(
+            "protect-sensitive-files: JSON payload must be an object",
             file=sys.stderr,
         )
         return 0
