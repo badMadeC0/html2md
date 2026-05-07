@@ -5,7 +5,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -33,8 +33,16 @@ def run_hook_raw(payload: str) -> subprocess.CompletedProcess:
     )
 
 
+def find_pattern(predicate: Callable[[str], bool], description: str) -> str:
+    for pattern in SENSITIVE_BASENAME_PATTERNS:
+        if predicate(pattern):
+            return pattern
+    raise AssertionError(f"missing expected sensitive pattern: {description}")
+
+
 def test_blocks_sensitive_file_path() -> None:
-    sensitive_env = SENSITIVE_BASENAME_PATTERNS[1].replace("*", "production")
+    env_pattern = find_pattern(lambda pattern: pattern.startswith(".env."), ".env.*")
+    sensitive_env = env_pattern.replace("*", "production")
     result = run_hook(
         {
             "tool_name": "Write",
@@ -60,10 +68,11 @@ def test_allows_non_sensitive_file_path() -> None:
 
 
 def test_ignores_unprotected_tool() -> None:
+    env_basename = find_pattern(lambda pattern: pattern == ".env", ".env")
     result = run_hook(
         {
             "tool_name": "Read",
-            "tool_input": {"file_path": SENSITIVE_BASENAME_PATTERNS[0]},
+            "tool_input": {"file_path": env_basename},
         }
     )
 
@@ -94,10 +103,9 @@ def test_blocks_common_ssh_key_basenames() -> None:
 
 
 def test_blocks_nested_multi_edit_sensitive_file_path() -> None:
-    ssh_private_key = next(
-        pattern
-        for pattern in SENSITIVE_BASENAME_PATTERNS
-        if pattern.startswith("id_ed") and not pattern.endswith(".pub")
+    ssh_private_key = find_pattern(
+        lambda pattern: pattern.startswith("id_ed") and not pattern.endswith(".pub"),
+        "id_ed private key",
     )
 
     result = run_hook(
@@ -128,7 +136,7 @@ def test_blocks_nested_multi_edit_sensitive_file_path() -> None:
 
 
 def test_blocks_notebook_edit_sensitive_notebook_path() -> None:
-    certificate_pattern = SENSITIVE_BASENAME_PATTERNS[4]
+    certificate_pattern = find_pattern(lambda pattern: pattern == "*.crt", "*.crt")
     sensitive_certificate = certificate_pattern.replace("*", "client")
     result = run_hook(
         {

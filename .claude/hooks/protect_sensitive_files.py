@@ -62,7 +62,7 @@ def candidate_paths(tool_input: Any) -> List[str]:
     if isinstance(tool_input, dict):
         for key, value in tool_input.items():
             if key in PATH_KEYS and isinstance(value, str) and value:
-                candidates.append(os.path.realpath(value))
+                candidates.append(os.path.normpath(value))
             elif isinstance(value, (dict, list)):
                 candidates.extend(candidate_paths(value))
     elif isinstance(tool_input, list):
