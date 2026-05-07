@@ -172,9 +172,11 @@ def hook_path_from_registered_command(settings, project_dir):
     expected_command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py"'
     assert command == expected_command
 
-    relative_hook_path = expected_command.strip('"').removeprefix(
-        "$CLAUDE_PROJECT_DIR/"
-    )
+    command_path = expected_command.strip('"')
+    project_dir_prefix = "$CLAUDE_PROJECT_DIR/"
+    assert command_path.startswith(project_dir_prefix)
+
+    relative_hook_path = command_path[len(project_dir_prefix) :]
     return project_dir / Path(relative_hook_path)
 
 
