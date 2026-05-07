@@ -34,6 +34,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
+          # The code-review extension expands PULL_REQUEST_NUMBER, while
+          # run-gemini-cli exposes GH_PR_NUMBER to its own runtime. Keep both
+          # populated from the same event expression for automatic PR and
+          # trusted comment-triggered reviews.
+          GH_PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
@@ -41,6 +46,8 @@ jobs:
           prompt: '/pr-code-review'
           extensions: |
             ["https://github.com/gemini-cli-extensions/code-review"]
+          # Enable the GitHub MCP tools required by the /pr-code-review
+          # extension so Gemini can fetch the diff and submit a pending review.
           settings: |-
             {
               "mcpServers": {
