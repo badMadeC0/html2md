@@ -53,36 +53,36 @@ jobs:
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Don't fail the workflow if Gemini's CLI/API is flaky;
-    # surface the failure on the job itself instead.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Prepare prompt context
-        env:
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-        run: |
-          mkdir -p .gemini
-          jq -n \
-            --arg repo "$REPOSITORY" \
-            --arg pr "$PULL_REQUEST_NUMBER" \
-            '{repository: $repo, pull_request_number: $pr}' > .gemini/context.json
+      - name: Strip PR-supplied Gemini config
+        # Project-local .gemini/commands/*.toml shadow extension commands
+        # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
+        # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
+        # so wiping it is safe and removes the attack surface.
+        run: rm -rf .gemini
       - name: Gemini Code Assist
-        uses: google-github-actions/run-gemini-cli@v0.1.22
+        id: gemini
+        continue-on-error: true
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
           GEMINI_CLI_TRUST_WORKSPACE: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || github.token }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Consumed by the code-review extension's /pr-code-review prompt
+          # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
           REPOSITORY: ${{ github.repository }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
-          # Resolve PR number for both pull_request and issue_comment events.
+          # Resolves the PR number across all three supported triggers:
+          # pull_request, pull_request_review_comment, and issue_comment.
+          # The first two populate github.event.pull_request.number; the
+          # last populates github.event.issue.number.
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           settings: |-
             {
@@ -98,7 +98,7 @@ jobs:
                     "--rm",
                     "-e",
                     "GITHUB_PERSONAL_ACCESS_TOKEN",
-                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                    "ghcr.io/github/github-mcp-server@sha256:a1d43076a36638ee24520fd6e83c3905ae41bc9850179081df1de2ba3a7afae0"
                   ],
                   "includeTools": [
                     "add_comment_to_pending_review",
@@ -111,7 +111,13 @@ jobs:
                 }
               },
               "tools": {
-                "core": []
+                "core": [
+                  "read_file",
+                  "read_many_files",
+                  "list_directory",
+                  "glob",
+                  "grep_search"
+                ]
               }
             }
           extensions: |
@@ -119,3 +125,24 @@ jobs:
               "https://github.com/gemini-cli-extensions/code-review"
             ]
           prompt: "/pr-code-review"
+      - name: Note Gemini API quota exhaustion
+        if: >
+          steps.gemini.outcome == 'failure' &&
+          (contains(steps.gemini.outputs.gemini_errors, 'TerminalQuotaError') ||
+           contains(steps.gemini.outputs.gemini_errors, 'exhausted your daily quota') ||
+           contains(steps.gemini.outputs.gemini_errors, 'Quota exceeded'))
+        run: |
+          echo "::notice title=Gemini quota exhausted::Skipping Gemini Code Assist because the configured Gemini API key has exhausted its quota."
+          {
+            echo "### Gemini Code Assist"
+            echo
+            echo "Skipped because the configured Gemini API key has exhausted its Gemini API quota."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Note other Gemini failures
+        if: >
+          steps.gemini.outcome == 'failure' &&
+          !(contains(steps.gemini.outputs.gemini_errors, 'TerminalQuotaError') ||
+            contains(steps.gemini.outputs.gemini_errors, 'exhausted your daily quota') ||
+            contains(steps.gemini.outputs.gemini_errors, 'Quota exceeded'))
+        run: |
+          echo "::warning title=Gemini Code Assist failed::Gemini CLI failed, but this workflow is non-blocking."
