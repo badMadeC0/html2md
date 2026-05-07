@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Request review from Jules bot
+        # Requesting a Jules review is best-effort; do not block PR checks if
+        # the workflow token cannot write issue comments (common for forks).
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: ${{ github.api_url }}
