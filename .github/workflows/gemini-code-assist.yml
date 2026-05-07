@@ -24,8 +24,23 @@ jobs:
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
-      - uses: actions/checkout@v4
+      - name: Check for Gemini API key
+        id: gate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Gemini Code Assist: GEMINI_API_KEY secret is not configured."
+          fi
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         uses: google-gemini/code-assist-action@v1
