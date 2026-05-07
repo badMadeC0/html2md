@@ -63,6 +63,22 @@ jobs:
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
         uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           gemini_model: gemini-2.0-flash
+          prompt: |
+            You are Gemini Code Assist running in a GitHub Actions workflow for ${{ github.repository }}.
+
+            Event: ${{ github.event_name }}
+            Pull request: #${{ github.event.pull_request.number || github.event.issue.number || 'manual workflow_dispatch' }}
+            Comment author: ${{ github.event.comment.user.login || github.actor }}
+            Comment URL: ${{ github.event.comment.html_url || github.server_url }}
+
+            Respond to the pull request by carrying out the request in the triggering comment.
+            Use the GitHub CLI or GitHub API when you need pull request details, diffs, or to post feedback.
+
+            Triggering comment:
+            ${{ github.event.comment.body || 'Manual workflow_dispatch run: review the checked-out repository and summarize any actionable findings.' }}
