@@ -14,7 +14,7 @@ permissions:
   issues: write
 
 jobs:
-  gemini-code-assist:
+  preflight:
     runs-on: ubuntu-latest
     if: >
       (github.event_name == 'pull_request') ||
@@ -29,6 +29,8 @@ jobs:
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR') &&
        contains(github.event.comment.body, '@gemini-code-assist'))
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
     steps:
       - name: Check for Gemini API key
         id: gate
@@ -41,12 +43,16 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Skipping Gemini Code Assist: GEMINI_API_KEY secret is not configured."
           fi
-      - if: steps.gate.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+
+  gemini-code-assist:
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        if: steps.gate.outputs.enabled == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         uses: google-gemini/code-assist-action@v1
