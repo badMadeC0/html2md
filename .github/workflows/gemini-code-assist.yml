@@ -38,3 +38,9 @@ jobs:
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
+          settings: |-
+            {
+              "tools": {
+                "exclude": ["run_shell_command(rm)"]
+              }
+            }
