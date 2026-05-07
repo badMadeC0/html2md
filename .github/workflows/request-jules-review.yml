@@ -2,7 +2,7 @@ name: Request Jules Review
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened]
 
 permissions:
   issues: write
@@ -32,17 +32,45 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
+          marker = "@google-labs-jules please review this pull request."
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+          }
+
+          # Skip if the request comment already exists, so re-runs don't duplicate it.
+          list_url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments?per_page=100"
+          while list_url:
+              list_request = urllib.request.Request(url=list_url, headers=headers)
+              try:
+                  with urllib.request.urlopen(list_request) as list_response:
+                      comments = json.loads(list_response.read().decode("utf-8"))
+                      link_header = list_response.headers.get("Link", "")
+              except urllib.error.HTTPError as error:
+                  body = error.read().decode("utf-8")
+                  print(f"Could not list existing comments: {body}")
+                  comments = []
+                  link_header = ""
+
+              for comment in comments:
+                  if marker in (comment.get("body") or ""):
+                      print(
+                          f"Review request already present on PR #{pr_number}; skipping."
+                      )
+                      sys.exit(0)
+
+              list_url = ""
+              for part in link_header.split(","):
+                  segment = part.strip()
+                  if segment.endswith('rel="next"'):
+                      list_url = segment.split(";", 1)[0].strip()[1:-1]
+                      break
 
           request = urllib.request.Request(
               url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
+              data=json.dumps({"body": marker}).encode("utf-8"),
+              headers={**headers, "Content-Type": "application/json"},
               method="POST",
           )
 
