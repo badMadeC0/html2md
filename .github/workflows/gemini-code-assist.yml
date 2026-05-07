@@ -18,14 +18,49 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       (github.event_name == 'pull_request') ||
-      (github.event_name == 'pull_request_review_comment' &&
-       contains(github.event.comment.body, '@gemini-code-assist')) ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request &&
+      (((github.event_name == 'pull_request_review_comment') ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
+       (github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR') &&
        contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-gemini/code-assist-action@v1
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          prompt: '/pr-code-review'
+          extensions: |
+            ["https://github.com/gemini-cli-extensions/code-review"]
+          settings: |-
+            {
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              }
+            }
