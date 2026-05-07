@@ -53,9 +53,6 @@ jobs:
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Don't fail the workflow if Gemini's CLI/API is flaky;
-    # surface the failure on the job itself instead.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,6 +65,8 @@ jobs:
         # so wiping it is safe and removes the attack surface.
         run: rm -rf .gemini
       - name: Gemini Code Assist
+        id: gemini
+        continue-on-error: true
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
           GEMINI_CLI_TRUST_WORKSPACE: "true"
@@ -126,3 +125,24 @@ jobs:
               "https://github.com/gemini-cli-extensions/code-review"
             ]
           prompt: "/pr-code-review"
+      - name: Note Gemini API quota exhaustion
+        if: >
+          steps.gemini.outcome == 'failure' &&
+          (contains(steps.gemini.outputs.gemini_errors, 'TerminalQuotaError') ||
+           contains(steps.gemini.outputs.gemini_errors, 'exhausted your daily quota') ||
+           contains(steps.gemini.outputs.gemini_errors, 'Quota exceeded'))
+        run: |
+          echo "::notice title=Gemini quota exhausted::Skipping Gemini Code Assist because the configured Gemini API key has exhausted its quota."
+          {
+            echo "### Gemini Code Assist"
+            echo
+            echo "Skipped because the configured Gemini API key has exhausted its Gemini API quota."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Note other Gemini failures
+        if: >
+          steps.gemini.outcome == 'failure' &&
+          !(contains(steps.gemini.outputs.gemini_errors, 'TerminalQuotaError') ||
+            contains(steps.gemini.outputs.gemini_errors, 'exhausted your daily quota') ||
+            contains(steps.gemini.outputs.gemini_errors, 'Quota exceeded'))
+        run: |
+          echo "::warning title=Gemini Code Assist failed::Gemini CLI failed, but this workflow is non-blocking."
