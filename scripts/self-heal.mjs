@@ -11,9 +11,27 @@ const sh = (cmd, opts={}) => {
 const trySh = (cmd, opts={}) => {
   try { sh(cmd, opts); return true; } catch { return false; }
 };
+const workflowArtifactPaths = new Set([
+  "selfheal-pre.txt",
+  "selfheal-repair.txt",
+  "selfheal-post.txt",
+]);
+
+const statusPath = (line) => line.slice(3).replace(/^\"|\"$/g, "");
+const isWorkflowArtifact = (line) => {
+  const path = statusPath(line);
+  if (path.includes(" -> ")) {
+    return path.split(" -> ").every((part) => workflowArtifactPaths.has(part));
+  }
+
+  return workflowArtifactPaths.has(path);
+};
 const changed = () => {
   const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
-  return (out.stdout || "").trim().length > 0;
+  return (out.stdout || "")
+    .split("\n")
+    .filter(Boolean)
+    .some((line) => !isWorkflowArtifact(line));
 };
 let lastHealth = null;
 const passHealth = () => {
