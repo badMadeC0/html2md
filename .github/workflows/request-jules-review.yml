@@ -22,7 +22,6 @@ jobs:
           python - <<'PY'
           import json
           import os
-          import sys
           import urllib.error
           import urllib.request
 
@@ -52,6 +51,8 @@ jobs:
                   )
           except urllib.error.HTTPError as error:
               print(f"Could not request review: {error.read().decode('utf-8')}")
-              print("Ensure the workflow token has permission to comment.")
-              sys.exit(1)
+              print(
+                  "Ensure the workflow token has permission to comment. "
+                  "Continuing without failing the job."
+              )
           PY
