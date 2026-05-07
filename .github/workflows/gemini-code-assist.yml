@@ -111,6 +111,6 @@ jobs:
             }
           extensions: |
             [
-              "https://github.com/gemini-cli-extensions/code-review"
+              "https://github.com/gemini-cli-extensions/code-review#<FULL_COMMIT_SHA>"
             ]
           prompt: "/pr-code-review"
