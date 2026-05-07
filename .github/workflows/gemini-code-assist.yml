@@ -28,5 +28,5 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        # Pin to the full commit SHA for release v0.1.22 to avoid mutable-tag supply-chain risk.
-        uses: google-github-actions/run-gemini-cli@<FULL_COMMIT_SHA_FOR_V0.1.22>
+        # Use the v0.1.22 release ref. Replace this with the corresponding full commit SHA if you want immutable pinning.
+        uses: google-github-actions/run-gemini-cli@v0.1.22
