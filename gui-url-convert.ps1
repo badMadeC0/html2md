@@ -53,6 +53,11 @@ if ($BatchFile) {
 #     exit
 # }
 
+if ($null -ne $IsWindows -and -not $IsWindows) {
+    Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
+    exit 1
+}
+
 # --- Load WPF assemblies ---
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName PresentationFramework
