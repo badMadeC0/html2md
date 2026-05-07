@@ -1,7 +1,7 @@
 """Security-focused tests for CLI URL and output path handling."""
 
 import socket
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -108,3 +108,65 @@ def test_process_url_ssrf_protection_allowed(
     outerr = capsys.readouterr()
     assert "Success!" in outerr.out
     mock_get.assert_called_once()
+
+
+@patch("html2md.cli.socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_blocks_unsafe_redirect(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
+    """Redirect targets must be SSRF-checked before they are fetched."""
+
+    def fake_getaddrinfo(hostname, *_args, **_kwargs):
+        ip = "169.254.169.254" if hostname == "169.254.169.254" else "93.184.216.34"
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 0))]
+
+    mock_getaddrinfo.side_effect = fake_getaddrinfo
+
+    redirect = MagicMock()
+    redirect.status_code = 302
+    redirect.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    mock_get.return_value = redirect
+
+    cli.main(["--url", "http://example.com/start", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert (
+        "Error: URL 'http://169.254.169.254/latest/meta-data/' resolves to a "
+        "non-public IP address."
+    ) in outerr.err
+    mock_get.assert_called_once_with(
+        "http://example.com/start", timeout=30, allow_redirects=False
+    )
+
+
+@patch("html2md.cli.socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_follows_safe_redirect(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
+    """Safe redirect targets should be fetched after validation."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+    ]
+
+    redirect = MagicMock()
+    redirect.status_code = 301
+    redirect.headers = {"Location": "/final"}
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+
+    mock_get.side_effect = [redirect, response]
+
+    cli.main(["--url", "http://example.com/start", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    assert mock_get.call_args_list == [
+        call("http://example.com/start", timeout=30, allow_redirects=False),
+        call("http://example.com/final", timeout=30, allow_redirects=False),
+    ]
