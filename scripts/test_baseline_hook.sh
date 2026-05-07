@@ -7,8 +7,6 @@
 #     (.env, .env.*, *.pem, *.key, credentials.json, *.crt, id_rsa, id_rsa.pub).
 #   - Exit zero (allow) for normal source paths.
 #
-# This test is INTENTIONALLY RED until the hook script exists.
-#
 # Usage: scripts/test_baseline_hook.sh
 
 set -u
