@@ -5,7 +5,31 @@ import argparse
 import os
 import sys
 import concurrent.futures
+from collections import deque
 from urllib.parse import urlparse, unquote
+
+
+def _ordered_bounded_map(executor, func, iterable, max_pending):
+    """Map ``func`` over ``iterable`` in order with bounded submitted futures."""
+    iterator = iter(iterable)
+    pending = deque()
+
+    def submit_next():
+        try:
+            item = next(iterator)
+        except StopIteration:
+            return False
+        pending.append(executor.submit(func, item))
+        return True
+
+    for _ in range(max_pending):
+        if not submit_next():
+            break
+
+    while pending:
+        future = pending.popleft()
+        yield future.result()
+        submit_next()
 
 
 def main(argv=None):
@@ -72,6 +96,7 @@ def main(argv=None):
                     "type": "scheme",
                 }
 
+            session = None
             try:
                 session = requests.Session()
                 session.headers.update(session_headers)
@@ -92,7 +117,8 @@ def main(argv=None):
                     "type": "conversion",
                 }
             finally:
-                session.close()
+                if session is not None:
+                    session.close()
 
         def output_result(result: dict) -> None:
             """Output the result of a single URL sequentially. Not thread-safe."""
@@ -150,18 +176,25 @@ def main(argv=None):
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
 
-            urls_to_process = []
-            with open(args.batch, "r", encoding="utf-8") as f:
-                for line in f:
+            def urls_to_process(batch_file):
+                for line in batch_file:
                     u = line.strip()
                     if u:
-                        urls_to_process.append(u)
+                        yield u
 
-            # Process URLs concurrently, but output results sequentially in order
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                results = executor.map(fetch_url, urls_to_process)
-                for result in results:
-                    output_result(result)
+            max_workers = 8
+            # Process URLs concurrently, but output results sequentially in order.
+            # Keep submitted futures bounded so completed Markdown payloads cannot
+            # accumulate for the entire batch behind a slow earlier URL.
+            with open(args.batch, "r", encoding="utf-8") as f:
+                with concurrent.futures.ThreadPoolExecutor(
+                    max_workers=max_workers
+                ) as executor:
+                    results = _ordered_bounded_map(
+                        executor, fetch_url, urls_to_process(f), max_workers
+                    )
+                    for result in results:
+                        output_result(result)
 
         return 0
 
