@@ -72,7 +72,10 @@ def main(argv=None):
                     "type": "scheme",
                 }
 
+            session = None
             try:
+                # Build a fresh Session for every request so batch worker
+                # threads never share mutable Session state such as cookies.
                 session = requests.Session()
                 session.headers.update(session_headers)
                 response = session.get(target_url, timeout=30)
@@ -92,7 +95,8 @@ def main(argv=None):
                     "type": "conversion",
                 }
             finally:
-                session.close()
+                if session is not None:
+                    session.close()
 
         def output_result(result: dict) -> None:
             """Output the result of a single URL sequentially. Not thread-safe."""
