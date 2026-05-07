@@ -39,13 +39,13 @@ def is_sensitive(path: str) -> bool:
         normalized_pat = pat.lower()
         if fnmatch.fnmatchcase(normalized_base, normalized_pat):
             return True
-        # also match against the normalized full path so that e.g.
-        # "config/.env" or "src/keys/id_rsa" still trigger
-        if (
-            fnmatch.fnmatchcase(normalized_path, "*/" + normalized_pat)
-            or fnmatch.fnmatchcase(normalized_path, normalized_pat)
-        ):
+    normalized_path = os.path.realpath(path)
+    base = os.path.basename(normalized_path).lower()
+    for pat in SENSITIVE_BASENAME_PATTERNS:
+        # Use case-insensitive matching and realpath to prevent bypasses
+        if fnmatch.fnmatch(base, pat):
             return True
+    return False
     return False
 
 
