@@ -26,7 +26,7 @@ jobs:
          contains(github.event.comment.body, '@gemini-code-assist')))
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_CLI_TRUST_WORKSPACE: "true"
+      GEMINI_CLI_TRUST_WORKSPACE: true
     steps:
       - name: Resolve PR head SHA
         id: pr_head
@@ -47,7 +47,7 @@ jobs:
             }
 
             if (!pr) {
-              core.setFailed("Could not resolve pull request from event payload.");
+              core.setFailed("Could not resolve pull request from event payload. This workflow requires pull_request_review_comment or issue_comment on a pull request.");
               return;
             }
 
