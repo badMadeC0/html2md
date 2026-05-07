@@ -13,7 +13,7 @@
       "Bash(./scripts/lint_ai_pr_guard_workflow.sh)"
     ],
     "deny": [
-      "Read(.env*)",
+      "Read(**/.env*)",
       "Read(**/.env*)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
