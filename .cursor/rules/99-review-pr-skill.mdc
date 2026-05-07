@@ -1,0 +1,33 @@
+---
+description: Manual-trigger rule that mirrors the /review-pr Claude command.
+---
+
+# 99-review-pr-skill — manual PR review
+
+Trigger this rule explicitly (e.g. ask Cursor "@99-review-pr-skill review
+this PR") to run the same workflow as the Claude `/review-pr` slash command
+in [.claude/commands/review-pr.md](mdc:.claude/commands/review-pr.md).
+
+## Procedure
+
+1. Run `gh pr view --json number,title,body,headRefName,baseRefName` (or
+   ask the user if `gh` isn't available). Capture title and body.
+   - Confirm the title starts with `[AI-Assisted]`.
+   - Confirm the body has a Claude chat URL (or flag the placeholder
+     `<CLAUDE_CHAT_URL>`).
+2. List changed files via `git diff --name-only origin/main...HEAD`.
+3. For every rule in [pr-rules/common.md](mdc:pr-rules/common.md), scan the
+   diff for violations. Report each as
+   `path:line — common.md rule N: <one-line summary>`.
+4. If any `*.py` files changed, repeat step 3 against
+   [pr-rules/python.md](mdc:pr-rules/python.md) and
+   [pr-rules/python.local.md](mdc:pr-rules/python.local.md).
+5. Repeat step 3 against
+   [pr-rules/service-html2md.md](mdc:pr-rules/service-html2md.md).
+6. Run `scripts/check_agents_consistency.sh`. Embed its output verbatim
+   in the report under "Baseline consistency".
+7. Summarize: Green / Yellow / Red verdict + violation count by ruleset.
+
+## Output
+
+Markdown report only. Do not edit files. Do not run `gh pr` mutations.

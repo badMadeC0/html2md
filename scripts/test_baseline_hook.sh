@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# scripts/test_baseline_hook.sh
+# Smoke test for .claude/hooks/protect-sensitive-files.py.
+#
+# The hook reads a Claude Code PreToolUse JSON payload on stdin and must:
+#   - Exit non-zero (block) when the tool would Edit/Write a sensitive path
+#     (.env, .env.*, *.pem, *.key, credentials.json, *.crt, id_rsa, id_rsa.pub).
+#   - Exit zero (allow) for normal source paths.
+#
+# This test is INTENTIONALLY RED until the hook script exists.
+#
+# Usage: scripts/test_baseline_hook.sh
+
+set -u
+fail() { echo "FAIL: $*" >&2; exit 1; }
+pass() { echo "ok:   $*"; }
+
+if ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  :
+else
+  ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+fi
+cd "$ROOT" || fail "cannot cd to repo root: $ROOT"
+
+HOOK=".claude/hooks/protect-sensitive-files.py"
+[ -f "$HOOK" ] || fail "hook script not found: $HOOK"
+[ -x "$HOOK" ] || fail "hook script not executable: $HOOK"
+
+# Helper: run the hook with a given tool_name and file_path; return its exit code.
+run_hook() {
+  local tool="$1" path="$2"
+  python3 "$HOOK" <<EOF
+{
+  "hook_event_name": "PreToolUse",
+  "tool_name": "$tool",
+  "tool_input": { "file_path": "$path" }
+}
+EOF
+}
+
+# --- BLOCK cases (expect non-zero exit) ---
+for path in ".env" ".env.local" ".env.production" "config/.env" \
+            "secrets.pem" "server.key" "credentials.json" \
+            "deploy.crt" "id_rsa" "id_rsa.pub" \
+            "src/keys/id_rsa"; do
+  if run_hook "Write" "$path" >/dev/null 2>&1; then
+    fail "hook should BLOCK Write to '$path' but allowed it"
+  fi
+  pass "blocked Write to '$path'"
+  if run_hook "Edit" "$path" >/dev/null 2>&1; then
+    fail "hook should BLOCK Edit to '$path' but allowed it"
+  fi
+  pass "blocked Edit to '$path'"
+done
+
+# --- ALLOW cases (expect zero exit) ---
+for path in "src/html2md/cli.py" "README.md" "tests/test_cli_smoke.py" \
+            "docs/overview.md" "pyproject.toml" "envoy.yaml" \
+            "src/secrets_loader.py"; do
+  if ! run_hook "Write" "$path" >/dev/null 2>&1; then
+    fail "hook should ALLOW Write to '$path' but blocked it"
+  fi
+  pass "allowed Write to '$path'"
+done
+
+echo "OK: protect-sensitive-files.py blocks sensitive paths and allows normal paths"

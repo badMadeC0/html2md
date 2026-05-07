@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(./scripts/check_agents_consistency.sh)",
+      "Bash(./scripts/test_baseline_hook.sh)",
+      "Bash(./scripts/lint_ai_pr_guard_workflow.sh)"
+    ],
+    "deny": [
+      "Read(.env*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/credentials.json)",
+      "Read(**/id_rsa*)",
+      "Read(**/*.crt)",
+      "Edit(.env*)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/credentials.json)",
+      "Edit(**/id_rsa*)",
+      "Edit(**/*.crt)",
+      "Write(.env*)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Write(**/credentials.json)",
+      "Write(**/id_rsa*)",
+      "Write(**/*.crt)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/protect-sensitive-files.py"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -48,3 +48,19 @@ The full runtime conversion workflow described in earlier packaging notes is **n
 - JSONL-based log export to CSV via `html2md-log-export`
 - Package/module entry points and smoke tests
 - Windows bootstrap and launcher scripts (PowerShell + batch)
+
+## Working with AI agents
+
+This repo follows the [AI-PR-Review baseline](AGENTS.md). Before any AI
+agent (Claude, Cursor, Copilot, Codex, Jules, Gemini Code Assist) proposes
+a change, it should read:
+
+- [`AGENTS.md`](AGENTS.md) — authoritative guidance. `CLAUDE.md` is a symlink to this file.
+- [`pr-rules/`](pr-rules/) — review rule sets (`common.md`, `python.md`, `service-html2md.md`, plus the append-only `edge-cases.md` ledger).
+- [`adr/`](adr/) — architecture decision records.
+
+PR conventions:
+
+- AI-assisted PRs MUST start with `[AI-Assisted]` and link the originating Claude chat URL in the body. Enforced by [`.github/workflows/ai-assisted-pr-guard.yml`](.github/workflows/ai-assisted-pr-guard.yml).
+- The Claude slash command [`/review-pr`](.claude/commands/review-pr.md) walks an open PR against the rule sets.
+- Run [`scripts/check_agents_consistency.sh`](scripts/check_agents_consistency.sh) before opening a PR.
