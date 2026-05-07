@@ -35,7 +35,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.makedirs'), patch('os.path.exists', return_value=False):
+                    with patch('os.makedirs'):
                         with patch('builtins.open', side_effect=OSError("Permission denied")):
                              try:
                                  main(['--url', 'http://example.com', '--outdir', 'dummy'])
@@ -46,6 +46,37 @@ class TestCliExceptions(unittest.TestCase):
                              # Expect "File error: Permission denied"
                              self.assertIn("File error", output)
                              self.assertIn("Permission denied", output)
+
+    def test_missing_batch_does_not_create_outdir(self):
+        """Test that a missing batch file is reported before creating outdir."""
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            with patch('os.path.exists', return_value=False):
+                with patch('os.makedirs') as mock_makedirs:
+                    result = main([
+                        '--batch', 'missing.txt',
+                        '--outdir', 'dummy',
+                    ])
+
+        output = captured_stderr.getvalue()
+        self.assertEqual(result, 1)
+        self.assertIn("Batch file not found", output)
+        mock_makedirs.assert_not_called()
+
+    def test_outdir_creation_error(self):
+        """Test that output directory creation errors are caught and printed."""
+        captured_stderr = io.StringIO()
+        with patch('sys.stderr', captured_stderr):
+            with patch('os.makedirs', side_effect=OSError("Permission denied")):
+                try:
+                    result = main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                except Exception as e:
+                    self.fail(f"main raised exception {e}")
+
+        output = captured_stderr.getvalue()
+        self.assertEqual(result, 1)
+        self.assertIn("File error", output)
+        self.assertIn("Permission denied", output)
 
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
@@ -58,10 +89,9 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.path.exists', return_value=False), patch('os.makedirs'):
+                    with patch('os.makedirs'):
                         # We don't want to mock all of builtins.open, since argparse
                         # uses it when setting up translations for errors!
-                        # We only mock opening the actual output file.
                         # We only mock opening the actual output file.
                         import builtins
                         original_open = builtins.open

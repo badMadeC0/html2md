@@ -54,9 +54,18 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        # Bolt: Optimize by creating outdir once, outside the loop
-        if args.outdir and not os.path.exists(args.outdir):
-            os.makedirs(args.outdir)
+        def ensure_outdir() -> bool:
+            """Create the output directory, reporting file errors cleanly."""
+            if not args.outdir:
+                return True
+
+            try:
+                os.makedirs(args.outdir, exist_ok=True)
+            except OSError as e:
+                print(f"File error: {e}", file=sys.stderr)
+                return False
+
+            return True
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""
@@ -113,14 +122,17 @@ def main(argv=None):
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
 
+        if args.batch and not os.path.exists(args.batch):
+            print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
+            return 1
+
+        if not ensure_outdir():
+            return 1
+
         if args.url:
             process_url(args.url)
 
         if args.batch:
-            if not os.path.exists(args.batch):
-                print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
-                return 1
-
             # Bolt: deduplicate URLs to avoid redundant fetching and processing
             seen_urls = set()
             with open(args.batch, 'r', encoding='utf-8') as f:
