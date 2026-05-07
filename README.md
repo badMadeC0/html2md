@@ -61,6 +61,6 @@ a change, it should read:
 
 PR conventions:
 
-- AI-assisted PRs MUST start with `[AI-Assisted]` and link the originating Claude chat URL in the body. Enforced by [`.github/workflows/ai-assisted-pr-guard.yml`](.github/workflows/ai-assisted-pr-guard.yml).
+- AI-assisted PRs SHOULD start with `[AI-Assisted]` and link the originating Claude chat URL in the body. The workflow [`.github/workflows/ai-assisted-pr-guard.yml`](.github/workflows/ai-assisted-pr-guard.yml) currently checks this and warns when the title does not start with `[AI-Assisted]`.
 - The Claude slash command [`/review-pr`](.claude/commands/review-pr.md) walks an open PR against the rule sets.
 - Run [`scripts/check_agents_consistency.sh`](scripts/check_agents_consistency.sh) before opening a PR.
