@@ -44,6 +44,9 @@ def test_is_sensitive_matches_secret_basenames():
     assert hook.is_sensitive("config/.env.local")
     assert hook.is_sensitive("keys/service-account.pem")
     assert hook.is_sensitive("nested/credentials.json")
+    assert hook.is_sensitive(".ssh/id_ed25519")
+    assert hook.is_sensitive(".ssh/id_ecdsa")
+    assert hook.is_sensitive(".ssh/id_dsa")
     assert not hook.is_sensitive("docs/env-example.md")
 
 

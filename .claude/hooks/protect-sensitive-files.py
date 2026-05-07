@@ -24,6 +24,12 @@ SENSITIVE_BASENAME_PATTERNS = (
     "credentials.json",
     "id_rsa",
     "id_rsa.pub",
+    "id_ed25519",
+    "id_ed25519.pub",
+    "id_ecdsa",
+    "id_ecdsa.pub",
+    "id_dsa",
+    "id_dsa.pub",
 )
 
 PROTECTED_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
