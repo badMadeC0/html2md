@@ -31,12 +31,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # Keep the repair scripts on the trusted default branch. A failed ref can
+      # predate this workflow and therefore lack scripts/healthcheck.mjs or
+      # scripts/self-heal.mjs, so never run those scripts from the worktree.
       - name: Checkout trusted repair driver
         uses: actions/checkout@v4
         with:
           path: self-heal-driver
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
+
+      - name: Verify trusted repair driver
+        run: |
+          test -f self-heal-driver/scripts/healthcheck.mjs
+          test -f self-heal-driver/scripts/self-heal.mjs
 
       - name: Checkout failed ref
         uses: actions/checkout@v4
