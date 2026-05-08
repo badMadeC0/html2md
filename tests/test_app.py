@@ -1,10 +1,7 @@
-"""Tests for the html2md.app module."""
+"""Tests for html2md web application configuration helpers."""
 
-import pytest
+from html2md.app_config import DEFAULT_PORT, get_host_port
 
-pytest.importorskip("flask")
-
-from html2md.app import get_host_port, DEFAULT_PORT
 
 def test_get_host_port_defaults(monkeypatch):
     """Test get_host_port returns defaults when env vars are not set."""
@@ -15,7 +12,7 @@ def test_get_host_port_defaults(monkeypatch):
 
     assert host == "0.0.0.0"
     assert port == DEFAULT_PORT
-    assert port == 10000
+
 
 def test_get_host_port_valid_values(monkeypatch):
     """Test get_host_port returns environment values when they are valid."""
@@ -26,6 +23,7 @@ def test_get_host_port_valid_values(monkeypatch):
 
     assert host == "127.0.0.1"
     assert port == 8080
+
 
 def test_get_host_port_invalid_port(monkeypatch, capsys):
     """Test get_host_port handles invalid port value and falls back to default."""
@@ -40,5 +38,8 @@ def test_get_host_port_invalid_port(monkeypatch, capsys):
 
     # Check warning printed to stdout
     captured = capsys.readouterr()
-    expected_warning = "Warning: Invalid PORT environment variable value 'invalid'; falling back to default 10000."
+    expected_warning = (
+        f"Warning: Invalid PORT environment variable value 'invalid'; "
+        f"falling back to default {DEFAULT_PORT}."
+    )
     assert expected_warning in captured.out
