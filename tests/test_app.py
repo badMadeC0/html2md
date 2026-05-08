@@ -1,35 +1,63 @@
-import os
-import pytest
+"""Tests for optional web app server configuration."""
 
-# Skip the test module if flask is not installed.
-pytest.importorskip("flask")
+from html2md.server_config import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    DEPLOY_HOST,
+    get_host_port,
+)
 
-from html2md.app import get_host_port
 
 def test_get_host_port_default(monkeypatch):
-    """Test get_host_port returns default localhost when HOST is not set."""
-    # Ensure HOST and PORT are not set in the environment
+    """Return localhost and the default port for local runs without env vars."""
     monkeypatch.delenv("HOST", raising=False)
     monkeypatch.delenv("PORT", raising=False)
 
     hostname, port = get_host_port()
-    assert hostname == "127.0.0.1"
-    assert port == 10000
+
+    assert hostname == DEFAULT_HOST
+    assert port == DEFAULT_PORT
+
 
 def test_get_host_port_custom_host(monkeypatch):
-    """Test get_host_port respects the HOST environment variable."""
+    """Respect an explicit HOST environment variable."""
     monkeypatch.setenv("HOST", "0.0.0.0")
     monkeypatch.delenv("PORT", raising=False)
 
     hostname, port = get_host_port()
-    assert hostname == "0.0.0.0"
-    assert port == 10000
 
-def test_get_host_port_custom_port(monkeypatch):
-    """Test get_host_port respects the PORT environment variable."""
+    assert hostname == "0.0.0.0"
+    assert port == DEFAULT_PORT
+
+
+def test_get_host_port_port_only_uses_deploy_host(monkeypatch):
+    """Bind to all interfaces when a PaaS-style PORT is provided without HOST."""
     monkeypatch.delenv("HOST", raising=False)
     monkeypatch.setenv("PORT", "8080")
 
     hostname, port = get_host_port()
-    assert hostname == "127.0.0.1"
+
+    assert hostname == DEPLOY_HOST
     assert port == 8080
+
+
+def test_get_host_port_empty_host_falls_back_to_contextual_default(monkeypatch):
+    """Do not pass an empty HOST through to Flask/Werkzeug."""
+    monkeypatch.setenv("HOST", "")
+    monkeypatch.delenv("PORT", raising=False)
+
+    hostname, port = get_host_port()
+
+    assert hostname == DEFAULT_HOST
+    assert port == DEFAULT_PORT
+
+
+def test_get_host_port_empty_host_with_port_uses_deploy_host(monkeypatch):
+    """Treat an empty HOST like missing HOST for PaaS-style PORT-only launches."""
+    monkeypatch.setenv("HOST", "")
+    monkeypatch.setenv("PORT", "10000")
+
+    hostname, port = get_host_port()
+
+    assert hostname == DEPLOY_HOST
+    assert port == DEFAULT_PORT
