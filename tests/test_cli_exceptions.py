@@ -6,27 +6,16 @@ import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
 
-def make_stream_response(content: bytes, encoding=None, apparent_encoding=None):
-    """Create a minimal streamed response mock for URL conversion tests."""
-
-    class StreamResponse:
-        """Tiny response stand-in that can fail if apparent_encoding is read."""
-
-        headers = {}
-
-        def __init__(self):
-            self.encoding = encoding
-            self._apparent_encoding = apparent_encoding
-            self.raise_for_status = MagicMock(return_value=None)
-            self.iter_content = MagicMock(return_value=[content])
-
-        @property
-        def apparent_encoding(self):
-            if isinstance(self._apparent_encoding, Exception):
-                raise self._apparent_encoding
-            return self._apparent_encoding
-
-    return StreamResponse()
+def mock_response(body=b"<h1>Hello</h1>", *, encoding="utf-8", apparent_encoding="utf-8"):
+    """Create a streamed response mock for CLI URL-fetch tests."""
+    response = MagicMock()
+    response.headers = {}
+    response.encoding = encoding
+    response.apparent_encoding = apparent_encoding
+    response.status_code = 200
+    response.iter_content.return_value = [body]
+    response.raise_for_status.return_value = None
+    return response
 
 
 class TestCliExceptions(unittest.TestCase):
@@ -53,8 +42,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = make_stream_response(b"<h1>Hello</h1>", encoding="utf-8")
-                mock_get.return_value = mock_resp
+                mock_get.return_value = mock_response()
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
@@ -73,8 +61,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = make_stream_response(b"<h1>Hello</h1>", encoding="utf-8")
-                mock_get.return_value = mock_resp
+                mock_get.return_value = mock_response()
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
@@ -99,42 +86,28 @@ class TestCliExceptions(unittest.TestCase):
                             for call in mock_open.call_args_list:
                                 self.assertFalse(str(call[0][0]).endswith('.md'))
 
-    def test_uses_detected_encoding_for_streamed_response(self):
-        """Collected bytes should provide the fallback encoding for legacy HTML."""
+    def test_invalid_charset_falls_back_instead_of_failing(self):
+        """Invalid charset headers fall back to a replacement decode."""
         with patch('requests.Session.get') as mock_get:
-            mock_get.return_value = make_stream_response(
-                b"<p>\x93Hello\x94</p>",
-                encoding=None,
-                apparent_encoding=RuntimeError("stream consumed"),
+            mock_get.return_value = mock_response(
+                b"<h1>caf\xe9</h1>", encoding="bogus", apparent_encoding="windows-1252"
             )
 
-            with patch(
-                'requests.compat.chardet.detect',
-                return_value={'encoding': 'Windows-1252'},
-            ):
-                with patch(
-                    'markdownify.markdownify',
-                    return_value="converted",
-                ) as mock_md:
-                    main(['--url', 'http://example.com'])
+            with patch('markdownify.markdownify', return_value="# café") as mock_md:
+                status = main(['--url', 'http://example.com'])
 
-            mock_md.assert_called_once()
-            html_arg = mock_md.call_args.args[0]
-            self.assertIn("“Hello”", html_arg)
+            self.assertEqual(status, 0)
+            mock_md.assert_called_once_with("<h1>café</h1>", heading_style="ATX")
 
-    def test_invalid_response_encoding_falls_back_to_replacement_decode(self):
-        """Malformed charset names should not fail conversion."""
-        captured_stderr = io.StringIO()
-        with patch('sys.stderr', captured_stderr):
-            with patch('requests.Session.get') as mock_get:
-                mock_get.return_value = make_stream_response(
-                    b"<p>\x93Hello\x94</p>",
-                    encoding="bogus-charset",
-                )
+    def test_missing_charset_uses_apparent_encoding(self):
+        """Missing charset headers use Requests' apparent encoding when available."""
+        with patch('requests.Session.get') as mock_get:
+            mock_get.return_value = mock_response(
+                b"<h1>caf\xe9</h1>", encoding=None, apparent_encoding="windows-1252"
+            )
 
-                with patch('markdownify.markdownify', return_value="converted") as mock_md:
-                    main(['--url', 'http://example.com'])
+            with patch('markdownify.markdownify', return_value="# café") as mock_md:
+                status = main(['--url', 'http://example.com'])
 
-        mock_md.assert_called_once()
-        self.assertNotIn("Conversion failed", captured_stderr.getvalue())
-
+            self.assertEqual(status, 0)
+            mock_md.assert_called_once_with("<h1>café</h1>", heading_style="ATX")
