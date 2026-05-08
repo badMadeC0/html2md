@@ -153,7 +153,7 @@ def main(argv=None):
                 return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
-            return 1
+                return 1
 
         exit_status = 0
 
