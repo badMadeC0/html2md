@@ -23,19 +23,18 @@ cd "$ROOT" || fail "cannot cd to repo root: $ROOT"
 HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
+# Probe candidates and pick the first one that satisfies >= 3.8. Trying
+# `python3` first then `python` covers pyenv setups where one shim may
+# resolve to an older interpreter than the other.
 PYTHON_BIN=""
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
-  fail "python interpreter not found (expected 'python' or 'python3')"
-fi
-
-"$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || fail "python interpreter must be >= 3.8"
-import sys
-sys.exit(0 if sys.version_info >= (3, 8) else 1)
-PY
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python)"
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {

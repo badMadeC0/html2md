@@ -27,20 +27,18 @@ WF=".github/workflows/ai-assisted-pr-guard.yml"
 [ -f "$WF" ] || fail "workflow not found: $WF"
 
 # Prefer pyyaml-based parse; fall back to grep checks.
+# Probe candidates and pick the first one that satisfies >= 3.8. Trying
+# both names covers pyenv setups where one shim may resolve to an older
+# interpreter than the other.
 have_yaml=0
 PYTHON_BIN=""
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-fi
-
-if [ -n "$PYTHON_BIN" ]; then
-  "$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || PYTHON_BIN=""
-import sys
-sys.exit(0 if sys.version_info >= (3, 8) else 1)
-PY
-fi
+for candidate in python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1 \
+     && "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
 
 if [ -n "$PYTHON_BIN" ] && "$PYTHON_BIN" -c "import yaml" >/dev/null 2>&1; then
   have_yaml=1

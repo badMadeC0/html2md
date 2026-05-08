@@ -10,7 +10,11 @@ permissions:
 
 jobs:
   check-ai-assisted-marker:
-    name: Verify [AI-Assisted] tag and Claude chat link
+    # The job name reflects what is actually enforced: the [AI-Assisted]
+    # title prefix is opt-in (no enforcement when absent), and the chat
+    # link requirement is enforced only for PRs that already carry the
+    # tag. See pr-rules/common.md §1 for the policy.
+    name: Verify chat link for [AI-Assisted] PRs
     runs-on: ubuntu-latest
     steps:
       - name: Inspect PR title and body
