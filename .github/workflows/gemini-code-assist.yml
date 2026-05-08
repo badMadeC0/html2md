@@ -2,6 +2,7 @@ name: Gemini Code Assist
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
   # Restrict comment events to `created`; otherwise editing an old comment
   # that contains "@gemini-code-assist" re-triggers a (paid) Gemini run.
   pull_request_review_comment:
