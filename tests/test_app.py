@@ -1,11 +1,5 @@
 """Tests for the Flask application module."""
 
-import os
-
-import pytest
-
-pytest.importorskip("flask")
-
 from html2md.app import DEFAULT_PORT, get_host_port
 
 
@@ -46,7 +40,7 @@ def test_get_host_port_invalid_port(monkeypatch, capsys):
         "Warning: Invalid PORT environment variable value 'not-a-number'"
         in captured.out
     )
-    assert "falling back to default 10000" in captured.out
+    assert f"falling back to default {DEFAULT_PORT}" in captured.out
 
 
 def test_get_host_port_only_host(monkeypatch):
@@ -71,11 +65,10 @@ def test_get_host_port_only_port(monkeypatch):
     assert port == 9090
 
 
-def test_health_endpoint(monkeypatch):
+def test_health_endpoint():
     """Test the /health endpoint of the app."""
     from html2md.app import app
 
-    app.testing = True
     client = app.test_client()
 
     response = client.get("/health")

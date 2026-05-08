@@ -19,7 +19,7 @@ def health():
 
 def get_host_port():
     """Get host and port from environment variables."""
-    default_port = 10000
+    default_port = DEFAULT_PORT
     port_str = os.environ.get('PORT')
     try:
         port_value = int(port_str) if port_str is not None else DEFAULT_PORT
