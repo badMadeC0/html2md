@@ -92,11 +92,20 @@ def main(argv=None):
                         print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
                         return 1
 
-                # Decode the content using the response encoding (or default to utf-8)
+                # Decode using Requests' normal fallback order: explicit encoding,
+                # apparent encoding, then UTF-8 with replacement characters.
                 encoding = response.encoding
                 if not isinstance(encoding, str):
-                    encoding = 'utf-8'
-                text_content = content.decode(encoding, errors='replace')
+                    apparent_encoding = response.apparent_encoding
+                    encoding = (
+                        apparent_encoding
+                        if isinstance(apparent_encoding, str)
+                        else 'utf-8'
+                    )
+                try:
+                    text_content = content.decode(encoding, errors='replace')
+                except LookupError:
+                    text_content = content.decode(errors='replace')
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")
