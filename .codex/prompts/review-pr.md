@@ -16,7 +16,9 @@ rule. Use whichever invocation Codex CLI supports for prompt files.
 ## Steps
 
 1. Read PR title and body via `gh pr view --json number,title,body`.
-   - Title MUST start with `[AI-Assisted]`.
+   - If the PR is AI-authored or substantially AI-edited, the title MUST
+     start with `[AI-Assisted]`; otherwise, do not require or report that
+     marker.
    - Body MUST contain a Claude chat URL (warn on the literal placeholder
      `<CLAUDE_CHAT_URL>`).
 2. List changed files via `git diff --name-only origin/main...HEAD`.
