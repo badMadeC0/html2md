@@ -8,3 +8,6 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+## 2024-05-18 - [Python Hot Loop Optimizations]
+**Learning:** In a hot loop (like CSV exporting where 100k+ records are processed), replacing `isinstance(val, type)` with `type(val) is type` yields measurable speedups due to avoiding inheritance checks. Similarly, string searching (`c in "=+-@"`) is significantly faster than tuple containment checks (`c in ('=', '+', '-', '@')`) for 1-character length strings.
+**Action:** When working in performance critical inner loops in Python, consider `type() is` for simple base types and string containment checks over tuples. Always benchmark to prove the improvement.
