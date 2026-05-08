@@ -90,7 +90,16 @@ def main(argv=None):
             try:
                 return normalized.encode('ascii').decode('ascii')
             except UnicodeEncodeError:
-                import idna  # pylint: disable=import-outside-toplevel
+                try:
+                    import idna  # pylint: disable=import-outside-toplevel
+                except ImportError:
+                    print(
+                        "Error: Missing dependency 'idna' required for "
+                        "internationalized domain names. "
+                        "Please reinstall the package: pip install --upgrade html2md-cli",
+                        file=sys.stderr,
+                    )
+                    raise
 
                 return idna.encode(
                     normalized, strict=True, std3_rules=True
