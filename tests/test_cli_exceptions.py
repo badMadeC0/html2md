@@ -6,6 +6,18 @@ import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
 
+def mock_response(body=b"<h1>Hello</h1>", *, encoding="utf-8", apparent_encoding="utf-8"):
+    """Create a streamed response mock for CLI URL-fetch tests."""
+    response = MagicMock()
+    response.headers = {}
+    response.encoding = encoding
+    response.apparent_encoding = apparent_encoding
+    response.status_code = 200
+    response.iter_content.return_value = [body]
+    response.raise_for_status.return_value = None
+    return response
+
+
 class TestCliExceptions(unittest.TestCase):
     """Unit tests for CLI network, file, and path-containment error handling."""
 
@@ -30,10 +42,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
-                mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+                mock_get.return_value = mock_response()
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
@@ -52,19 +61,16 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
-                mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+                mock_get.return_value = mock_response()
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
                         import builtins
                         real_open = builtins.open
-                        def custom_open(*args, **kwargs):
-                            if str(args[0]).endswith('.md'):
+                        def custom_open(file, *args, **kwargs):
+                            if str(file).endswith('.md'):
                                 return MagicMock()
-                            return real_open(*args, **kwargs)
+                            return real_open(file, *args, **kwargs)
                         with patch('builtins.open', side_effect=custom_open) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
@@ -79,3 +85,29 @@ class TestCliExceptions(unittest.TestCase):
                             # Verify open was not called for our expected markdown file
                             for call in mock_open.call_args_list:
                                 self.assertFalse(str(call[0][0]).endswith('.md'))
+
+    def test_invalid_charset_falls_back_instead_of_failing(self):
+        """Invalid charset headers fall back to a replacement decode."""
+        with patch('requests.Session.get') as mock_get:
+            mock_get.return_value = mock_response(
+                b"<h1>caf\xe9</h1>", encoding="bogus", apparent_encoding="windows-1252"
+            )
+
+            with patch('markdownify.markdownify', return_value="# café") as mock_md:
+                status = main(['--url', 'http://example.com'])
+
+            self.assertEqual(status, 0)
+            mock_md.assert_called_once_with("<h1>café</h1>", heading_style="ATX")
+
+    def test_missing_charset_uses_apparent_encoding(self):
+        """Missing charset headers use Requests' apparent encoding when available."""
+        with patch('requests.Session.get') as mock_get:
+            mock_get.return_value = mock_response(
+                b"<h1>caf\xe9</h1>", encoding=None, apparent_encoding="windows-1252"
+            )
+
+            with patch('markdownify.markdownify', return_value="# café") as mock_md:
+                status = main(['--url', 'http://example.com'])
+
+            self.assertEqual(status, 0)
+            mock_md.assert_called_once_with("<h1>café</h1>", heading_style="ATX")
