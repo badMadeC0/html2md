@@ -88,7 +88,7 @@ def test_batch_stdout_is_emitted_in_input_order(capsys, tmp_path):
         encoding="utf-8",
     )
 
-    def get_response(url, **_kwargs):
+    def get_response(url, **kwargs):
         if url.endswith("/slow"):
             time.sleep(0.05)
         response = MagicMock()

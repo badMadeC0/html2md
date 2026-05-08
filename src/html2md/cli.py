@@ -153,7 +153,9 @@ def main(argv=None):
                         urls_to_process.append(u)
 
             if urls_to_process:
+                from collections import deque  # pylint: disable=import-outside-toplevel
                 import concurrent.futures  # pylint: disable=import-outside-toplevel
+                from functools import partial  # pylint: disable=import-outside-toplevel
 
                 # Cap max_workers to 10 to avoid overwhelming servers
                 max_workers = min(10, len(urls_to_process))
@@ -161,13 +163,10 @@ def main(argv=None):
                     max_workers=max_workers
                 ) as executor:
                     if args.outdir:
-                        for _ in executor.map(process_url, urls_to_process):
-                            pass
+                        deque(executor.map(process_url, urls_to_process), maxlen=0)
                     else:
                         for stdout_messages, stderr_messages in executor.map(
-                            lambda target_url: process_url(
-                                target_url, emit_output=False
-                            ),
+                            partial(process_url, emit_output=False),
                             urls_to_process,
                         ):
                             for message in stdout_messages:
