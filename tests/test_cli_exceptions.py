@@ -60,7 +60,7 @@ class TestCliExceptions(unittest.TestCase):
 
         output = captured_stderr.getvalue()
         self.assertEqual(result, 1)
-        self.assertIn("Batch file not found", output)
+        self.assertIn("Error: Batch file not found: missing.txt", output)
         mock_makedirs.assert_not_called()
 
     def test_outdir_creation_error(self):
