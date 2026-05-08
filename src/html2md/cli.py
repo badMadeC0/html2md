@@ -6,6 +6,114 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+
+def _safe_markdown_filename(target_url: str) -> str:
+    """Build a contained Markdown filename from a URL."""
+    filename = "conversion_result.md"
+    url_path = target_url.split('?')[0].rstrip('/')
+    if url_path:
+        base = os.path.basename(unquote(url_path))
+        # Sanitize to prevent path traversal
+        base = base.replace('/', '_').replace('\\', '_')
+        base = base.strip('. ')
+        if base:
+            filename = f"{base}.md"
+    return filename
+
+
+def _ensure_contained(outdir: str, out_path: str) -> bool:
+    """Return True when out_path stays within outdir."""
+    real_outdir = os.path.realpath(outdir)
+    real_out_path = os.path.realpath(out_path)
+    return os.path.commonpath([real_outdir, real_out_path]) == real_outdir
+
+
+def _extract_main_content(html: str) -> str:
+    """Extract likely main-page content, falling back to the full document."""
+    try:
+        from bs4 import BeautifulSoup  # type: ignore  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        return html
+
+    soup = BeautifulSoup(html, "html.parser")
+    selectors = [
+        "main",
+        "article",
+        "[role='main']",
+        "#main",
+        "#content",
+        ".main",
+        ".content",
+    ]
+    for selector in selectors:
+        element = soup.select_one(selector)
+        if element:
+            return str(element)
+    return html
+
+
+def _write_pdf(path: str, text: str) -> bool:
+    """Write a simple PDF rendering of text. Return False if ReportLab is unavailable."""
+    try:
+        from reportlab.lib.pagesizes import letter  # type: ignore  # pylint: disable=import-outside-toplevel
+        from reportlab.pdfgen import canvas  # type: ignore  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        return False
+
+    pdf = canvas.Canvas(path, pagesize=letter)
+    _width, height = letter
+    y = height - 72
+    text_obj = pdf.beginText(72, y)
+    text_obj.setFont("Helvetica", 10)
+
+    for line in text.splitlines() or [""]:
+        # Keep long Markdown lines readable in a basic PDF without requiring extra deps.
+        chunks = [line[i:i + 95] for i in range(0, len(line), 95)] or [""]
+        for chunk in chunks:
+            if text_obj.getY() < 72:
+                pdf.drawText(text_obj)
+                pdf.showPage()
+                text_obj = pdf.beginText(72, height - 72)
+                text_obj.setFont("Helvetica", 10)
+            text_obj.textLine(chunk)
+
+    pdf.drawText(text_obj)
+    pdf.save()
+    return True
+
+
+def _write_outputs(outdir: str, filename: str, md_content: str, all_formats: bool) -> None:
+    """Write conversion output files."""
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+    out_path = os.path.join(outdir, filename)
+    # Final safety check: ensure output stays within outdir
+    if not _ensure_contained(outdir, out_path):
+        print("Error: Output path escapes output directory.", file=sys.stderr)
+        return
+
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(md_content)
+    print(f"Success! Saved to: {out_path}")
+
+    if not all_formats:
+        return
+
+    root, _ext = os.path.splitext(out_path)
+    txt_path = f"{root}.txt"
+    pdf_path = f"{root}.pdf"
+
+    with open(txt_path, 'w', encoding='utf-8') as f:
+        f.write(md_content)
+    print(f"Success! Saved to: {txt_path}")
+
+    if _write_pdf(pdf_path, md_content):
+        print(f"Success! Saved to: {pdf_path}")
+    else:
+        print("Warning: ReportLab is not installed; skipped PDF output.", file=sys.stderr)
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -16,6 +124,16 @@ def main(argv=None):
     ap.add_argument('--url', help='Input URL to convert')
     ap.add_argument('--batch', help='File containing URLs to process (one per line)')
     ap.add_argument('--outdir', help='Output directory to save the file')
+    ap.add_argument(
+        '--all-formats',
+        action='store_true',
+        help='When used with --outdir, save Markdown, TXT, and PDF outputs.'
+    )
+    ap.add_argument(
+        '--main-content',
+        action='store_true',
+        help='Prefer the page main/article content before converting.'
+    )
 
     args = ap.parse_args(argv)
 
@@ -74,34 +192,14 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                html = response.text
+                if args.main_content:
+                    html = _extract_main_content(html)
+                md_content = md(html, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
-                    # Create a safe filename based on the URL
-                    filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(unquote(url_path))
-                        # Sanitize to prevent path traversal
-                        base = base.replace('/', '_').replace('\\', '_')
-                        base = base.strip('. ')
-                        if base:
-                            filename = f"{base}.md"
-
-                    out_path = os.path.join(args.outdir, filename)
-                    # Final safety check: ensure output stays within outdir
-                    real_outdir = os.path.realpath(args.outdir)
-                    real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
-                        print("Error: Output path escapes output directory.",
-                              file=sys.stderr)
-                        return
-                    with open(out_path, 'w', encoding='utf-8') as f:
-                        f.write(md_content)
-                    print(f"Success! Saved to: {out_path}")
+                    filename = _safe_markdown_filename(target_url)
+                    _write_outputs(args.outdir, filename, md_content, args.all_formats)
                 else:
                     print(md_content)
 

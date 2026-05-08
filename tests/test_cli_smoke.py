@@ -24,3 +24,27 @@ def test_help_runs():
     # Use python -m html2md to ensure tests pass even if package is not installed globally
     r = run(f"{sys.executable} -m html2md --help")
     assert r.returncode == 0, r.stderr
+
+
+def test_gui_flags_are_accepted(capsys, monkeypatch):
+    """GUI-restored flags should be valid for the console entry point."""
+    from html2md import cli
+
+    class DummyResponse:
+        text = "<html><body><main><h1>Hello</h1></main></body></html>"
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr("requests.Session.get", lambda *args, **kwargs: DummyResponse())
+    result = cli.main([
+        "--url",
+        "http://example.com/page",
+        "--all-formats",
+        "--main-content",
+    ])
+    outerr = capsys.readouterr()
+
+    assert result == 0
+    assert "unrecognized arguments" not in outerr.err
+    assert "# Hello" in outerr.out
