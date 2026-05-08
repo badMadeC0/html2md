@@ -10,6 +10,7 @@ from html2md.app import get_host_port, DEFAULT_PORT
 
 def test_get_host_port_invalid_port(capsys, monkeypatch):
     monkeypatch.setenv("PORT", "not-an-int")
+    monkeypatch.delenv("HOST", raising=False)
 
     host, port = get_host_port()
 
