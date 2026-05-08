@@ -5,7 +5,8 @@ import csv
 import json
 from pathlib import Path
 
-_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIX_CHARS = "=+-@"
+_DANGEROUS_PREFIXES = tuple(_DANGEROUS_PREFIX_CHARS)
 
 
 def _sanitize_formula(value: str) -> str:
@@ -14,7 +15,7 @@ def _sanitize_formula(value: str) -> str:
     if not value or value[0] == "'":
         return value
     c = value[0]
-    if c in "=+-@":
+    if c in _DANGEROUS_PREFIX_CHARS:
         return f"'{value}"
     if c.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
