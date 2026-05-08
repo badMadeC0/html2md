@@ -48,6 +48,17 @@ jobs:
           set -euxo pipefail
           pnpm install
 
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python test environment
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest
+
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
         run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
