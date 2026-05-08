@@ -17,6 +17,7 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
         run: |
           set -euo pipefail
           echo "PR title: $PR_TITLE"
@@ -28,7 +29,8 @@ jobs:
 
           # Body must reference a Claude chat URL or other agent transcript.
           # Accept claude.ai links, cursor.com, codex, jules.google, or the
-          # literal placeholder <CLAUDE_CHAT_URL> for drafts (warn only).
+          # literal placeholder <CLAUDE_CHAT_URL> for drafts only (warn).
+          # Ready/non-draft PRs fail until the placeholder is replaced.
           body="${PR_BODY:-}"
 
           # Require a real chat/share path after each accepted host:
@@ -46,8 +48,13 @@ jobs:
           fi
 
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then
-            echo "::warning::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before merging."
-            exit 0
+            if [[ "${PR_DRAFT:-false}" == "true" ]]; then
+              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review."
+              exit 0
+            fi
+
+            echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review or merging."
+            exit 1
           fi
 
           echo "::error::PR title is tagged [AI-Assisted] but the body does not include a Claude chat URL (or accepted alternative). Add the URL or remove the tag."
