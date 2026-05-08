@@ -22,7 +22,6 @@ jobs:
           python - <<'PY'
           import json
           import os
-          import sys
           import urllib.error
           import urllib.request
 
@@ -52,8 +51,7 @@ jobs:
                   )
           except urllib.error.HTTPError as error:
               print(f"Could not request review: {error.read().decode('utf-8')}")
-              print("Ensure the workflow token has permission to comment.")
-              sys.exit(1)
+              print("Review request comment is advisory; continuing without failing the job.")
           except urllib.error.URLError as error:
               print(f"Could not request review due to a network error: {error.reason}")
               print("Skipping Jules review request because this automation is best-effort.")
