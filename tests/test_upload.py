@@ -1,28 +1,49 @@
 """Tests for the upload module."""
 
+import importlib
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-# Mock anthropic before importing the module to avoid missing dependencies
-# and strictly prevent any real network access
-mock_anthropic = MagicMock()
-sys.modules["anthropic"] = mock_anthropic
 
-from html2md.upload import upload_file, main  # noqa: E402
+class MockAPIError(Exception):
+    """Test stand-in for anthropic.APIError."""
 
 
-def test_upload_file_not_found():
+@pytest.fixture
+def upload_module():
+    """Import html2md.upload with a per-test mocked anthropic module."""
+    mock_anthropic = MagicMock()
+    mock_anthropic.APIError = MockAPIError
+
+    previous_upload_module = sys.modules.pop("html2md.upload", None)
+    try:
+        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+            module = importlib.import_module("html2md.upload")
+            yield module, mock_anthropic
+    finally:
+        sys.modules.pop("html2md.upload", None)
+        if previous_upload_module is not None:
+            sys.modules["html2md.upload"] = previous_upload_module
+
+
+def test_upload_file_not_found(upload_module):
     """Test that upload_file raises FileNotFoundError for non-existent files."""
+    module, _ = upload_module
+
     with pytest.raises(FileNotFoundError, match="File not found:.*nonexistent.txt"):
-        upload_file("nonexistent.txt")
+        module.upload_file("nonexistent.txt")
 
 
-def test_upload_file_success_known_mime(tmp_path):
+def test_upload_file_success_known_mime(tmp_path, upload_module, monkeypatch):
     """Test successful upload with a known MIME type."""
+    module, mock_anthropic = upload_module
+
     # Create a temporary file
     test_file = tmp_path / "test.html"
-    test_file.write_text("<html><body>Test</body></html>")
+    test_file.write_text("<html><body>Test</body></html>", encoding="utf-8")
+    monkeypatch.setattr(module.mimetypes, "guess_type", lambda path: ("text/html", None))
 
     # Mock the client
     mock_client_instance = MagicMock()
@@ -32,7 +53,7 @@ def test_upload_file_success_known_mime(tmp_path):
     mock_client_instance.beta.files.upload.return_value = mock_result
 
     # Call the function
-    result = upload_file(str(test_file))
+    result = module.upload_file(str(test_file))
 
     # Verify result and client calls
     assert result == mock_result
@@ -48,18 +69,21 @@ def test_upload_file_success_known_mime(tmp_path):
     assert file_tuple[2] == "text/html"  # Known MIME type
 
 
-def test_upload_file_success_unknown_mime(tmp_path):
+def test_upload_file_success_unknown_mime(tmp_path, upload_module, monkeypatch):
     """Test successful upload falls back to application/octet-stream for unknown MIME."""
+    module, mock_anthropic = upload_module
+
     # Create a temporary file with an unknown extension
     test_file = tmp_path / "test.unknown_ext"
-    test_file.write_text("Some random data")
+    test_file.write_text("Some random data", encoding="utf-8")
+    monkeypatch.setattr(module.mimetypes, "guess_type", lambda path: (None, None))
 
     # Mock the client
     mock_client_instance = MagicMock()
     mock_anthropic.Anthropic.return_value = mock_client_instance
 
     # Call the function
-    upload_file(str(test_file))
+    module.upload_file(str(test_file))
 
     # Verify fallback MIME type
     call_kwargs = mock_client_instance.beta.files.upload.call_args[1]
@@ -67,17 +91,19 @@ def test_upload_file_success_unknown_mime(tmp_path):
     assert file_tuple[2] == "application/octet-stream"
 
 
-def test_main_success(tmp_path, capsys):
+def test_main_success(tmp_path, capsys, upload_module):
     """Test main CLI function on successful upload."""
+    module, mock_anthropic = upload_module
+
     test_file = tmp_path / "test.txt"
-    test_file.write_text("Hello")
+    test_file.write_text("Hello", encoding="utf-8")
 
     mock_client_instance = MagicMock()
     mock_anthropic.Anthropic.return_value = mock_client_instance
     mock_client_instance.beta.files.upload.return_value.id = "file_456"
 
     # Call main
-    ret = main([str(test_file)])
+    ret = module.main([str(test_file)])
 
     # Verify output and return code
     assert ret == 0
@@ -85,9 +111,11 @@ def test_main_success(tmp_path, capsys):
     assert "File uploaded successfully. ID: file_456" in captured.out
 
 
-def test_main_file_not_found(capsys):
+def test_main_file_not_found(capsys, upload_module):
     """Test main CLI function with non-existent file."""
-    ret = main(["nonexistent.txt"])
+    module, _ = upload_module
+
+    ret = module.main(["nonexistent.txt"])
 
     # Verify output and return code
     assert ret == 1
@@ -95,23 +123,19 @@ def test_main_file_not_found(capsys):
     assert "Error: File not found:" in captured.err
 
 
-def test_main_api_error(tmp_path, capsys):
+def test_main_api_error(tmp_path, capsys, upload_module):
     """Test main CLI function when Anthropic API raises an error."""
+    module, mock_anthropic = upload_module
+
     test_file = tmp_path / "test.txt"
-    test_file.write_text("Hello")
+    test_file.write_text("Hello", encoding="utf-8")
 
     mock_client_instance = MagicMock()
     mock_anthropic.Anthropic.return_value = mock_client_instance
-
-    # Mock APIError
-    class MockAPIError(Exception):
-        pass
-
-    mock_anthropic.APIError = MockAPIError
     mock_client_instance.beta.files.upload.side_effect = MockAPIError("API failure")
 
     # Call main
-    ret = main([str(test_file)])
+    ret = module.main([str(test_file)])
 
     # Verify output and return code
     assert ret == 1
