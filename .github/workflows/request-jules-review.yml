@@ -5,7 +5,6 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  issues: write
   pull-requests: write
 
 jobs:
@@ -14,7 +13,7 @@ jobs:
     steps:
       - name: Request review from Jules bot
         # Requesting a Jules review is best-effort; do not block PR checks if
-        # the workflow token cannot write issue comments (common for forks).
+        # the workflow token cannot request pull request reviewers (common for forks).
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,11 +32,13 @@ jobs:
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
 
+          reviewer = "google-labs-jules[bot]"
           request = urllib.request.Request(
-              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
+              url=(
+                  f"{api_url}/repos/{repo}/pulls/{pr_number}"
+                  "/requested_reviewers"
+              ),
+              data=json.dumps({"reviewers": [reviewer]}).encode("utf-8"),
               headers={
                   "Accept": "application/vnd.github+json",
                   "Authorization": f"Bearer {token}",
@@ -47,22 +48,22 @@ jobs:
           )
 
           try:
-              with urllib.request.urlopen(request) as response:
+              with urllib.request.urlopen(request, timeout=30) as response:
                   print(
-                      "Requested review from @google-labs-jules via comment on "
-                      f"PR #{pr_number} (status {response.status})"
+                      f"Requested review from @{reviewer} on PR #{pr_number} "
+                      f"(status {response.status})"
                   )
           except urllib.error.HTTPError as error:
               error_body = error.read().decode("utf-8")
               print(
-                  "Could not request review from @google-labs-jules; "
+                  f"Could not request review from @{reviewer}; "
                   "continuing without failing the workflow."
               )
               print(f"HTTP {error.code}: {error_body}")
-              print("Ensure the workflow token has permission to comment.")
+              print("Ensure the workflow token can request pull request reviewers.")
           except urllib.error.URLError as error:
               print(
-                  "Could not request review from @google-labs-jules due to a "
+                  f"Could not request review from @{reviewer} due to a "
                   "network error; continuing without failing the workflow."
               )
               print(f"Error: {error}")
