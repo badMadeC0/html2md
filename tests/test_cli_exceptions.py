@@ -59,8 +59,9 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        # Use mock_open properly to avoid breaking gettext internal file reads
-                        with patch('pathlib.Path.open') as m_open:
+                        # Patch open in the CLI module to observe the actual write path
+                        # without breaking global built-ins used by dependencies.
+                        with patch('html2md.cli.open', create=True) as m_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
