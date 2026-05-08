@@ -61,6 +61,6 @@ a change, it should read:
 
 PR conventions:
 
-- AI-assisted PRs MUST start with `[AI-Assisted]` and link the originating agent transcript URL in the body (for example, Claude, Cursor, Codex, or Jules). The workflow [`.github/workflows/ai-assisted-pr-guard.yml`](.github/workflows/ai-assisted-pr-guard.yml) enforces the transcript-link requirement when the PR title includes `[AI-Assisted]`.
+- AI-assisted PRs should start with `[AI-Assisted]` and include the originating agent transcript URL in the body (for example, Claude, Cursor, Codex, or Jules). The workflow [`.github/workflows/ai-assisted-pr-guard.yml`](.github/workflows/ai-assisted-pr-guard.yml) currently enforces the transcript-link requirement only for PRs whose titles already include `[AI-Assisted]`.
 - The Claude slash command [`/review-pr`](.claude/commands/review-pr.md) walks an open PR against the rule sets.
 - Run [`scripts/check_agents_consistency.sh`](scripts/check_agents_consistency.sh) before opening a PR.
