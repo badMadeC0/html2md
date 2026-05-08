@@ -16,7 +16,7 @@ import pytest
 HOOK_SCRIPT = Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "protect_sensitive_files.py"
 
 
-def run_hook(payload: Union[Dict[str, object], str]) -> subprocess.CompletedProcess[str]:
+def run_hook(payload: Union[Dict[str, object], str]) -> subprocess.CompletedProcess:
     """Run the hook with a JSON payload or raw stdin text."""
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
     return subprocess.run(
@@ -76,22 +76,22 @@ def test_malformed_payload_does_not_block() -> None:
     assert "bad JSON payload" in result.stderr
 
 
-def test_node_launcher_blocks_sensitive_file_without_pyenv_version() -> None:
+def test_shell_launcher_blocks_sensitive_file_without_pyenv_version() -> None:
     """The configured launcher should still block when pyenv cannot resolve bare python."""
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("node is required to exercise the Claude Code hook launcher")
+    shell = shutil.which("sh")
+    if shell is None:
+        pytest.skip("sh is required to exercise the Claude Code hook launcher")
 
     launcher_path = (
         Path(__file__).resolve().parents[1]
         / ".claude"
         / "hooks"
-        / "run_protect_sensitive_files.js"
+        / "run_protect_sensitive_files.sh"
     )
     env = os.environ.copy()
     env.pop("PYENV_VERSION", None)
     result = subprocess.run(
-        [node, str(launcher_path)],
+        [shell, str(launcher_path)],
         input=json.dumps(tool_payload("Write", ".env")),
         text=True,
         capture_output=True,
@@ -103,28 +103,61 @@ def test_node_launcher_blocks_sensitive_file_without_pyenv_version() -> None:
     assert "BLOCKED" in result.stderr
 
 
-def test_hook_settings_uses_node_launcher_and_project_dir() -> None:
-    """Claude Code should use the Node launcher from the project root."""
+def test_shell_launcher_fails_closed_when_no_python_launcher_works(tmp_path: Path) -> None:
+    """Launcher failures should block PreToolUse rather than fail open."""
+    shell = shutil.which("sh")
+    if shell is None:
+        pytest.skip("sh is required to exercise the Claude Code hook launcher")
+
+    launcher_path = (
+        Path(__file__).resolve().parents[1]
+        / ".claude"
+        / "hooks"
+        / "run_protect_sensitive_files.sh"
+    )
+    for name in ("python3", "py", "python"):
+        fake_launcher = tmp_path / name
+        fake_launcher.write_text("#!/bin/sh\nexit 127\n", encoding="utf-8")
+        fake_launcher.chmod(0o755)
+
+    env = os.environ.copy()
+    env["PATH"] = os.pathsep.join([str(tmp_path), env.get("PATH", "")])
+    result = subprocess.run(
+        [shell, str(launcher_path)],
+        input=json.dumps(tool_payload("Write", ".env")),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+    )
+
+    assert result.returncode == 2
+    assert "no working Python 3 launcher" in result.stderr
+
+
+def test_hook_settings_uses_shell_launcher_and_project_dir() -> None:
+    """Claude Code should use the shell launcher from the project root."""
     settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
-    settings = json.loads(settings_path.read_text())
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
-    assert command == 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/run_protect_sensitive_files.js"'
+    assert command == 'sh "$CLAUDE_PROJECT_DIR/.claude/hooks/run_protect_sensitive_files.sh"'
+    assert "node" not in command
     assert "python" not in command
 
 
-def test_node_launcher_prefers_python3_before_bare_python() -> None:
+def test_shell_launcher_prefers_python3_before_bare_python() -> None:
     """The launcher should avoid pyenv-sensitive bare python when python3 is available."""
     launcher_path = (
         Path(__file__).resolve().parents[1]
         / ".claude"
         / "hooks"
-        / "run_protect_sensitive_files.js"
+        / "run_protect_sensitive_files.sh"
     )
-    launcher = launcher_path.read_text()
+    launcher = launcher_path.read_text(encoding="utf-8")
 
-    python3_index = launcher.index('command: "python3"')
-    py_index = launcher.index('command: "py"')
-    python_index = launcher.index('command: "python"')
+    python3_index = launcher.index("python3")
+    py_index = launcher.index('"py -3"')
+    python_index = launcher.index(" python;")
 
     assert python3_index < py_index < python_index
