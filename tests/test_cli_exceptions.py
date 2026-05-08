@@ -128,6 +128,9 @@ class TestCliExceptions(unittest.TestCase):
                 )
 
                 with patch(
+                    'requests.compat.chardet.detect',
+                    return_value={'encoding': 'iso-8859-1'},
+                ), patch(
                     'markdownify.markdownify',
                     side_effect=lambda html, **_: html,
                 ) as mock_md:
@@ -137,6 +140,39 @@ class TestCliExceptions(unittest.TestCase):
         mock_md.assert_called_once()
         self.assertIn(word, mock_md.call_args.args[0])
         self.assertIn(word, captured_stdout.getvalue())
+
+    def test_streamed_decode_does_not_read_response_apparent_encoding(self):
+        """Successful streamed downloads must not inspect consumed response content."""
+
+        class StreamResponseWithFailingApparentEncoding:
+            encoding = 'utf-8'
+
+            def __init__(self):
+                self.iter_content = MagicMock(return_value=[b"<p>ok</p>"])
+                self.raise_for_status = MagicMock(return_value=None)
+
+            @property
+            def apparent_encoding(self):
+                raise RuntimeError(
+                    "The content for this response was already consumed"
+                )
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return None
+
+        response = StreamResponseWithFailingApparentEncoding()
+        with patch('requests.Session.get', return_value=response), patch(
+            'markdownify.markdownify',
+            side_effect=lambda html, **_: html,
+        ) as mock_md:
+            result = main(['--url', 'http://example.com'])
+
+        self.assertEqual(result, 0)
+        mock_md.assert_called_once()
+        self.assertIn("ok", mock_md.call_args.args[0])
 
     def test_invalid_charset_label_falls_back_without_failing(self):
         """Invalid charset labels should fall back like response.text."""

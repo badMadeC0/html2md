@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from typing import Any, Optional, Set
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -54,15 +55,47 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def decode_response_content(response, content_bytes: bytearray) -> str:
-            """Decode streamed bytes using Requests' response.text fallback order."""
-            encoding = response.encoding
-            if not encoding:
-                encoding = response.apparent_encoding
+        def detect_streamed_encoding(
+            content_bytes: bytearray, encoding_detector: Any
+        ) -> Optional[str]:
+            """Guess encoding from buffered streamed bytes without re-reading response."""
+            if not encoding_detector:
+                return None
             try:
-                return bytes(content_bytes).decode(encoding, errors='replace')
-            except (LookupError, TypeError):
-                return bytes(content_bytes).decode(errors='replace')
+                detection = encoding_detector.detect(bytes(content_bytes))
+            except Exception:  # pylint: disable=broad-exception-caught
+                return None
+            if isinstance(detection, dict):
+                encoding = detection.get('encoding')
+                if isinstance(encoding, str):
+                    return encoding
+            return None
+
+        def decode_response_content(
+            content_bytes: bytearray,
+            response_encoding: Optional[str],
+            encoding_detector: Any,
+        ) -> str:
+            """Decode streamed bytes without touching Response.content after streaming."""
+            byte_content = bytes(content_bytes)
+            candidate_encodings = (
+                response_encoding,
+                detect_streamed_encoding(content_bytes, encoding_detector),
+                'utf-8',
+            )
+            attempted: Set[str] = set()
+            for encoding in candidate_encodings:
+                if not encoding:
+                    continue
+                normalized_encoding = encoding.lower()
+                if normalized_encoding in attempted:
+                    continue
+                attempted.add(normalized_encoding)
+                try:
+                    return byte_content.decode(encoding, errors='replace')
+                except (LookupError, TypeError):
+                    continue
+            return byte_content.decode(errors='replace')
 
         def process_url(target_url: str) -> bool:
             """Process a single URL. Return True when conversion succeeds."""
@@ -84,6 +117,10 @@ def main(argv=None):
                 # manager so the connection is released even on errors/early returns.
                 with session.get(target_url, timeout=30, stream=True) as response:
                     response.raise_for_status()
+                    response_encoding = response.encoding
+                    encoding_detector = getattr(
+                        getattr(requests, 'compat', None), 'chardet', None
+                    )
 
                     content_bytes = bytearray()
                     max_size = 10 * 1024 * 1024  # 10 MB limit
@@ -98,7 +135,9 @@ def main(argv=None):
                                 return False
                             content_bytes.extend(chunk)
 
-                    text_content = decode_response_content(response, content_bytes)
+                    text_content = decode_response_content(
+                        content_bytes, response_encoding, encoding_detector
+                    )
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")
