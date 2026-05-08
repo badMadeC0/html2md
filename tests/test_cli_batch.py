@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 
 from html2md import cli
 
+SLOW_RESPONSE_DELAY = 0.05
+
 
 @patch("requests.Session.get")
 def test_batch_creates_missing_outdir_idempotently(mock_get, monkeypatch, tmp_path):
@@ -90,7 +92,7 @@ def test_batch_stdout_is_emitted_in_input_order(capsys, tmp_path):
 
     def get_response(url, **kwargs):
         if url.endswith("/slow"):
-            time.sleep(0.05)
+            time.sleep(SLOW_RESPONSE_DELAY)
         response = MagicMock()
         response.text = f"<h1>{url.rsplit('/', 1)[-1]}</h1>"
         response.raise_for_status.return_value = None

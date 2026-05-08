@@ -153,8 +153,8 @@ def main(argv=None):
                         urls_to_process.append(u)
 
             if urls_to_process:
-                from collections import deque  # pylint: disable=import-outside-toplevel
                 import concurrent.futures  # pylint: disable=import-outside-toplevel
+                from collections import deque  # pylint: disable=import-outside-toplevel
                 from functools import partial  # pylint: disable=import-outside-toplevel
 
                 # Cap max_workers to 10 to avoid overwhelming servers
