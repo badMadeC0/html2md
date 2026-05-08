@@ -1,19 +1,14 @@
 import os
 from unittest import mock
 
-import pytest
-
-# Tests in tests/test_app.py require the flask library and are skipped automatically if it is not installed
-pytest.importorskip("flask")
-
-from html2md.app import get_host_port
+from html2md.app_config import DEFAULT_HOST, DEFAULT_PORT, get_host_port
 
 
 def test_get_host_port_defaults():
     with mock.patch.dict(os.environ, {}, clear=True):
         host, port = get_host_port()
-        assert host == '0.0.0.0'
-        assert port == 10000
+        assert host == DEFAULT_HOST
+        assert port == DEFAULT_PORT
 
 
 def test_get_host_port_valid_values():
@@ -26,8 +21,8 @@ def test_get_host_port_valid_values():
 def test_get_host_port_invalid_port(capsys):
     with mock.patch.dict(os.environ, {'PORT': 'invalid_port', 'HOST': '0.0.0.0'}, clear=True):
         host, port = get_host_port()
-        assert host == '0.0.0.0'
-        assert port == 10000
+        assert host == DEFAULT_HOST
+        assert port == DEFAULT_PORT
 
         captured = capsys.readouterr()
         assert "Warning: Invalid PORT environment variable value" in captured.out
