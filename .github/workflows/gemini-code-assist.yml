@@ -28,4 +28,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-gemini/gemini-cli-action@main
+        uses: google-gemini/gemini-cli-action@a2b9c0548a45588c2e82fa67fb15e6b050ced328
