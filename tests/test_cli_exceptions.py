@@ -1,4 +1,5 @@
 """Tests for html2md CLI exception-handling paths."""
+import gettext
 import unittest
 from unittest.mock import patch, MagicMock
 import io
@@ -66,7 +67,11 @@ class TestCliExceptions(unittest.TestCase):
                                 return '/tmp/out'
 
                             with patch('os.path.realpath', side_effect=fake_realpath):
-                                main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
+                                with patch(
+                                    'gettext.translation',
+                                    return_value=gettext.NullTranslations(),
+                                ):
+                                    main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
