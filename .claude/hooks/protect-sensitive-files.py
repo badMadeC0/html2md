@@ -26,8 +26,12 @@ SENSITIVE_BASENAME_PATTERNS = (
     "id_rsa.pub",
     "id_ed25519",
     "id_ed25519.pub",
+    "id_ed25519_sk",
+    "id_ed25519_sk.pub",
     "id_ecdsa",
     "id_ecdsa.pub",
+    "id_ecdsa_sk",
+    "id_ecdsa_sk.pub",
     "id_dsa",
     "id_dsa.pub",
 )
