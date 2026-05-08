@@ -3,10 +3,6 @@ name: Gemini Code Assist
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  pull_request_review_comment:
-    types: [created]
-  issue_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -14,18 +10,55 @@ permissions:
   issues: write
 
 jobs:
-  gemini-code-assist:
+  request-gemini-review:
     runs-on: ubuntu-latest
-    if: >
-      (github.event_name == 'pull_request') ||
-      (github.event_name == 'pull_request_review_comment' &&
-       contains(github.event.comment.body, '@gemini-code-assist')) ||
-      (github.event_name == 'issue_comment' &&
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Gemini Code Assist
-        uses: google-gemini/code-assist-action@v1
+      - name: Request Gemini Code Assist review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          pr_number = os.environ["PR_NUMBER"]
+          token = os.environ["GITHUB_TOKEN"]
+
+          request = urllib.request.Request(
+              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
+              data=json.dumps(
+                  {"body": "/gemini review"}
+              ).encode("utf-8"),
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(request) as response:
+                  print(
+                      "Requested Gemini Code Assist review via comment on "
+                      f"PR #{pr_number} (status {response.status})"
+                  )
+          except urllib.error.HTTPError as error:
+              print(
+                  "Could not request Gemini Code Assist review: "
+                  f"{error.read().decode('utf-8')}"
+              )
+              print(
+                  "Ensure the workflow token has permission to comment "
+                  "and Gemini Code Assist is installed."
+              )
+              sys.exit(1)
+          PY
