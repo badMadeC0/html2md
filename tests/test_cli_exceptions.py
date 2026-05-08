@@ -66,21 +66,32 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch("markdownify.markdownify", return_value="# Hello"):
                     with patch("os.path.exists", return_value=True):
-                        # Avoid mocking builtins.open globally because argparse needs it
+                        # Verify a rejected output path is never opened for writing.
                         def fake_realpath(path):
                             if str(path).endswith(".md"):
                                 return "/tmp/outside/a.md"
                             return "/tmp/out"
 
-                        with patch("os.path.realpath", side_effect=fake_realpath):
-                            main(
-                                [
-                                    "--url",
-                                    "http://example.com/a",
-                                    "--outdir",
-                                    "/tmp/out",
-                                ]
-                            )
+                        real_open = open
+                        opened_output_paths = []
+
+                        def tracking_open(path, *args, **kwargs):
+                            if str(path) == "/tmp/out/a.md":
+                                opened_output_paths.append(str(path))
+                            return real_open(path, *args, **kwargs)
+
+                        with patch("builtins.open", side_effect=tracking_open):
+                            with patch("os.path.realpath", side_effect=fake_realpath):
+                                main(
+                                    [
+                                        "--url",
+                                        "http://example.com/a",
+                                        "--outdir",
+                                        "/tmp/out",
+                                    ]
+                                )
+
+                            self.assertEqual([], opened_output_paths)
 
                         output = captured_stderr.getvalue()
                         self.assertIn("Output path escapes output directory", output)
