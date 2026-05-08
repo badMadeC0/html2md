@@ -29,7 +29,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python deps
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
