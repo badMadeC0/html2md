@@ -79,6 +79,7 @@ def test_traversal_like_paths_stay_within_outdir(
         "http://0.0.0.0/",
         "http://[::1]/",
         "http://[ff02::1]/",
+        "http://[64:ff9b::a9fe:a9fe]/",
     ],
 )
 @patch("requests.Session.get")
@@ -106,6 +107,37 @@ def test_is_safe_url_rejects_multicast_dns_results(mock_getaddrinfo, ip_address)
     ]
 
     assert not cli.is_safe_url("http://example.com/")
+
+
+@pytest.mark.parametrize(
+    "ip_address",
+    [
+        "64:ff9b::a9fe:a9fe",
+    ],
+)
+@patch("html2md.cli.socket.getaddrinfo")
+def test_is_safe_url_rejects_reserved_dns_results(mock_getaddrinfo, ip_address):
+    """SSRF protection should reject reserved ranges, including NAT64 prefixes."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (ip_address, 0))
+    ]
+
+    assert not cli.is_safe_url("http://example.com/")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        r"http://127.0.0.1\@example.com/",
+        "http://example.com/evil\\path",
+        "http://example.com/evil\x00path",
+    ],
+)
+@patch("html2md.cli.socket.getaddrinfo")
+def test_is_safe_url_rejects_urls_with_forbidden_characters(mock_getaddrinfo, url):
+    """SSRF protection rejects characters Requests may normalize differently."""
+    assert not cli.is_safe_url(url)
+    mock_getaddrinfo.assert_not_called()
 
 
 @patch("html2md.cli.socket.getaddrinfo")
@@ -155,6 +187,33 @@ def test_process_url_redirect_to_blocked_ip_is_rejected(
 
     assert (
         "Error: URL 'http://127.0.0.1/admin' resolves to a non-public IP address."
+        in outerr.err
+    )
+    mock_get.assert_called_once_with(
+        "http://example.com/", timeout=30, allow_redirects=False
+    )
+
+
+@patch("html2md.cli.socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_redirect_with_backslash_target_is_rejected(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
+    """Redirect targets with backslashes are rejected before Requests normalizes them."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))
+    ]
+
+    redirect_response = MagicMock()
+    redirect_response.status_code = 302
+    redirect_response.headers = {"Location": r"http://127.0.0.1\@example.com/"}
+    mock_get.return_value = redirect_response
+
+    cli.main(["--url", "http://example.com/", "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+
+    assert (
+        r"Error: URL 'http://127.0.0.1\@example.com/' resolves to a non-public IP address."
         in outerr.err
     )
     mock_get.assert_called_once_with(
