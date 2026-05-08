@@ -24,8 +24,9 @@ the markers is managed centrally; do not hand-edit.
   `.claude/commands/edge-case.md`
 - Sensitive-file write guard: `.claude/hooks/protect-sensitive-files.py`
 - PR template: `.github/PULL_REQUEST_TEMPLATE.md`
-- PR-title check: `.github/workflows/ai-assisted-pr-guard.yml` checks
-  PRs titled `[AI-Assisted]` for the required tag and a Claude chat link.
+- PR-title check: `.github/workflows/ai-assisted-pr-guard.yml` enforces
+  the Claude chat link requirement for PRs marked `[AI-Assisted]`; draft
+  PRs may temporarily use `<CLAUDE_CHAT_URL>` until they are ready.
 - Consistency check: `scripts/check_agents_consistency.sh`
 - Baseline version: `BASELINE_VERSION` (semver)
 
