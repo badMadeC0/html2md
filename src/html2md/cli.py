@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 import argparse
+import collections
+import functools
 import os
 import sys
 from urllib.parse import urlparse, unquote
@@ -161,13 +163,12 @@ def main(argv=None):
                     max_workers=max_workers
                 ) as executor:
                     if args.outdir:
-                        for _ in executor.map(process_url, urls_to_process):
-                            pass
+                        collections.deque(
+                            executor.map(process_url, urls_to_process), maxlen=0
+                        )
                     else:
                         for stdout_messages, stderr_messages in executor.map(
-                            lambda target_url: process_url(
-                                target_url, emit_output=False
-                            ),
+                            functools.partial(process_url, emit_output=False),
                             urls_to_process,
                         ):
                             for message in stdout_messages:

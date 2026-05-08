@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, patch
 
 from html2md import cli
 
+SLOW_RESPONSE_DELAY = 0.05
+
 
 def test_batch_stdout_is_emitted_in_input_order(capsys, tmp_path):
     """Concurrent batch conversion without --outdir prints in batch-file order."""
@@ -16,7 +18,7 @@ def test_batch_stdout_is_emitted_in_input_order(capsys, tmp_path):
 
     def get_response(url, **_kwargs):
         if url.endswith("/slow"):
-            time.sleep(0.05)
+            time.sleep(SLOW_RESPONSE_DELAY)
         response = MagicMock()
         response.text = f"<h1>{url.rsplit('/', 1)[-1]}</h1>"
         response.raise_for_status.return_value = None
