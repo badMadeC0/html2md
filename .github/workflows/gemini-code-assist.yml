@@ -17,31 +17,32 @@ permissions:
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
+    # Gemini uses secret-backed authentication and writes PR reviews/comments,
+    # so skip forked pull_request runs where tokens are read-only and secrets are unavailable.
     if: >
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.fork == false) ||
       ((github.event_name == 'pull_request_review_comment' ||
-        github.event_name == 'issue_comment') &&
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
+       contains(github.event.comment.body, '@gemini-code-assist') &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'COLLABORATOR') &&
-       contains(github.event.comment.body, '@gemini-code-assist') &&
-       (github.event_name == 'pull_request_review_comment' ||
-        github.event.issue.pull_request))
+        github.event.comment.author_association == 'COLLABORATOR'))
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_CLI_TRUST_WORKSPACE: "true"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        uses: google-github-actions/run-gemini-cli@v0.1.22
+        if: env.GEMINI_API_KEY != ''
+        continue-on-error: true
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
-          GEMINI_CLI_TRUST_WORKSPACE: 'true'
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
-          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
-          gcp_token_format: ${{ vars.SERVICE_ACCOUNT_EMAIL != '' && 'access_token' || '' }}
-          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gemini_api_key: ${{ env.GEMINI_API_KEY }}
           use_gemini_code_assist: 'true'
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           prompt: >-
