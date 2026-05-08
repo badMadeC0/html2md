@@ -87,8 +87,7 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
+                    os.makedirs(args.outdir, exist_ok=True)
 
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
@@ -147,7 +146,7 @@ def main(argv=None):
                 with concurrent.futures.ThreadPoolExecutor(
                     max_workers=max_workers
                 ) as executor:
-                    executor.map(process_url, urls_to_process)
+                    list(executor.map(process_url, urls_to_process))
 
         return 0
 
