@@ -92,7 +92,7 @@ def main(argv=None):
                 continue
 
             # Strict/fast dict check
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
             writerow([sanitize(rec.get(name, "")) for name in input_names])
