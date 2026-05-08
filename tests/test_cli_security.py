@@ -4,6 +4,7 @@ import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
+import urllib3.connection
 
 from html2md import cli
 
@@ -108,3 +109,46 @@ def test_process_url_ssrf_protection_allowed(
     outerr = capsys.readouterr()
     assert "Success!" in outerr.out
     mock_get.assert_called_once()
+
+
+@patch("html2md.cli.socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_revalidates_redirect_target(
+    mock_get, mock_getaddrinfo, capsys, tmp_path
+):
+    """Redirect targets must pass SSRF validation before being fetched."""
+
+    def fake_getaddrinfo(hostname, port, *args, **kwargs):
+        del port, args, kwargs
+        if hostname == "example.com":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+        if hostname == "169.254.169.254":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 0))]
+        raise socket.gaierror(hostname)
+
+    redirect = MagicMock()
+    redirect.status_code = 302
+    redirect.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    mock_get.return_value = redirect
+    mock_getaddrinfo.side_effect = fake_getaddrinfo
+
+    cli.main(["--url", "http://example.com/", "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+
+    assert "http://169.254.169.254/latest/meta-data/" in outerr.err
+    assert "resolves to a non-public IP address" in outerr.err
+    mock_get.assert_called_once_with(
+        "http://example.com/", timeout=30, allow_redirects=False
+    )
+
+
+@patch("html2md.cli.socket.getaddrinfo")
+def test_safe_connection_validates_and_pins_actual_connect_address(mock_getaddrinfo):
+    """The socket connect helper rejects a rebinding answer before connecting."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
+    ]
+
+    with cli._ssrf_safe_connection():  # pylint: disable=protected-access
+        with pytest.raises(cli.UnsafeUrlError):
+            urllib3.connection.connection.create_connection(("example.com", 80))

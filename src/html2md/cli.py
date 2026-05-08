@@ -7,7 +7,48 @@ import ipaddress
 import os
 import socket
 import sys
-from urllib.parse import unquote, urlparse
+from contextlib import contextmanager
+from typing import Optional
+from urllib.parse import unquote, urljoin, urlparse
+
+
+MAX_REDIRECTS = 10
+
+
+class UnsafeUrlError(ValueError):
+    """Raised when a URL resolves to a non-public network address."""
+
+
+class UnsafeRedirectError(ValueError):
+    """Raised when a redirect points to an unsupported or unsafe URL."""
+
+
+def _url_port(parsed) -> Optional[int]:
+    """Return the explicit or default network port for a parsed URL."""
+    if parsed.port is not None:
+        return parsed.port
+    if parsed.scheme == "https":
+        return 443
+    if parsed.scheme == "http":
+        return 80
+    return None
+
+
+def _global_addr_info(hostname: str, port: Optional[int]):
+    """Resolve a hostname and return address records only if all are public."""
+    # Resolve hostname to all associated IPv4 and IPv6 addresses. Treat any
+    # address that is not globally routable as unsafe, including shared,
+    # documentation, benchmarking, private, loopback, and link-local ranges.
+    addr_info = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+    if not addr_info:
+        raise UnsafeUrlError("hostname did not resolve")
+
+    for info in addr_info:
+        ip_str = info[4][0]
+        ip = ipaddress.ip_address(ip_str)
+        if not ip.is_global:
+            raise UnsafeUrlError(f"hostname resolved to non-public address {ip}")
+    return addr_info
 
 
 def is_safe_url(url: str) -> bool:
@@ -17,23 +58,98 @@ def is_safe_url(url: str) -> bool:
         hostname = parsed.hostname
         if not hostname:
             return False
-
-        # Resolve hostname to all associated IPv4 and IPv6 addresses. Treat any
-        # address that is not globally routable as unsafe, including shared,
-        # documentation, benchmarking, private, loopback, and link-local ranges.
-        addr_info = socket.getaddrinfo(hostname, None)
-        if not addr_info:
-            return False
-
-        for info in addr_info:
-            ip_str = info[4][0]
-            ip = ipaddress.ip_address(ip_str)
-            if not ip.is_global:
-                return False
+        _global_addr_info(hostname, _url_port(parsed))
         return True
     except (socket.gaierror, ValueError):
         # If DNS resolution fails or IP parsing fails, consider it unsafe
         return False
+
+
+@contextmanager
+def _ssrf_safe_connection():
+    """Patch urllib3 connection creation to connect only to validated IPs.
+
+    The CLI performs a pre-flight safety check for friendly error messages, but
+    the security boundary must be the address used by the actual socket connect.
+    Requests/urllib3 normally resolves hostnames inside its connection helper;
+    replacing that helper lets us validate the fresh DNS answer and then pin the
+    TCP connection to that exact IP address so DNS rebinding cannot swap in a
+    private address after the pre-flight check.
+    """
+    import urllib3.connection  # type: ignore  # pylint: disable=import-outside-toplevel
+    import urllib3.util.connection  # type: ignore  # pylint: disable=import-outside-toplevel
+
+    original_util_create_connection = urllib3.util.connection.create_connection
+    original_connection_create_connection = getattr(
+        urllib3.connection, "create_connection", None
+    )
+
+    def create_safe_connection(
+        address,
+        timeout=socket._GLOBAL_DEFAULT_TIMEOUT,  # pylint: disable=protected-access
+        source_address=None,
+        socket_options=None,
+    ):
+        host, port = address
+        addr_info = _global_addr_info(host, port)
+        last_error = None
+
+        for info in addr_info:
+            ip_address = info[4][0]
+            try:
+                return original_util_create_connection(
+                    (ip_address, port),
+                    timeout=timeout,
+                    source_address=source_address,
+                    socket_options=socket_options,
+                )
+            except OSError as exc:
+                last_error = exc
+
+        if last_error is not None:
+            raise last_error
+        raise UnsafeUrlError("hostname did not resolve to a connectable address")
+
+    urllib3.util.connection.create_connection = create_safe_connection
+    if original_connection_create_connection is not None:
+        urllib3.connection.create_connection = create_safe_connection
+    try:
+        yield
+    finally:
+        urllib3.util.connection.create_connection = original_util_create_connection
+        if original_connection_create_connection is not None:
+            urllib3.connection.create_connection = original_connection_create_connection
+
+
+def _safe_session_get(session, target_url: str):
+    """Fetch a URL with DNS-pinned connects and manually validated redirects."""
+    current_url = target_url
+    for _ in range(MAX_REDIRECTS + 1):
+        parsed = urlparse(current_url)
+        if parsed.scheme not in ("http", "https"):
+            raise UnsafeRedirectError(
+                f"Redirect target uses unsupported URL scheme '{parsed.scheme}'."
+            )
+        if not is_safe_url(current_url):
+            raise UnsafeUrlError(
+                f"URL '{current_url}' resolves to a non-public IP address."
+            )
+
+        with _ssrf_safe_connection():
+            response = session.get(current_url, timeout=30, allow_redirects=False)
+
+        status_code = getattr(response, "status_code", None)
+        location = getattr(response, "headers", {}).get("Location") or getattr(
+            response, "headers", {}
+        ).get("location")
+        if not isinstance(status_code, int) or not (300 <= status_code < 400):
+            return response
+        if not location:
+            return response
+
+        current_url = urljoin(current_url, location)
+
+    raise UnsafeRedirectError("Too many redirects while fetching URL.")
 
 
 def main(argv=None):  # pylint: disable=too-many-statements
@@ -116,7 +232,7 @@ def main(argv=None):  # pylint: disable=too-many-statements
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = _safe_session_get(session, target_url)
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
@@ -153,6 +269,8 @@ def main(argv=None):  # pylint: disable=too-many-statements
                 else:
                     print(md_content)
 
+            except (UnsafeUrlError, UnsafeRedirectError) as e:
+                print(f"Error: {e}", file=sys.stderr)
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
             except OSError as e:
