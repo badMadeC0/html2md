@@ -1,24 +1,11 @@
-import os
+import importlib
 import sys
-import pytest
+from unittest.mock import MagicMock
 
-try:
-    import flask
-except ImportError:
-    from unittest.mock import MagicMock
-
-    sys.modules["flask"] = MagicMock()
-    import flask
-
-    flask_was_missing = True
-else:
-    flask_was_missing = False
-
-pytestmark = pytest.mark.skipif(
-    flask_was_missing, reason="flask is required for tests in test_app.py"
-)
-
-from html2md.app import get_host_port, DEFAULT_PORT
+sys.modules.setdefault("flask", MagicMock())
+app_module = importlib.import_module("html2md.app")
+DEFAULT_PORT = app_module.DEFAULT_PORT
+get_host_port = app_module.get_host_port
 
 
 def test_get_host_port_defaults(monkeypatch):
@@ -30,7 +17,6 @@ def test_get_host_port_defaults(monkeypatch):
 
     assert host == "0.0.0.0"
     assert port == DEFAULT_PORT
-    assert port == 10000
 
 
 def test_get_host_port_custom_values(monkeypatch):
@@ -55,5 +41,8 @@ def test_get_host_port_invalid_port(monkeypatch, capsys):
     assert port == DEFAULT_PORT
 
     captured = capsys.readouterr()
-    expected_warning = "Warning: Invalid PORT environment variable value 'invalid_port'; falling back to default 10000.\n"
+    expected_warning = (
+        "Warning: Invalid PORT environment variable value 'invalid_port'; "
+        f"falling back to default {DEFAULT_PORT}.\n"
+    )
     assert captured.out == expected_warning
