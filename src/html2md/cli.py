@@ -61,29 +61,43 @@ def main(argv=None):
             }
         )
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
+        def process_url(
+            target_url: str, *, emit_output: bool = True
+        ) -> tuple[list[str], list[str]]:
+            """Process a single URL and optionally return captured output."""
+            stdout_messages: list[str] = []
+            stderr_messages: list[str] = []
+
+            def write_stdout(message: str) -> None:
+                stdout_messages.append(message)
+                if emit_output:
+                    print(message)
+
+            def write_stderr(message: str) -> None:
+                stderr_messages.append(message)
+                if emit_output:
+                    print(message, file=sys.stderr)
+
             # Fix common URL typo: trailing slash before query parameters
             if "/?" in target_url:
                 target_url = target_url.replace("/?", "?")
 
             parsed = urlparse(target_url)
             if parsed.scheme not in ("http", "https"):
-                print(
+                write_stderr(
                     f"Error: Unsupported URL scheme '{parsed.scheme}'. "
-                    "Only http and https are allowed.",
-                    file=sys.stderr,
+                    "Only http and https are allowed."
                 )
-                return
+                return stdout_messages, stderr_messages
 
-            print(f"Processing URL: {target_url}")
+            write_stdout(f"Processing URL: {target_url}")
 
             try:
-                print("Fetching content...")
+                write_stdout("Fetching content...")
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
-                print("Converting to Markdown...")
+                write_stdout("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
@@ -106,23 +120,22 @@ def main(argv=None):
                     real_outdir = os.path.realpath(args.outdir)
                     real_out_path = os.path.realpath(out_path)
                     if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
-                        print(
-                            "Error: Output path escapes output directory.",
-                            file=sys.stderr,
-                        )
-                        return
+                        write_stderr("Error: Output path escapes output directory.")
+                        return stdout_messages, stderr_messages
                     with open(out_path, "w", encoding="utf-8") as f:
                         f.write(md_content)
-                    print(f"Success! Saved to: {out_path}")
+                    write_stdout(f"Success! Saved to: {out_path}")
                 else:
-                    print(md_content)
+                    write_stdout(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                write_stderr(f"Network error: {e}")
             except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
+                write_stderr(f"File error: {e}")
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                write_stderr(f"Conversion failed: {e}")
+
+            return stdout_messages, stderr_messages
 
         if args.url:
             process_url(args.url)
@@ -147,7 +160,22 @@ def main(argv=None):
                 with concurrent.futures.ThreadPoolExecutor(
                     max_workers=max_workers
                 ) as executor:
-                    executor.map(process_url, urls_to_process)
+                    if args.outdir:
+                        list(executor.map(process_url, urls_to_process))
+                    else:
+                        ordered_results = list(
+                            executor.map(
+                                lambda target_url: process_url(
+                                    target_url, emit_output=False
+                                ),
+                                urls_to_process,
+                            )
+                        )
+                        for stdout_messages, stderr_messages in ordered_results:
+                            for message in stdout_messages:
+                                print(message)
+                            for message in stderr_messages:
+                                print(message, file=sys.stderr)
 
         return 0
 
