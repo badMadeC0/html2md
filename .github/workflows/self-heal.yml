@@ -81,10 +81,21 @@ jobs:
             selfheal-repair.txt
             selfheal-post.txt
 
+      - name: Validate auto-heal PR token
+        if: steps.post.outcome == 'success'
+        env:
+          SELF_HEAL_PR_TOKEN: ${{ secrets.SELF_HEAL_PR_TOKEN }}
+        run: |
+          if [ -z "$SELF_HEAL_PR_TOKEN" ]; then
+            echo "::error::Set SELF_HEAL_PR_TOKEN to a PAT or GitHub App token so generated PRs trigger CI."
+            exit 1
+          fi
+
       - name: Create PR with fixes
         if: steps.post.outcome == 'success'
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
         with:
+          token: ${{ secrets.SELF_HEAL_PR_TOKEN }}
           commit-message: "chore: auto-fix lint/format and lockfiles"
           title: "🔧 Auto-healing fixes"
           body: |
