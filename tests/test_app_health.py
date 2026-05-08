@@ -1,12 +1,13 @@
-import os
 import pytest
-from flask import Flask
-from html2md.app import app, get_host_port, DEFAULT_PORT
+
+pytest.importorskip("flask")
+
+from html2md.app import DEFAULT_PORT, app, get_host_port
 
 
 @pytest.fixture
-def client():
-    app.config["TESTING"] = True
+def client(monkeypatch):
+    monkeypatch.setitem(app.config, "TESTING", True)
     with app.test_client() as client:
         yield client
 
