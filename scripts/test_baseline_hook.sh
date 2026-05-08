@@ -37,6 +37,35 @@ import sys
 sys.exit(0 if sys.version_info >= (3, 8) else 1)
 PY
 
+"$PYTHON_BIN" - <<'PY'
+import json
+from pathlib import Path
+
+settings = json.loads(Path(".claude/settings.json").read_text(encoding="utf-8"))
+deny = set(settings.get("permissions", {}).get("deny", []))
+patterns = (
+    "**/secret.*",
+    "**/secrets.*",
+    "**/*.secret",
+    "**/*.secret.*",
+    "**/*.secrets",
+    "**/*.secrets.*",
+    "**/*api-token*",
+    "**/*api_token*",
+    "**/*-credentials.*",
+    "**/*_credentials.*",
+)
+missing = [
+    f"{tool}({pattern})"
+    for tool in ("Read", "Edit", "Write")
+    for pattern in patterns
+    if f"{tool}({pattern})" not in deny
+]
+if missing:
+    raise SystemExit("missing secret-name deny patterns: " + ", ".join(missing))
+PY
+pass "settings deny common secret-name patterns for Read/Edit/Write"
+
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
   local tool="$1" path="$2"
