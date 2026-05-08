@@ -100,12 +100,30 @@ def main(argv=None) -> int:
               file=sys.stderr)
         return 2
 
+    if not isinstance(payload, dict):
+        print("protect-sensitive-files: BLOCKED — hook payload must be a JSON object",
+              file=sys.stderr)
+        return 2
+
     tool_name = payload.get("tool_name") or ""
     if tool_name not in {"Edit", "Write", "MultiEdit", "NotebookEdit"}:
         return 0  # not our concern
 
-    tool_input = payload.get("tool_input") or {}
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, (dict, list)):
+        print(
+            f"protect-sensitive-files: BLOCKED — unsupported {tool_name} tool_input shape",
+            file=sys.stderr,
+        )
+        return 2
+
     candidates = _collect_candidate_paths(tool_input)
+    if not candidates:
+        print(
+            f"protect-sensitive-files: BLOCKED — could not determine target path(s) for {tool_name}",
+            file=sys.stderr,
+        )
+        return 2
 
     # Fail-closed when an in-scope tool has no recognized path keys: a
     # future Claude Code version that uses different keys (e.g. `target`,
