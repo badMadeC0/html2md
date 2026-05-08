@@ -52,4 +52,7 @@ jobs:
           except urllib.error.HTTPError as error:
               print(f"Could not request review: {error.read().decode('utf-8')}")
               print("Review request comment is advisory; continuing without failing the job.")
+          except urllib.error.URLError as error:
+              print(f"Could not request review due to a network error: {error.reason}")
+              print("Skipping Jules review request because this automation is best-effort.")
           PY
