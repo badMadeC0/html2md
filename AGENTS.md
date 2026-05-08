@@ -35,7 +35,8 @@ Hard rules — no AI agent may override:
 2. Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
    `*.crt`, `id_rsa*`. The hook above blocks Edit/Write attempts.
 3. Every AI-assisted PR title MUST start with `[AI-Assisted]` and the
-   body MUST include the originating Claude chat URL.
+   body MUST include the originating Claude chat URL; draft PRs may use
+   the `<CLAUDE_CHAT_URL>` placeholder until the real URL is added.
 4. Append new edge cases to `pr-rules/edge-cases.md`; never delete rows.
 <!-- END BASELINE -->
 
