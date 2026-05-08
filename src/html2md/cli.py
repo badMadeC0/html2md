@@ -96,16 +96,16 @@ def main(argv=None):
 
                     # Decode using Requests' charset choice when available, then
                     # apparent encoding, and finally UTF-8 replacement fallback.
+                    apparent_encoding = getattr(response, 'apparent_encoding', None)
                     encoding = response.encoding
                     if not isinstance(encoding, str):
-                        encoding = getattr(response, 'apparent_encoding', None)
+                        encoding = apparent_encoding
                     if not isinstance(encoding, str):
                         encoding = 'utf-8'
                     try:
                         text_content = bytes(content).decode(encoding, errors='replace')
                     except LookupError:
-                        apparent_encoding = getattr(response, 'apparent_encoding', None)
-                        if isinstance(apparent_encoding, str):
+                        if isinstance(apparent_encoding, str) and apparent_encoding != encoding:
                             try:
                                 text_content = bytes(content).decode(apparent_encoding, errors='replace')
                             except LookupError:
