@@ -142,6 +142,32 @@ def test_process_url_revalidates_redirect_target(
     )
 
 
+def test_safe_session_get_disables_environment_proxies(monkeypatch):
+    """SSRF-protected fetches must not honor HTTP(S)_PROXY from the environment."""
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.example:8080")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:8080")
+
+    session = MagicMock()
+    session.trust_env = True
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    session.get.return_value = response
+
+    with patch("html2md.cli.is_safe_url", return_value=True), patch(
+        "html2md.cli._ssrf_safe_connection"
+    ) as mock_safe_connection:
+        mock_safe_connection.return_value.__enter__.return_value = None
+        mock_safe_connection.return_value.__exit__.return_value = None
+
+        assert cli._safe_session_get(session, "https://example.com/") is response
+
+    assert session.trust_env is False
+    session.get.assert_called_once_with(
+        "https://example.com/", timeout=30, allow_redirects=False
+    )
+
+
 @patch("html2md.cli.socket.getaddrinfo")
 def test_safe_connection_validates_and_pins_actual_connect_address(mock_getaddrinfo):
     """The socket connect helper rejects a rebinding answer before connecting."""

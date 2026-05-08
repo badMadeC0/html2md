@@ -123,6 +123,12 @@ def _ssrf_safe_connection():
 
 def _safe_session_get(session, target_url: str):
     """Fetch a URL with DNS-pinned connects and manually validated redirects."""
+    # Environment-configured proxies perform their own target DNS resolution,
+    # which would bypass the DNS pinning enforced by _ssrf_safe_connection().
+    # Disable requests' trust in proxy-related environment variables for this
+    # SSRF-protected fetch path so the validated socket is the target socket.
+    session.trust_env = False
+
     current_url = target_url
     for _ in range(MAX_REDIRECTS + 1):
         parsed = urlparse(current_url)
