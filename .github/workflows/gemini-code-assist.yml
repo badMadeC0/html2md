@@ -36,6 +36,10 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           use_gemini_code_assist: true
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
           workflow_name: gemini-code-assist
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           settings: |-
