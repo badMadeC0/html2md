@@ -118,12 +118,6 @@ def main(argv=None) -> int:
         return 2
 
     candidates = _collect_candidate_paths(tool_input)
-    if not candidates:
-        print(
-            f"protect-sensitive-files: BLOCKED — could not determine target path(s) for {tool_name}",
-            file=sys.stderr,
-        )
-        return 2
 
     # Fail-closed when an in-scope tool has no recognized path keys: a
     # future Claude Code version that uses different keys (e.g. `target`,
