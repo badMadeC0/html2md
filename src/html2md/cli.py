@@ -5,7 +5,7 @@ import argparse
 import os
 import sys
 from urllib.parse import urlparse, unquote
-from typing import Any, Tuple, Callable
+from typing import Any, Callable, Optional, Tuple
 
 
 class DependencyError(Exception):
@@ -65,7 +65,7 @@ def setup_session(requests_module: Any) -> Any:
 
 
 def process_url(
-    target_url: str, session: Any, md: Callable[..., str], outdir: str | None
+    target_url: str, session: Any, md: Callable[..., str], outdir: Optional[str]
 ) -> None:
     """Process a single URL: fetch HTML and convert to Markdown."""
     # Fix common URL typo: trailing slash before query parameters
