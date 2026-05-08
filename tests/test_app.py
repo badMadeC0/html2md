@@ -1,20 +1,22 @@
 """Tests for the Flask application."""
 
-import os
+import importlib.util
+
 import pytest
 
-# Skip the entire module if Flask is not installed
-pytest.importorskip("flask")
-
-# Now we can safely import from html2md.app
-from html2md.app import app, get_host_port
 from html2md import __version__
+
+HAS_FLASK = importlib.util.find_spec("flask") is not None
+pytestmark = pytest.mark.skipif(not HAS_FLASK, reason="Flask is not installed")
+
+if HAS_FLASK:
+    from html2md.app import DEFAULT_PORT, app, get_host_port
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
     """Create a Flask test client."""
-    app.config["TESTING"] = True
+    monkeypatch.setitem(app.config, "TESTING", True)
     with app.test_client() as client:
         yield client
 
@@ -39,7 +41,7 @@ def test_get_host_port_defaults(monkeypatch):
 
     host, port = get_host_port()
     assert host == "0.0.0.0"
-    assert port == 10000
+    assert port == DEFAULT_PORT
 
 
 def test_get_host_port_custom_values(monkeypatch):
@@ -56,8 +58,8 @@ def test_get_host_port_invalid_port(monkeypatch, capsys):
     """Test get_host_port handles invalid PORT by falling back to default."""
     monkeypatch.setenv("PORT", "invalid")
 
-    host, port = get_host_port()
-    assert port == 10000
+    _, port = get_host_port()
+    assert port == DEFAULT_PORT
 
     # Check that a warning was printed
     captured = capsys.readouterr()
