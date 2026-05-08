@@ -24,8 +24,7 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $argsList = @("--url", "$url", "--outdir", "$outDir")
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -103,11 +102,12 @@ $xaml = @"
             </StackPanel>
         </StackPanel>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
+        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page (CLI default)"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
+                  IsChecked="True" IsEnabled="False"
+                  ToolTip="The current CLI converts fetched HTML to Markdown; main-content filtering is not supported."/>
 
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (Markdown)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
@@ -358,9 +358,6 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
-
         # Sanitize inputs for single-quoted string interpolation in PowerShell
         $safeUrl = $url -replace "'", "''"
         $safeOutDir = $outdir -replace "'", "''"
@@ -369,11 +366,11 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
