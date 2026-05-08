@@ -101,9 +101,6 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split("?")[0].rstrip("/")
@@ -145,6 +142,9 @@ def main(argv=None):
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
 
+            if args.outdir:
+                os.makedirs(args.outdir, exist_ok=True)
+
             urls_to_process = []
             with open(args.batch, "r", encoding="utf-8") as f:
                 for line in f:
@@ -154,6 +154,8 @@ def main(argv=None):
 
             if urls_to_process:
                 import concurrent.futures  # pylint: disable=import-outside-toplevel
+                from collections import deque  # pylint: disable=import-outside-toplevel
+                from functools import partial  # pylint: disable=import-outside-toplevel
 
                 # Cap max_workers to 10 to avoid overwhelming servers
                 max_workers = min(10, len(urls_to_process))
@@ -161,17 +163,12 @@ def main(argv=None):
                     max_workers=max_workers
                 ) as executor:
                     if args.outdir:
-                        list(executor.map(process_url, urls_to_process))
+                        deque(executor.map(process_url, urls_to_process), maxlen=0)
                     else:
-                        ordered_results = list(
-                            executor.map(
-                                lambda target_url: process_url(
-                                    target_url, emit_output=False
-                                ),
-                                urls_to_process,
-                            )
-                        )
-                        for stdout_messages, stderr_messages in ordered_results:
+                        for stdout_messages, stderr_messages in executor.map(
+                            partial(process_url, emit_output=False),
+                            urls_to_process,
+                        ):
                             for message in stdout_messages:
                                 print(message)
                             for message in stderr_messages:
