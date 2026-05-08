@@ -11,6 +11,8 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         # Requesting a Jules review is best-effort; do not block PR checks if
@@ -25,6 +27,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import sys
           import urllib.error
           import urllib.request
 
@@ -36,7 +39,7 @@ jobs:
           request = urllib.request.Request(
               url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
               data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
+                  {"body": "@jules please review this pull request."}
               ).encode("utf-8"),
               headers={
                   "Accept": "application/vnd.github+json",
@@ -47,22 +50,22 @@ jobs:
           )
 
           try:
-              with urllib.request.urlopen(request) as response:
+              with urllib.request.urlopen(request, timeout=10) as response:
                   print(
-                      "Requested review from @google-labs-jules via comment on "
+                      "Requested review from @jules via comment on "
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
-              error_body = error.read().decode("utf-8")
-              print(
-                  "Could not request review from @google-labs-jules; "
-                  "continuing without failing the workflow."
-              )
-              print(f"HTTP {error.code}: {error_body}")
-              print("Ensure the workflow token has permission to comment.")
+              body = error.read().decode("utf-8")
+              print(f"Could not request review: {body}")
+              # Don't fail the entire workflow if GitHub forbids commenting
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context.")
+                  sys.exit(0)
+              raise
           except urllib.error.URLError as error:
               print(
-                  "Could not request review from @google-labs-jules due to a "
+                  "Could not request review from @jules due to a "
                   "network error; continuing without failing the workflow."
               )
               print(f"Error: {error}")
