@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from contextlib import closing
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -72,31 +73,31 @@ def main(argv=None):
                 print("Fetching content...")
                 # Security: Use a connect timeout of 5s and read timeout of 30s.
                 # Use stream=True to prevent loading massive files into memory all at once.
-                response = session.get(target_url, timeout=(5, 30), stream=True)
-                response.raise_for_status()
+                with closing(session.get(target_url, timeout=(5, 30), stream=True)) as response:
+                    response.raise_for_status()
 
-                # Security: Limit download to 10MB to prevent DoS via memory exhaustion.
-                max_size = 10 * 1024 * 1024
-                content_length = response.headers.get('Content-Length')
-                try:
-                    if content_length and int(content_length) > max_size:
-                        print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
-                        return 1
-                except ValueError:
-                    pass
+                    # Security: Limit download to 10MB to prevent DoS via memory exhaustion.
+                    max_size = 10 * 1024 * 1024
+                    content_length = response.headers.get('Content-Length')
+                    try:
+                        if content_length and int(content_length) > max_size:
+                            print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
+                            return 1
+                    except ValueError:
+                        pass
 
-                content = b""
-                for chunk in response.iter_content(chunk_size=8192):
-                    content += chunk
-                    if len(content) > max_size:
-                        print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
-                        return 1
+                    content = b""
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content += chunk
+                        if len(content) > max_size:
+                            print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
+                            return 1
 
-                # Decode the content using the response encoding (or default to utf-8)
-                encoding = response.encoding
-                if not isinstance(encoding, str):
-                    encoding = 'utf-8'
-                text_content = content.decode(encoding, errors='replace')
+                    # Decode the content using the response encoding (or default to utf-8)
+                    encoding = response.encoding
+                    if not isinstance(encoding, str):
+                        encoding = 'utf-8'
+                    text_content = content.decode(encoding, errors='replace')
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")

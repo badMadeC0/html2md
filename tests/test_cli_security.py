@@ -51,3 +51,22 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_streaming_oversize_response_is_closed(mock_get, capsys):
+    """Oversized streamed responses are closed on early abort."""
+    response = MagicMock()
+    response.headers = {}
+    response.encoding = "utf-8"
+    response.raise_for_status.return_value = None
+    response.iter_content.return_value = [b"x" * (10 * 1024 * 1024 + 1)]
+    mock_get.return_value = response
+
+    with patch("markdownify.markdownify") as mock_markdownify:
+        cli.main(["--url", "http://example.com/oversized"])
+
+    outerr = capsys.readouterr()
+    assert "Error: Content exceeds maximum allowed size (10MB)." in outerr.err
+    response.close.assert_called_once_with()
+    mock_markdownify.assert_not_called()
