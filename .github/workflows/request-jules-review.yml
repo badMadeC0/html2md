@@ -5,7 +5,7 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  issues: write
+  pull-requests: write
 
 jobs:
   request-review:
@@ -30,11 +30,10 @@ jobs:
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
 
+          reviewer = "google-labs-jules[bot]"
           request = urllib.request.Request(
-              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
+              url=f"{api_url}/repos/{repo}/pulls/{pr_number}/requested_reviewers",
+              data=json.dumps({"reviewers": [reviewer]}).encode("utf-8"),
               headers={
                   "Accept": "application/vnd.github+json",
                   "Authorization": f"Bearer {token}",
@@ -46,11 +45,11 @@ jobs:
           try:
               with urllib.request.urlopen(request) as response:
                   print(
-                      "Requested review from @google-labs-jules via comment on "
+                      f"Requested review from {reviewer} on "
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
               print(f"Could not request review: {error.read().decode('utf-8')}")
-              print("Ensure the workflow token has permission to comment.")
+              print("Ensure the workflow token has permission to request reviewers.")
               sys.exit(1)
           PY
