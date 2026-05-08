@@ -43,7 +43,7 @@ jobs:
         with:
           path: worktree
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
           persist-credentials: false
 
       - name: Use Node.js
