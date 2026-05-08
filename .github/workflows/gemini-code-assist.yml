@@ -43,7 +43,7 @@ jobs:
           settings: |-
             {
               "tools": {
-                "core": []
+                "core": ["activate_skill"]
               },
               "mcpServers": {
                 "github": {
@@ -58,6 +58,7 @@ jobs:
                   ],
                   "includeTools": [
                     "add_comment_to_pending_review",
+                    "get_file_contents",
                     "pull_request_read",
                     "pull_request_review_write"
                   ],
