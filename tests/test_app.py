@@ -1,9 +1,19 @@
+import importlib
 import os
 from unittest.mock import patch
 
 import pytest
 
-pytest.importorskip("flask")
+
+try:
+    importlib.import_module("flask")
+except ModuleNotFoundError as exc:
+    if exc.name == "flask":
+        pytest.skip(
+            "could not import 'flask': No module named 'flask'",
+            allow_module_level=True,
+        )
+    raise
 
 from html2md.app import DEFAULT_PORT, app, get_host_port
 
