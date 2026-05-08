@@ -25,7 +25,7 @@ the markers is managed centrally; do not hand-edit.
 - Sensitive-file write guard: `.claude/hooks/protect-sensitive-files.py`
 - PR template: `.github/PULL_REQUEST_TEMPLATE.md`
 - PR-title check: `.github/workflows/ai-assisted-pr-guard.yml` checks
-  for the `[AI-Assisted]` tag and a Claude chat link on every PR.
+  PRs titled `[AI-Assisted]` for the required tag and a Claude chat link.
 - Consistency check: `scripts/check_agents_consistency.sh`
 - Baseline version: `BASELINE_VERSION` (semver)
 
