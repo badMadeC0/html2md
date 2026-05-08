@@ -10,9 +10,17 @@ import sys
 from urllib.parse import unquote, urljoin, urlparse
 
 
+def _has_forbidden_url_chars(url: str) -> bool:
+    """Return True when URL contains chars Requests may reinterpret unsafely."""
+    return any(char == "\\" or ord(char) < 32 or ord(char) == 127 for char in url)
+
+
 def is_safe_url(url: str) -> bool:
     """Check if the URL resolves only to globally reachable IP addresses."""
     try:
+        if _has_forbidden_url_chars(url):
+            return False
+
         parsed = urlparse(url)
         hostname = parsed.hostname
         if not hostname:
@@ -29,8 +37,9 @@ def is_safe_url(url: str) -> bool:
             ip_str = info[4][0]
             ip = ipaddress.ip_address(ip_str)
             # Require globally reachable IPs only, while explicitly rejecting
-            # multicast addresses because Python 3.12 may report them as global.
-            if not ip.is_global or ip.is_multicast:
+            # multicast and reserved ranges that Python may report as global
+            # (for example NAT64 translation prefixes).
+            if not ip.is_global or ip.is_multicast or ip.is_reserved:
                 return False
         return True
     except (socket.gaierror, ValueError):
