@@ -55,14 +55,18 @@ def main(argv=None):
         })
 
         def decode_response_content(response, content_bytes: bytearray) -> str:
-            """Decode streamed bytes using Requests' response.text fallback order."""
+            """Decode streamed bytes without re-reading consumed response content."""
+            body = bytes(content_bytes)
             encoding = response.encoding
             if not encoding:
-                encoding = response.apparent_encoding
+                detector = getattr(getattr(requests, 'models', None), 'chardet', None)
+                detected = detector.detect(body) if detector else None
+                if isinstance(detected, dict):
+                    encoding = detected.get('encoding')
             try:
-                return bytes(content_bytes).decode(encoding, errors='replace')
+                return body.decode(encoding or 'utf-8', errors='replace')
             except (LookupError, TypeError):
-                return bytes(content_bytes).decode(errors='replace')
+                return body.decode('utf-8', errors='replace')
 
         def process_url(target_url: str) -> bool:
             """Process a single URL. Return True when conversion succeeds."""

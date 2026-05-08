@@ -115,8 +115,8 @@ class TestCliExceptions(unittest.TestCase):
                 mock_md.assert_not_called()
                 mock_resp.__exit__.assert_called_once()
 
-    def test_streamed_decode_uses_apparent_encoding_when_charset_missing(self):
-        """Missing charset should use Requests-style apparent encoding fallback."""
+    def test_streamed_decode_detects_encoding_when_charset_missing(self):
+        """Missing charset should detect encoding from collected streamed bytes."""
         word = "café"
         captured_stdout = io.StringIO()
         with patch('sys.stdout', captured_stdout):
@@ -128,15 +128,54 @@ class TestCliExceptions(unittest.TestCase):
                 )
 
                 with patch(
+                    'requests.models.chardet.detect',
+                    return_value={'encoding': 'iso-8859-1'},
+                ) as mock_detect, patch(
                     'markdownify.markdownify',
                     side_effect=lambda html, **_: html,
                 ) as mock_md:
                     result = main(['--url', 'http://example.com'])
 
         self.assertEqual(result, 0)
+        mock_detect.assert_called_once()
         mock_md.assert_called_once()
         self.assertIn(word, mock_md.call_args.args[0])
         self.assertIn(word, captured_stdout.getvalue())
+
+    def test_streamed_decode_does_not_read_apparent_encoding_after_streaming(self):
+        """Encoding detection should not read response.content after streaming."""
+        word = "café"
+
+        class StreamedResponse:
+            encoding = None
+
+            @property
+            def apparent_encoding(self):
+                raise RuntimeError("stream content was already consumed")
+
+            def __init__(self):
+                self.iter_content = MagicMock(
+                    return_value=[f"<p>{word}</p>".encode('iso-8859-1')]
+                )
+                self.raise_for_status = MagicMock(return_value=None)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return None
+
+        with patch('requests.Session.get', return_value=StreamedResponse()), patch(
+            'requests.models.chardet.detect',
+            return_value={'encoding': 'iso-8859-1'},
+        ), patch(
+            'markdownify.markdownify',
+            side_effect=lambda html, **_: html,
+        ) as mock_md:
+            result = main(['--url', 'http://example.com'])
+
+        self.assertEqual(result, 0)
+        self.assertIn(word, mock_md.call_args.args[0])
 
     def test_invalid_charset_label_falls_back_without_failing(self):
         """Invalid charset labels should fall back like response.text."""
