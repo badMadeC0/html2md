@@ -37,6 +37,33 @@ import sys
 sys.exit(0 if sys.version_info >= (3, 8) else 1)
 PY
 
+# The static Claude permissions should mirror the hook's common secret-name
+# coverage so Read is denied too (the Python hook only handles write-like tools).
+"$PYTHON_BIN" - <<'PY' || fail ".claude/settings.json missing common secret-name denies"
+import json
+from pathlib import Path
+
+settings = json.loads(Path(".claude/settings.json").read_text(encoding="utf-8"))
+deny = set(settings["permissions"]["deny"])
+required_patterns = (
+    "**/secret.*",
+    "**/secrets.*",
+    "**/*.secret.*",
+    "**/*api-token*",
+    "**/*api_token*",
+    "**/*-credentials.*",
+    "**/*_credentials.*",
+)
+missing = [
+    f"{tool}({pattern})"
+    for tool in ("Read", "Edit", "Write")
+    for pattern in required_patterns
+    if f"{tool}({pattern})" not in deny
+]
+if missing:
+    raise SystemExit("missing deny patterns: " + ", ".join(missing))
+PY
+
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
   local tool="$1" path="$2"
