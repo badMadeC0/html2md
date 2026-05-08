@@ -89,6 +89,40 @@ def test_process_url_ssrf_protection_blocked(mock_get, capsys, tmp_path, url):
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "nat64_address, embedded_ipv4",
+    [
+        ("64:ff9b::a9fe:a9fe", "169.254.169.254"),
+        ("64:ff9b::a00:1", "10.0.0.1"),
+        ("64:ff9b::7f00:1", "127.0.0.1"),
+    ],
+)
+@patch("html2md.cli.socket.getaddrinfo")
+def test_global_addr_info_blocks_nat64_embedded_non_public_ipv4(
+    mock_getaddrinfo, nat64_address, embedded_ipv4
+):
+    """NAT64 answers must not tunnel SSRF fetches to embedded private targets."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET6, socket.SOCK_STREAM, 6, "", (nat64_address, 443, 0, 0))
+    ]
+
+    with pytest.raises(cli.UnsafeUrlError) as excinfo:
+        cli._global_addr_info("example.com", 443)  # pylint: disable=protected-access
+
+    assert nat64_address in str(excinfo.value)
+    assert embedded_ipv4 in str(excinfo.value)
+
+
+@patch("html2md.cli.socket.getaddrinfo")
+def test_global_addr_info_allows_nat64_embedded_public_ipv4(mock_getaddrinfo):
+    """NAT64 answers remain allowed when their embedded IPv4 target is public."""
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("64:ff9b::808:808", 443, 0, 0))
+    ]
+
+    assert cli._global_addr_info("example.com", 443) == mock_getaddrinfo.return_value
+
+
 @patch("html2md.cli.socket.getaddrinfo")
 @patch("requests.Session.get")
 def test_process_url_ssrf_protection_allowed(

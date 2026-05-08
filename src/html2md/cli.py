@@ -8,11 +8,13 @@ import os
 import socket
 import sys
 from contextlib import contextmanager
-from typing import Optional
+from typing import Optional, Union
 from urllib.parse import unquote, urljoin, urlparse
 
 
 MAX_REDIRECTS = 10
+NAT64_WELL_KNOWN_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+IpAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
 
 class UnsafeUrlError(ValueError):
@@ -34,11 +36,35 @@ def _url_port(parsed) -> Optional[int]:
     return None
 
 
+def _nat64_embedded_ipv4(ip: IpAddress) -> Optional[ipaddress.IPv4Address]:
+    """Return the IPv4 address embedded in the well-known NAT64 prefix, if any."""
+    if not isinstance(ip, ipaddress.IPv6Address):
+        return None
+    if ip not in NAT64_WELL_KNOWN_PREFIX:
+        return None
+    return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+
+
+def _ensure_global_address(ip: IpAddress) -> None:
+    """Raise UnsafeUrlError if an address can route to a non-public target."""
+    if not ip.is_global:
+        raise UnsafeUrlError(f"hostname resolved to non-public address {ip}")
+
+    nat64_ipv4 = _nat64_embedded_ipv4(ip)
+    if nat64_ipv4 is not None and not nat64_ipv4.is_global:
+        raise UnsafeUrlError(
+            "hostname resolved to NAT64 address "
+            f"{ip} for non-public IPv4 address {nat64_ipv4}"
+        )
+
+
 def _global_addr_info(hostname: str, port: Optional[int]):
     """Resolve a hostname and return address records only if all are public."""
     # Resolve hostname to all associated IPv4 and IPv6 addresses. Treat any
     # address that is not globally routable as unsafe, including shared,
     # documentation, benchmarking, private, loopback, and link-local ranges.
+    # NAT64 well-known prefix answers can appear globally routable while
+    # embedding private/link-local IPv4 destinations, so validate those too.
     addr_info = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
     if not addr_info:
         raise UnsafeUrlError("hostname did not resolve")
@@ -46,8 +72,7 @@ def _global_addr_info(hostname: str, port: Optional[int]):
     for info in addr_info:
         ip_str = info[4][0]
         ip = ipaddress.ip_address(ip_str)
-        if not ip.is_global:
-            raise UnsafeUrlError(f"hostname resolved to non-public address {ip}")
+        _ensure_global_address(ip)
     return addr_info
 
 
