@@ -97,21 +97,23 @@ def main(argv=None):
                     # Decode using Requests' charset choice when available, then
                     # apparent encoding, and finally UTF-8 replacement fallback.
                     apparent_encoding = getattr(response, 'apparent_encoding', None)
+                    content_bytes = bytes(content)
                     encoding = response.encoding
                     if not isinstance(encoding, str):
                         encoding = apparent_encoding
                     if not isinstance(encoding, str):
                         encoding = 'utf-8'
                     try:
-                        text_content = bytes(content).decode(encoding, errors='replace')
+                        text_content = content_bytes.decode(encoding, errors='replace')
                     except LookupError:
+                        text_content = None
                         if isinstance(apparent_encoding, str) and apparent_encoding != encoding:
                             try:
-                                text_content = bytes(content).decode(apparent_encoding, errors='replace')
+                                text_content = content_bytes.decode(apparent_encoding, errors='replace')
                             except LookupError:
-                                text_content = bytes(content).decode('utf-8', errors='replace')
-                        else:
-                            text_content = bytes(content).decode('utf-8', errors='replace')
+                                pass
+                        if text_content is None:
+                            text_content = content_bytes.decode('utf-8', errors='replace')
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")
