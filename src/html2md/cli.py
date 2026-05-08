@@ -66,7 +66,7 @@ def main(argv=None):
         def process_url(
             target_url: str, *, emit_output: bool = True
         ) -> tuple[list[str], list[str]]:
-            """Process a single URL and optionally return captured output."""
+            """Process a URL and return captured (stdout_messages, stderr_messages)."""
             stdout_messages: list[str] = []
             stderr_messages: list[str] = []
 
@@ -163,6 +163,8 @@ def main(argv=None):
                     max_workers=max_workers
                 ) as executor:
                     if args.outdir:
+                        # Consume the iterator to surface worker exceptions without
+                        # materializing all results in memory.
                         collections.deque(
                             executor.map(process_url, urls_to_process), maxlen=0
                         )
