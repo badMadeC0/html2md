@@ -24,7 +24,8 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
+            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
+            if (-not $BatchWholePage) { $argsList += "--main-content" }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
