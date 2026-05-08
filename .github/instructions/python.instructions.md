@@ -9,12 +9,9 @@ Repo-local overrides: [`pr-rules/python.local.md`](../../pr-rules/python.local.m
 
 ## Required practices
 
-- **Python version compatibility must match the code being edited.** The
-  repository is not currently consistent on a single minimum Python version,
-  so do not enforce a repo-wide 3.8 floor from this file. Avoid introducing
-  newer syntax/APIs unless the target file or package already requires them,
-  and do not raise the effective minimum Python version without an explicit
-  project decision.
+- **Python 3.8 floor.** No syntax/APIs added after 3.8: no `match`/`case`,
+  no `str.removeprefix` / `removesuffix`, no `tomllib`, no `typing.Self`,
+  no PEP 695 generic syntax.
 - New or modified modules SHOULD start with `from __future__ import annotations`.
 - Entry-point function signature: `main(argv=None) -> int`.
 - CLI parsing: `argparse.ArgumentParser` only. No click/typer/fire.
