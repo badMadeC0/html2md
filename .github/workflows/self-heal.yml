@@ -98,6 +98,10 @@ jobs:
         if: steps.post.outcome == 'success'
         uses: peter-evans/create-pull-request@v6
         with:
+          # Use a repository secret backed by a PAT or GitHub App token so
+          # workflow events from repair PRs are not suppressed like they are
+          # with the default GITHUB_TOKEN.
+          token: ${{ secrets.SELF_HEAL_TOKEN }}
           path: worktree
           base: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref_name }}
           commit-message: "chore: auto-fix lint/format and lockfiles"
