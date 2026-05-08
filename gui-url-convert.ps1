@@ -379,7 +379,14 @@ $ConvertBtn.Add_Click({
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
+        if (Test-Path -LiteralPath $venvExe) {
+            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
+            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+        }
+        elseif (Test-Path -LiteralPath $pyScript) {
+            $LogBox.AppendText("Found Python script: $pyScript`r`n")
+            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+        }
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
