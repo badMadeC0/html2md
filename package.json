@@ -2,6 +2,9 @@
   "scripts": {
     "healthcheck": "node scripts/healthcheck.mjs",
     "self:heal": "node scripts/self-heal.mjs",
-    "test": "pytest -q"
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
   }
 }

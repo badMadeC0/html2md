@@ -3,7 +3,7 @@
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
@@ -16,11 +16,6 @@ const changed = () => {
   const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
   return (out.stdout || "").trim().length > 0;
 };
-const packageJson = existsSync("package.json")
-  ? JSON.parse(readFileSync("package.json", "utf8"))
-  : { scripts: {} };
-const hasScript = (name) => Boolean(packageJson.scripts?.[name]);
-const hasLocalBin = (name) => existsSync(`node_modules/.bin/${name}`);
 const passHealth = () => {
   try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
 };
@@ -28,13 +23,13 @@ const passHealth = () => {
 let fixed = false;
 
 // 1) Lint/format
-if (hasScript("lint") && hasLocalBin("eslint")) trySh("pnpm run lint -- --fix");
-if (hasScript("format") && hasLocalBin("prettier")) trySh("pnpm run format");
+trySh("pnpm -w run lint --fix");
+trySh("pnpm -w run format");
 if (passHealth()) fixed = fixed || changed();
 
 // 2) Snapshot updates (only if tests fail with snapshots)
 if (!passHealth()) {
-  if (hasLocalBin("vitest")) trySh("pnpm exec vitest -u");
+  trySh("pnpm -w exec vitest -u");
   if (passHealth()) fixed = fixed || changed();
 }
 
@@ -42,7 +37,7 @@ if (!passHealth()) {
 if (!passHealth()) {
   trySh("pnpm dlx typesync --save-dev");
   // In case typesync suggests @types/node et al.
-  trySh("pnpm install");
+  trySh("pnpm -w install");
   if (passHealth()) fixed = fixed || changed();
 }
 
@@ -52,7 +47,7 @@ if (!passHealth()) {
   trySh("pnpm install");
   if (!passHealth()) {
     // Last resort: refresh lockfile (scoped)
-    trySh("pnpm up --latest --interactive=false");
+    trySh("pnpm -w up --latest --interactive=false");
   }
   if (passHealth()) fixed = fixed || changed();
 }
