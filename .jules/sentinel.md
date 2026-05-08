@@ -1,10 +1,10 @@
 # Sentinel Security Journal
 
-## Security Vulnerability Fixes
+## Security Regression Prevention
 
-### [HIGH] Uninitialized variable bypasses security check in PowerShell GUI
+### [HIGH] Guard PowerShell GUI URL scheme validation against loop-variable regressions
 **File:** `gui-url-convert.ps1`
-**Issue:** `[System.Uri]$url` was used inside a `foreach ($u in $urlList)` loop, causing the URL validation to always act on the uninitialized `$url` variable (or a previously set variable outside the loop context) rather than the current `$u` string.
-**Fix:** Updated the cast to correctly use the iterator variable: `[System.Uri]$u`.
-**Impact:** A maliciously crafted URL (e.g., without `http` schema) could bypass validation if `$url` was uninitialized (evaluating to `$null` or empty string in some contexts, or carrying over from a previous operation). This led to missing scheme checking and could result in arbitrary input passing the validation block.
-**Prevention:** Ensured loop iterators match the referenced variable. Added `test_ps_url_validation.py` static analysis test to prevent regressions.
+**Issue:** URL validation in `gui-url-convert.ps1` depends on casting the current `foreach ($u in $urlList)` iterator value with `[System.Uri]$u`. Accidentally casting a different variable, such as `$url`, would validate stale or uninitialized data instead of the current URL.
+**Action:** Added regression coverage in `test_ps_url_validation.py` to verify the loop continues to cast the iterator variable directly and to reject vulnerable `[System.Uri]$url` patterns.
+**Impact:** A regression to a stale or uninitialized variable could allow a maliciously crafted URL (e.g., without an `http` or `https` scheme) to bypass validation and reach later processing unexpectedly.
+**Prevention:** Keep the URL-validation loop tied to its iterator variable and rely on the static regression test to catch future mismatches.
