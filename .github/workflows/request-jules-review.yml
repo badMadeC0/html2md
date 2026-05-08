@@ -3,21 +3,31 @@ name: Request Jules Review
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
 
 permissions:
-  pull-requests: write
   issues: write
 
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(github.event.comment.body, '@gemini-code-assist')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
       - name: Request review from Jules bot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           python - <<'PY'
           import json
