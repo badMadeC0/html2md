@@ -147,11 +147,13 @@ def main(argv=None):
 
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
+                return 1
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
+                return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
-            return 1
+                return 1
 
         exit_status = 0
 
