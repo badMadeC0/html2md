@@ -361,9 +361,6 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-    } else {
-        # --- SINGLE URL MODE ---
-        $url = $urlList[0]
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         # Sanitize inputs for single-quoted string interpolation in PowerShell
@@ -379,17 +376,6 @@ $ConvertBtn.Add_Click({
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
             $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-        if (Test-Path -LiteralPath $venvExe) {
-            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
-        }
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
