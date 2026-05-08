@@ -60,7 +60,9 @@ jobs:
           node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
-        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+        run: |
+          set -o pipefail
+          node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
