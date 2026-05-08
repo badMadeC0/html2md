@@ -11,7 +11,7 @@ import requests  # type: ignore[import-untyped]
 from html2md.cli import FAILURE, MAX_DOWNLOAD_SIZE, main
 
 
-def mock_response(body=b'<h1>Hello</h1>', *, headers=None, encoding='utf-8'):
+def mock_stream_response(body=b'<h1>Hello</h1>', *, headers=None, encoding='utf-8'):
     """Create a streamed response mock for CLI URL-fetch tests."""
     response = MagicMock()
     response.status_code = 200
@@ -47,7 +47,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_get.return_value = mock_response()
+                mock_get.return_value = mock_stream_response()
 
                 with patch('markdownify.markdownify', return_value='# Hello'):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
@@ -66,7 +66,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_get.return_value = mock_response()
+                mock_get.return_value = mock_stream_response()
 
                 with patch('markdownify.markdownify', return_value='# Hello'):
                     with patch('os.path.exists', return_value=True):
@@ -97,7 +97,7 @@ class TestCliExceptions(unittest.TestCase):
     def test_invalid_charset_falls_back_to_utf8_replacement(self):
         """Invalid charset headers should not crash decoding."""
         with patch('requests.Session.get') as mock_get:
-            mock_get.return_value = mock_response(
+            mock_get.return_value = mock_stream_response(
                 b'<h1>caf\xe9</h1>',
                 encoding='bogus',
             )
@@ -113,7 +113,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = mock_response(
+                mock_resp = mock_stream_response(
                     headers={'Content-Length': str(MAX_DOWNLOAD_SIZE + 1)},
                 )
                 mock_get.return_value = mock_resp
@@ -129,7 +129,7 @@ class TestCliExceptions(unittest.TestCase):
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
             with patch('requests.Session.get') as mock_get:
-                mock_resp = mock_response(
+                mock_resp = mock_stream_response(
                     body=b'a' * (MAX_DOWNLOAD_SIZE + 1),
                     headers={'Content-Length': 'not-a-number'},
                 )
@@ -153,8 +153,8 @@ class TestCliExceptions(unittest.TestCase):
 
             with patch('sys.stderr', captured_stderr):
                 with patch('requests.Session.get') as mock_get:
-                    small_resp = mock_response(body=b'<h1>Small</h1>')
-                    large_resp = mock_response(
+                    small_resp = mock_stream_response(body=b'<h1>Small</h1>')
+                    large_resp = mock_stream_response(
                         headers={'Content-Length': str(MAX_DOWNLOAD_SIZE + 1)},
                     )
                     mock_get.side_effect = [small_resp, large_resp]

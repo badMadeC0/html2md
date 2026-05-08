@@ -118,6 +118,8 @@ def main(argv=None):
                 # Decode using Requests' detected encoding, falling back for missing/bad charsets.
                 encoding = response.encoding
                 if not isinstance(encoding, str):
+                    encoding = getattr(response, 'apparent_encoding', None)
+                if not isinstance(encoding, str):
                     encoding = 'utf-8'
                 try:
                     text_content = bytes(content).decode(encoding, errors='replace')

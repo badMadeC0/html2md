@@ -7,7 +7,7 @@ import pytest
 from html2md import cli
 
 
-def mock_response(body=b"<h1>dummy</h1>"):
+def mock_stream_response(body=b"<h1>dummy</h1>"):
     """Create a streamed response mock for CLI URL-fetch tests."""
     response = MagicMock()
     response.headers = {}
@@ -44,7 +44,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     secret_file = tmp_path / 'secret.txt'
     secret_file.write_text('secret content', encoding='utf-8')
 
-    mock_get.return_value = mock_response()
+    mock_get.return_value = mock_stream_response()
 
     urls = [
         'http://example.com/foo/../..%2Fsecret.txt',
