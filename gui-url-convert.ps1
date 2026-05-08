@@ -23,17 +23,23 @@ if ($BatchFile) {
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
-            Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
+            $uriObj = $null
+            if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriObj) -and ($uriObj.Scheme -eq 'http' -or $uriObj.Scheme -eq 'https')) {
+                $safeUrl = $uriObj.AbsoluteUri
+                Write-Host "Processing: $safeUrl"
+                $argsList = @("--url", "$safeUrl", "--outdir", "$outDir")
 
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
-            } elseif (Test-Path -LiteralPath $pyScript) {
-                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                $argsList = @("$pyScript") + $argsList
-                & $pyCmd $argsList
+                if (Test-Path -LiteralPath $venvExe) {
+                    Start-Process -FilePath $venvExe -ArgumentList $argsList -Wait -NoNewWindow
+                } elseif (Test-Path -LiteralPath $pyScript) {
+                    $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                    $argsList = @("$pyScript") + $argsList
+                    Start-Process -FilePath $pyCmd -ArgumentList $argsList -Wait -NoNewWindow
+                } else {
+                    Write-Error "Could not find html2md executable or script."
+                }
             } else {
-                Write-Error "Could not find html2md executable or script."
+                Write-Error "Skipping invalid URL: $url"
             }
         }
     }
