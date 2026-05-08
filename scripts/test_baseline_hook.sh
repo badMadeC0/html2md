@@ -37,6 +37,29 @@ import sys
 sys.exit(0 if sys.version_info >= (3, 8) else 1)
 PY
 
+# The Claude settings must not preapprove broad git-log prefixes. Patterns like
+# Bash(git log --pretty=format:*) also allow patch-producing invocations such as
+# git log --pretty=format: -p -- .env, which can expose tracked sensitive files.
+"$PYTHON_BIN" - <<'PY' || fail "settings must not allow broad git log commands"
+import json
+import sys
+
+with open(".claude/settings.json", "r", encoding="utf-8") as f:
+    settings = json.load(f)
+
+unsafe = []
+for entry in settings.get("permissions", {}).get("allow", []):
+    if entry.startswith("Bash(git log ") and entry.endswith(":*)"):
+        unsafe.append(entry)
+
+if unsafe:
+    print("Unsafe broad git log allow entries:", file=sys.stderr)
+    for entry in unsafe:
+        print(f"  {entry}", file=sys.stderr)
+    sys.exit(1)
+PY
+pass "settings avoid broad git log allow entries"
+
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
   local tool="$1" path="$2"
