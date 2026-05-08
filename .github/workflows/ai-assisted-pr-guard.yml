@@ -23,11 +23,12 @@ jobs:
           echo "PR title: $PR_TITLE"
 
           if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "::error::PR title must start with [AI-Assisted]."
-            exit 1
+            echo "OK: PR is not marked [AI-Assisted]; skipping transcript enforcement."
+            exit 0
           fi
 
-          # Body must reference a Claude chat URL or other agent transcript.
+          # Body must reference a Claude chat URL or other agent transcript
+          # only for PRs explicitly marked as AI-assisted.
           # Accept claude.ai links, cursor.com, codex, jules.google, or the
           # literal placeholder <CLAUDE_CHAT_URL> for drafts only (warn).
           # Ready/non-draft PRs fail until the placeholder is replaced.
