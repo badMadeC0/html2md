@@ -59,3 +59,53 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+class StreamingResponse:
+    """Minimal streamed response test double for CLI download handling."""
+
+    def __init__(self, chunks, headers=None, encoding="utf-8"):
+        self._chunks = chunks
+        self.headers = headers or {}
+        self.encoding = encoding
+        self.closed = False
+
+    def raise_for_status(self):
+        """Simulate a successful response."""
+
+    def iter_content(self, chunk_size=8192):  # pylint: disable=unused-argument
+        """Yield configured response chunks."""
+        yield from self._chunks
+
+    def close(self):
+        """Record that the streamed response was released."""
+        self.closed = True
+
+
+@patch("requests.Session.get")
+def test_header_oversize_response_is_closed(mock_get, capsys):
+    """Header-size aborts must close streamed responses promptly."""
+    response = StreamingResponse(
+        chunks=[],
+        headers={"Content-Length": str((10 * 1024 * 1024) + 1)},
+    )
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/large"])
+
+    outerr = capsys.readouterr()
+    assert "Content exceeds maximum allowed size" in outerr.err
+    assert response.closed is True
+
+
+@patch("requests.Session.get")
+def test_streaming_oversize_response_is_closed(mock_get, capsys):
+    """Streaming-size aborts must close streamed responses promptly."""
+    response = StreamingResponse(chunks=[b"a" * ((10 * 1024 * 1024) + 1)])
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/large"])
+
+    outerr = capsys.readouterr()
+    assert "Content exceeds maximum allowed size" in outerr.err
+    assert response.closed is True
