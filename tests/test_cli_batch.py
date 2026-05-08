@@ -1,86 +1,100 @@
 """Tests for CLI --batch mode."""
 
-import io
-import os
-import sys
-import unittest
-from unittest.mock import patch, MagicMock
+from __future__ import annotations
+
+from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import threading
+import unittest
 
-# Ensure src is in path before importing the local package.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
-from html2md.cli import main
+@contextmanager
+def html_server(responses: dict[str, str]):
+    """Serve fixed HTML responses from localhost for CLI subprocess tests."""
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - stdlib callback name
+            if self.path not in responses:
+                self.send_error(404)
+                return
+
+            body = responses[self.path].encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):  # noqa: A002 - stdlib callback name
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
 
 
 class TestCliBatch(unittest.TestCase):
-    """Unit tests for CLI --batch mode."""
+    """CLI subprocess tests for --batch mode."""
 
-    pass
+    def run_html2md(self, *args: str) -> subprocess.CompletedProcess[str]:
+        """Run the installed html2md console script with the given arguments."""
+        html2md = shutil.which("html2md")
+        if html2md is None:
+            self.skipTest("html2md console script is not installed")
+
+        return subprocess.run(
+            [html2md, *args],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
     def test_batch_mode_success(self):
-        """Test that batch mode successfully processes a file with URLs."""
-        # Using pytest tmp_path via tempfile
-        import tempfile
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        """Batch mode processes non-empty URLs from a file through the CLI."""
+        with tempfile.TemporaryDirectory() as tmp_dir, html_server(
+            {
+                "/1": "<h1>First</h1>",
+                "/2": "<h1>Second</h1>",
+            }
+        ) as base_url:
             batch_file = Path(tmp_dir) / "urls.txt"
-            # Write some URLs, including empty lines and spaces to test strip()
-            urls_content = "http://example.com/1\n  \nhttp://example.com/2 \n\n"
-            batch_file.write_text(urls_content, encoding="utf-8")
+            batch_file.write_text(
+                f"{base_url}/1\n  \n{base_url}/2 \n\n", encoding="utf-8"
+            )
 
-            captured_stdout = io.StringIO()
-            captured_stderr = io.StringIO()
+            result = self.run_html2md("--batch", str(batch_file))
 
-            with patch("sys.stdout", captured_stdout), patch(
-                "sys.stderr", captured_stderr
-            ):
-                with patch("requests.Session.get") as mock_get:
-                    mock_resp = MagicMock()
-                    mock_resp.text = "<h1>Content</h1>"
-                    mock_resp.status_code = 200
-                    mock_get.return_value = mock_resp
-
-                    with patch(
-                        "markdownify.markdownify", return_value="# Content"
-                    ) as mock_md:
-                        # Call main with the batch file
-                        result = main(["--batch", str(batch_file)])
-
-                        # Verify the result and calls
-                        self.assertEqual(result, 0)
-
-                        # Verify exactly 2 calls were made to requests.get
-                        self.assertEqual(mock_get.call_count, 2)
-
-                        # Extract the URLs from the calls
-                        # mock_get.call_args_list is a list of Call objects (args, kwargs)
-                        called_urls = [call[0][0] for call in mock_get.call_args_list]
-                        self.assertEqual(
-                            called_urls,
-                            ["http://example.com/1", "http://example.com/2"],
-                        )
-
-                        # Verify exactly 2 calls were made to markdownify
-                        self.assertEqual(mock_md.call_count, 2)
-
-                        output = captured_stdout.getvalue()
-                        self.assertIn("Processing URL: http://example.com/1", output)
-                        self.assertIn("Processing URL: http://example.com/2", output)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")
+            self.assertIn(f"Processing URL: {base_url}/1", result.stdout)
+            self.assertIn(f"Processing URL: {base_url}/2", result.stdout)
+            self.assertIn("# First", result.stdout)
+            self.assertIn("# Second", result.stdout)
 
     def test_batch_mode_file_not_found(self):
-        """Test that batch mode handles non-existent file correctly."""
-        captured_stderr = io.StringIO()
+        """Batch mode reports an error for a missing URL file."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_file = Path(tmp_dir) / "missing-urls.txt"
 
-        with patch("sys.stderr", captured_stderr):
-            # Pass a file path that definitely doesn't exist
-            result = main(["--batch", "/path/that/does/not/exist/99999.txt"])
+            result = self.run_html2md("--batch", str(missing_file))
 
-            # The CLI logic returns 1 for missing batch file
-            self.assertEqual(result, 1)
-
-            error_output = captured_stderr.getvalue()
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, "")
             self.assertIn(
-                "Error: Batch file not found: /path/that/does/not/exist/99999.txt",
-                error_output,
+                f"Error: Batch file not found: {missing_file}",
+                result.stderr,
             )
+
+
+if __name__ == "__main__":
+    unittest.main()
