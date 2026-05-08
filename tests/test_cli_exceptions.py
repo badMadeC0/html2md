@@ -2,6 +2,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+from pathlib import Path
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
@@ -36,8 +37,8 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                    with patch('pathlib.Path.mkdir'):
+                        with patch('pathlib.Path.open', side_effect=OSError("Permission denied")):
                             try:
                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
                             except (SystemExit, RuntimeError, ValueError) as e:
@@ -58,14 +59,15 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
-                            def fake_realpath(path):
-                                if str(path).endswith('.md'):
-                                    return '/tmp/outside/a.md'
-                                return '/tmp/out'
+                    with patch('pathlib.Path.mkdir'):
+                        with patch('pathlib.Path.open') as mock_open:
+                            def fake_resolve(path, strict=False):
+                                del strict
+                                if Path(path).name == 'a.md':
+                                    return Path('/tmp/outside/a.md')
+                                return Path('/tmp/out')
 
-                            with patch('os.path.realpath', side_effect=fake_realpath):
+                            with patch('pathlib.Path.resolve', autospec=True, side_effect=fake_resolve):
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
