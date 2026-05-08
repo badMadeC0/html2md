@@ -8,13 +8,25 @@ from html2md.cli import main
 
 def make_stream_response(content: bytes, encoding=None, apparent_encoding=None):
     """Create a minimal streamed response mock for URL conversion tests."""
-    response = MagicMock()
-    response.headers = {}
-    response.encoding = encoding
-    response.apparent_encoding = apparent_encoding
-    response.iter_content.return_value = [content]
-    response.raise_for_status.return_value = None
-    return response
+
+    class StreamResponse:
+        """Tiny response stand-in that can fail if apparent_encoding is read."""
+
+        headers = {}
+
+        def __init__(self):
+            self.encoding = encoding
+            self._apparent_encoding = apparent_encoding
+            self.raise_for_status = MagicMock(return_value=None)
+            self.iter_content = MagicMock(return_value=[content])
+
+        @property
+        def apparent_encoding(self):
+            if isinstance(self._apparent_encoding, Exception):
+                raise self._apparent_encoding
+            return self._apparent_encoding
+
+    return StreamResponse()
 
 
 class TestCliExceptions(unittest.TestCase):
@@ -87,17 +99,24 @@ class TestCliExceptions(unittest.TestCase):
                             for call in mock_open.call_args_list:
                                 self.assertFalse(str(call[0][0]).endswith('.md'))
 
-    def test_uses_apparent_encoding_for_streamed_response(self):
-        """Requests' apparent encoding should decode streamed legacy HTML."""
+    def test_uses_detected_encoding_for_streamed_response(self):
+        """Collected bytes should provide the fallback encoding for legacy HTML."""
         with patch('requests.Session.get') as mock_get:
             mock_get.return_value = make_stream_response(
                 b"<p>\x93Hello\x94</p>",
                 encoding=None,
-                apparent_encoding="Windows-1252",
+                apparent_encoding=RuntimeError("stream consumed"),
             )
 
-            with patch('markdownify.markdownify', return_value="converted") as mock_md:
-                main(['--url', 'http://example.com'])
+            with patch(
+                'requests.compat.chardet.detect',
+                return_value={'encoding': 'Windows-1252'},
+            ):
+                with patch(
+                    'markdownify.markdownify',
+                    return_value="converted",
+                ) as mock_md:
+                    main(['--url', 'http://example.com'])
 
             mock_md.assert_called_once()
             html_arg = mock_md.call_args.args[0]

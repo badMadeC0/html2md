@@ -93,15 +93,14 @@ def main(argv=None):
                         return 1
 
                 # Decode using Requests' normal fallback order: explicit encoding,
-                # apparent encoding, then UTF-8 with replacement characters.
+                # apparent encoding, then UTF-8 with replacement characters.  Because
+                # this is a streamed response, derive the apparent encoding from the
+                # bytes we already collected instead of touching response.content via
+                # response.apparent_encoding after iter_content() has consumed it.
                 encoding = response.encoding
                 if not isinstance(encoding, str):
-                    apparent_encoding = response.apparent_encoding
-                    encoding = (
-                        apparent_encoding
-                        if isinstance(apparent_encoding, str)
-                        else 'utf-8'
-                    )
+                    detected = requests.compat.chardet.detect(content).get('encoding')
+                    encoding = detected if isinstance(detected, str) else 'utf-8'
                 try:
                     text_content = content.decode(encoding, errors='replace')
                 except LookupError:
