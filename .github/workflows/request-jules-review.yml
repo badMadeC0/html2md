@@ -10,6 +10,8 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         # Requesting a Jules review is best-effort; do not block PR checks if
