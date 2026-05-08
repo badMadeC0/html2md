@@ -51,3 +51,12 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+def test_batch_consumes_worker_results_to_surface_failures(tmp_path):
+    """Worker exceptions from batch processing are surfaced to the caller."""
+    batch_file = tmp_path / "urls.txt"
+    batch_file.write_text("http://[\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid IPv6 URL"):
+        cli.main(["--batch", str(batch_file)])

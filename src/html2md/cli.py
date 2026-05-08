@@ -147,7 +147,7 @@ def main(argv=None):
                 with concurrent.futures.ThreadPoolExecutor(
                     max_workers=max_workers
                 ) as executor:
-                    executor.map(process_url, urls_to_process)
+                    list(executor.map(process_url, urls_to_process))
 
         return 0
 
