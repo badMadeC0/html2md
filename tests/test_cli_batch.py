@@ -1,5 +1,7 @@
 """Tests for CLI batch URL processing."""
 
+from unittest.mock import MagicMock, patch
+
 from html2md import cli
 
 
@@ -40,7 +42,7 @@ def test_ordered_bounded_map_caps_submitted_futures_before_first_result():
     assert executor.max_in_flight == 3
 
 
-def test_batch_outputs_results_in_input_order(mocker, capsys, tmp_path):
+def test_batch_outputs_results_in_input_order(capsys, tmp_path):
     """Batch mode keeps deterministic output ordering across multiple URLs."""
     batch_file = tmp_path / "urls.txt"
     batch_file.write_text(
@@ -48,22 +50,19 @@ def test_batch_outputs_results_in_input_order(mocker, capsys, tmp_path):
         encoding="utf-8",
     )
 
-    session = mocker.MagicMock()
+    session = MagicMock()
 
     def fake_get(url, timeout):
-        response = mocker.MagicMock()
+        response = MagicMock()
         response.text = f"<h1>{url.rsplit('/', 1)[-1]}</h1>"
         response.raise_for_status.return_value = None
         return response
 
     session.get.side_effect = fake_get
-    mocker.patch("requests.Session", return_value=session)
-    mocker.patch(
-        "markdownify.markdownify",
-        side_effect=lambda html, heading_style: html,
-    )
-
-    assert cli.main(["--batch", str(batch_file)]) == 0
+    with patch("requests.Session", return_value=session), patch(
+        "markdownify.markdownify", side_effect=lambda html, heading_style: html
+    ):
+        assert cli.main(["--batch", str(batch_file)]) == 0
 
     captured = capsys.readouterr()
     first_idx = captured.out.index("Processing URL: http://example.com/first")
