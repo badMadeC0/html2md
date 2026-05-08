@@ -49,11 +49,12 @@ def is_sensitive(path: str) -> bool:
 
 def _candidate_paths(tool_input: Dict[str, Any]) -> List[str]:
     """Collect path-like fields from a Claude Code tool input payload."""
-    return [
-        value
-        for key in PATH_KEYS
-        if isinstance((value := tool_input.get(key)), str) and value
-    ]
+    paths = []
+    for key in PATH_KEYS:
+        value = tool_input.get(key)
+        if isinstance(value, str) and value:
+            paths.append(value)
+    return paths
 
 
 def main(argv: Optional[List[str]] = None) -> int:
