@@ -28,11 +28,12 @@ def main(argv=None):
 
     if args.url or args.batch:
         try:
+            import idna  # type: ignore  # pylint: disable=import-outside-toplevel
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests markdownify idna", file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -79,10 +80,27 @@ def main(argv=None):
                     ip_obj.is_reserved or ip_obj.is_multicast)
 
         def _normalize_dns_hostname(hostname):
-            """Return a canonical IDNA DNS hostname for matching pinned lookups."""
+            """Return Requests' canonical IDNA hostname for pinned DNS lookups."""
             if isinstance(hostname, bytes):
                 hostname = hostname.decode('ascii')
-            return hostname.rstrip('.').encode('idna').decode('ascii').lower()
+
+            stripped_hostname = hostname.rstrip('.')
+            try:
+                ipaddress.ip_address(stripped_hostname)
+            except ValueError:
+                pass
+            else:
+                return stripped_hostname.lower()
+
+            try:
+                # Match Requests' PreparedRequest._get_idna_encoded_host(),
+                # which uses the idna package with UTS #46 processing before
+                # opening the socket connection.
+                normalized = idna.encode(stripped_hostname, uts46=True).decode('ascii')
+            except idna.IDNAError as e:
+                raise UnicodeError from e
+
+            return normalized.lower()
 
         def validate_url(target_url: str):
             """Validate a URL and return the DNS answers approved for fetching it."""
