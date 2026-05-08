@@ -17,3 +17,5 @@ jobs:
       - name: Prepare environment for Copilot agents
         run: |
           echo "Copilot setup applied: memory fetch disabled."
+          # Pre-fetch Gemini extension metadata while firewall is disabled
+          curl -s https://api.github.com/repos/gemini-cli-extensions/code-review/commits > /dev/null
