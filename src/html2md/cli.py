@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import argparse
+from contextlib import closing
 import os
 import sys
 from urllib.parse import urlparse, unquote
@@ -55,7 +56,7 @@ def main(argv=None):
         })
 
         def process_url(target_url: str) -> int:
-            """Process a single URL and return a process-style status code."""
+            """Process a single URL and return a process status code."""
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
@@ -72,7 +73,7 @@ def main(argv=None):
                 print("Fetching content...")
                 # Security: Use a connect timeout of 5s and read timeout of 30s.
                 # Use stream=True to prevent loading massive files into memory all at once.
-                with session.get(target_url, timeout=(5, 30), stream=True) as response:
+                with closing(session.get(target_url, timeout=(5, 30), stream=True)) as response:
                     response.raise_for_status()
 
                     # Security: Limit download to 10MB to prevent DoS via memory exhaustion.
@@ -83,7 +84,7 @@ def main(argv=None):
                             print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
                             return 1
                     except ValueError:
-                        # Ignore malformed Content-Length and rely on streamed size checks.
+                        # Ignore malformed Content-Length; the streaming size check still enforces the limit.
                         pass
 
                     content = bytearray()
@@ -93,17 +94,23 @@ def main(argv=None):
                             print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
                             return 1
 
-                    content_bytes = bytes(content)
-                    # Match Requests' text-decoding behavior after enforcing the byte limit.
-                    # This preserves charset detection for legacy pages without a charset header
-                    # and gracefully handles invalid charset values from malformed headers.
-                    response._content = content_bytes  # pylint: disable=protected-access
-                    response._content_consumed = True  # pylint: disable=protected-access
-                    encoding = response.encoding or response.apparent_encoding
+                    # Decode using Requests' charset choice when available, falling back safely for bad headers.
+                    encoding = response.encoding
+                    if not isinstance(encoding, str):
+                        encoding = getattr(response, 'apparent_encoding', None)
+                    if not isinstance(encoding, str):
+                        encoding = 'utf-8'
                     try:
-                        text_content = content_bytes.decode(encoding, errors='replace')
-                    except (LookupError, TypeError):
-                        text_content = str(content_bytes, errors='replace')
+                        text_content = bytes(content).decode(encoding, errors='replace')
+                    except LookupError:
+                        apparent_encoding = getattr(response, 'apparent_encoding', None)
+                        if isinstance(apparent_encoding, str):
+                            try:
+                                text_content = bytes(content).decode(apparent_encoding, errors='replace')
+                            except LookupError:
+                                text_content = bytes(content).decode('utf-8', errors='replace')
+                        else:
+                            text_content = bytes(content).decode('utf-8', errors='replace')
 
                 print("Converting to Markdown...")
                 md_content = md(text_content, heading_style="ATX")
@@ -146,11 +153,12 @@ def main(argv=None):
                 return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
-                return 1
+            return 1
 
-        status = 0
+        exit_status = 0
+
         if args.url:
-            status = max(status, process_url(args.url))
+            exit_status = max(exit_status, process_url(args.url))
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -160,9 +168,9 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        status = max(status, process_url(u))
+                        exit_status = max(exit_status, process_url(u))
 
-        return status
+        return exit_status
 
     ap.print_help()
     return 0

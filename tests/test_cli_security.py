@@ -6,16 +6,14 @@ import pytest
 from html2md import cli
 
 
-def mock_stream_response(html=b"<h1>dummy</h1>", encoding="utf-8", headers=None):
-    """Create a context-manager response mock for streamed CLI downloads."""
+def mock_stream_response(body=b"<h1>dummy</h1>", encoding="utf-8", headers=None):
+    """Create a streamed response mock for CLI URL-fetch tests."""
     response = MagicMock()
     response.headers = headers or {}
     response.encoding = encoding
     response.apparent_encoding = encoding or "utf-8"
-    response.iter_content.return_value = [html]
+    response.iter_content.return_value = [body]
     response.raise_for_status.return_value = None
-    response.__enter__.return_value = response
-    response.__exit__.return_value = None
     return response
 
 
@@ -90,7 +88,7 @@ def test_oversized_content_length_returns_nonzero_and_closes(mock_get, capsys):
     outerr = capsys.readouterr()
     assert status == 1
     assert "Content exceeds maximum allowed size" in outerr.err
-    mock_get.return_value.__exit__.assert_called_once()
+    mock_get.return_value.close.assert_called_once()
 
 
 @patch("requests.Session.get")
@@ -107,4 +105,4 @@ def test_oversized_stream_returns_nonzero_and_closes(mock_get, capsys):
     outerr = capsys.readouterr()
     assert status == 1
     assert "Content exceeds maximum allowed size" in outerr.err
-    mock_get.return_value.__exit__.assert_called_once()
+    mock_get.return_value.close.assert_called_once()
