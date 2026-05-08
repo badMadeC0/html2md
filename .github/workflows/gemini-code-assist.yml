@@ -28,5 +28,4 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        run: echo 'mock'
-        continue-on-error: true
+        uses: google-gemini/code-assist-action@v1
