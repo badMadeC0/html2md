@@ -28,7 +28,10 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 25
     steps:
       - name: Checkout trusted repair driver
