@@ -358,7 +358,11 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-
+    } else {
+        # --- SINGLE URL MODE ---
+        $url = $urlList[0]
+        # If Whole Page is unchecked, we add the flag to ignore headers/footers
+        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
         # Sanitize inputs for single-quoted string interpolation in PowerShell
         $safeUrl = $url -replace "'", "''"
         $safeOutDir = $outdir -replace "'", "''"
