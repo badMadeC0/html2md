@@ -30,20 +30,45 @@ jobs:
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
 
-          request = urllib.request.Request(
-              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
-              method="POST",
-          )
+          comment_body = "@google-labs-jules please review this pull request."
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          }
+
+          def urlopen_json(request):
+              with urllib.request.urlopen(request) as response:
+                  return json.loads(response.read().decode("utf-8")), response.status
+
+          comments_url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
 
           try:
+              page = 1
+              while True:
+                  check_request = urllib.request.Request(
+                      url=f"{comments_url}?per_page=100&page={page}",
+                      headers=headers,
+                      method="GET",
+                  )
+                  comments, status = urlopen_json(check_request)
+                  if any(comment.get("body") == comment_body for comment in comments):
+                      print(
+                          "Jules review request comment already exists on "
+                          f"PR #{pr_number}; skipping duplicate (status {status})."
+                      )
+                      raise SystemExit(0)
+                  if len(comments) < 100:
+                      break
+                  page += 1
+
+              request = urllib.request.Request(
+                  url=comments_url,
+                  data=json.dumps({"body": comment_body}).encode("utf-8"),
+                  headers=headers,
+                  method="POST",
+              )
+
               with urllib.request.urlopen(request) as response:
                   print(
                       "Requested review from @google-labs-jules via comment on "
