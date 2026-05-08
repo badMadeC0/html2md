@@ -12,9 +12,12 @@ in [.claude/commands/review-pr.md](mdc:.claude/commands/review-pr.md).
 
 1. Run `gh pr view --json number,title,body,headRefName,baseRefName` (or
    ask the user if `gh` isn't available). Capture title and body.
-   - Confirm the title starts with `[AI-Assisted]`.
-   - Confirm the body has a Claude chat URL (or flag the placeholder
-     `<CLAUDE_CHAT_URL>`).
+   - Determine whether the PR is AI-authored or substantially AI-edited.
+   - If it is, confirm the title starts with `[AI-Assisted]`.
+   - If it is, confirm the body has a Claude chat URL (or flag the
+     placeholder `<CLAUDE_CHAT_URL>`).
+   - If it is not, do not flag the absence of the title prefix or Claude
+     chat URL.
 2. List changed files via `git diff --name-only origin/main...HEAD`.
 3. For every rule in [pr-rules/common.md](mdc:pr-rules/common.md), scan the
    diff for violations. Report each as
