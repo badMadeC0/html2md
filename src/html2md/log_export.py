@@ -46,6 +46,8 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if type(value) is str:
         return _sanitize_formula(value)
+    if isinstance(value, str):
+        return _sanitize_formula(str(value))
     if value is None:
         return ""
     return value
