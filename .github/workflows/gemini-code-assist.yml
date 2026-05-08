@@ -13,9 +13,14 @@ permissions:
   pull-requests: write
   issues: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
+    timeout-minutes: 7
     if: >
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
@@ -24,9 +29,85 @@ jobs:
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare Gemini context
+        run: |
+          mkdir -p .gemini
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg pr "$PR_NUMBER" \
+            --arg event "$GITHUB_EVENT_NAME" \
+            --arg comment "$COMMENT_BODY" \
+            '{repository: $repo, pull_request_number: $pr, event_name: $event, comment_body: $comment}' > .gemini/context.json
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body || '' }}
+
       - name: Gemini Code Assist
-        # uses: google-github-actions/code-assist-action@v1
-        run: echo "Gemini Code Assist Disabled due to missing action"
+        uses: google-github-actions/run-gemini-cli@v0.1.22
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GITHUB_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_cli_version: ${{ vars.GEMINI_CLI_VERSION }}
+          gemini_debug: ${{ fromJSON(vars.GEMINI_DEBUG || vars.ACTIONS_STEP_DEBUG || false) }}
+          gemini_model: ${{ vars.GEMINI_MODEL }}
+          google_api_key: ${{ secrets.GOOGLE_API_KEY }}
+          use_gemini_code_assist: ${{ vars.GOOGLE_GENAI_USE_GCA }}
+          use_vertex_ai: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          upload_artifacts: ${{ vars.UPLOAD_ARTIFACTS }}
+          workflow_name: gemini-code-assist
+          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          settings: |-
+            {
+              "model": {
+                "maxSessionTurns": 25
+              },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              "tools": {
+                "core": []
+              }
+            }
+          extensions: |-
+            [
+              "https://github.com/gemini-cli-extensions/code-review"
+            ]
+          prompt: |-
+            /pr-code-review
+
+            Use this GitHub Actions context as additional input:
+
+            ```json
+            @{.gemini/context.json}
+            ```
