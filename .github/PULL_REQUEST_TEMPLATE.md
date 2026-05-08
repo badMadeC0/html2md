@@ -1,6 +1,8 @@
 <!--
-  Title format: [AI-Assisted] <imperative summary>. Required by
-  .github/workflows/ai-assisted-pr-guard.yml.
+  If this PR was AI-assisted, use the title format
+  [AI-Assisted] <imperative summary>. The workflow
+  .github/workflows/ai-assisted-pr-guard.yml uses that prefix to enforce
+  the transcript link requirement below.
 -->
 
 ## Summary
