@@ -81,7 +81,7 @@ def main(argv=None):
                         response.close()
                         return
                 except ValueError:
-                    pass
+                    print("Warning: Invalid Content-Length header; enforcing size limit during download.", file=sys.stderr)
 
                 content_bytes = b""
                 for chunk in response.iter_content(chunk_size=8192):
