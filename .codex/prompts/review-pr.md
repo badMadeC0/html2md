@@ -16,9 +16,14 @@ rule. Use whichever invocation Codex CLI supports for prompt files.
 ## Steps
 
 1. Read PR title and body via `gh pr view --json number,title,body`.
-   - Title MUST start with `[AI-Assisted]`.
-   - Body MUST contain a Claude chat URL (warn on the literal placeholder
-     `<CLAUDE_CHAT_URL>`).
+   - If the PR is AI-authored or substantially AI-edited, the title MUST
+     start with `[AI-Assisted]`; otherwise, do not require or report that
+     marker.
+   - If the PR is AI-authored or substantially AI-edited, the body MUST
+     contain an originating agent transcript URL (claude.ai, cursor.com,
+     chatgpt.com/codex, jules.google.com — any of them). Warn on the
+     literal placeholder `<CLAUDE_CHAT_URL>`. For non-AI PRs, do NOT
+     report the missing transcript link as a violation.
 2. List changed files via `git diff --name-only origin/main...HEAD`.
 3. Read each rule file in order; for every rule, scan the diff and the
    changed files for violations. Format violations as:

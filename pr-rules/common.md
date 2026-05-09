@@ -9,8 +9,10 @@ rules layer on top in `pr-rules/<lang>.md` and `pr-rules/service-*.md`.
   starting with `[AI-Assisted]`.
 - The PR body MUST include a link to the originating Claude chat (or other
   agent transcript). The placeholder `<CLAUDE_CHAT_URL>` is acceptable in
-  drafts; CI will warn during PR checks if it remains unfilled.
-- Reviewers should not approve a PR that lacks the tag or the link.
+  draft PRs; CI may warn during draft PR checks if it remains unfilled, but
+  once the PR is ready for review, CI will fail until the placeholder is
+  replaced with the actual link.
+- Reviewers should not approve a PR that lacks the tag or the required link.
 
 ## 2. Scope discipline
 

@@ -23,19 +23,22 @@ cd "$ROOT" || fail "cannot cd to repo root: $ROOT"
 HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
+# Probe candidates and pick the first one that satisfies >= 3.8.
+# `python3`/`python` come first so the test runs in a developer's normal
+# shell environment. The absolute system paths come next so the test still
+# runs when the repo's `.python-version` pins a pyenv version that isn't
+# installed (the pyenv shim would otherwise fail before reaching a usable
+# interpreter).
 PYTHON_BIN=""
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-else
-  fail "python interpreter not found (expected 'python' or 'python3')"
-fi
-
-"$PYTHON_BIN" - <<'PY' >/dev/null 2>&1 || fail "python interpreter must be >= 3.8"
-import sys
-sys.exit(0 if sys.version_info >= (3, 8) else 1)
-PY
+for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+  if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
+    if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
+  fi
+done
+[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python, /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3)"
 
 # The static Claude permissions should mirror the hook's common secret-name
 # coverage so Read is denied too (the Python hook only handles write-like tools).
@@ -48,7 +51,10 @@ deny = set(settings["permissions"]["deny"])
 required_patterns = (
     "**/secret.*",
     "**/secrets.*",
+    "**/*.secret",
     "**/*.secret.*",
+    "**/*.secrets",
+    "**/*.secrets.*",
     "**/*api-token*",
     "**/*api_token*",
     "**/*-credentials.*",
@@ -88,10 +94,15 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
             "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
             "src/keys/id_rsa" \
             "secrets.json" "secret.json" "secrets.yaml" "secret.yml" \
-            "config/secrets.json" \
+            "secrets.toml" "secret.toml" "secrets.env" \
+            "config/secrets.json" "config/secrets.toml" \
             "prod.secret.yaml" "app.secrets.yml" \
             "api-token.txt" "my_api_token.json" \
-            "team-credentials.toml" "service_credentials.txt"; do
+            "team-credentials.toml" "service_credentials.txt" \
+            "credentials.yaml" "credentials.yml" "credentials.toml" \
+            "secrets" "secret" "credentials" \
+            "config/secrets" "vault/credentials" \
+            "prod-credentials" "prod_credentials"; do
   if run_hook "Write" "$path" >/dev/null 2>&1; then
     fail "hook should BLOCK Write to '$path' but allowed it"
   fi
