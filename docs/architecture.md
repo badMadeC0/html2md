@@ -15,7 +15,7 @@
 
 | Module | Path | Responsibility |
 | ------ | ---- | -------------- |
-| `cli` | `src/html2md/cli.py` | CLI entry point (placeholder stub). |
+| `cli` | `src/html2md/cli.py` | CLI entry point for fetching HTML inputs and converting them to output formats. |
 | `log_export` | `src/html2md/log_export.py` | JSONL → CSV log exporter. |
 | `upload` | `src/html2md/upload.py` | Upload entry point. |
 | `app` | `src/html2md/app.py` | (describe responsibility) |
