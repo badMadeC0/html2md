@@ -64,7 +64,8 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
             "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
             "src/keys/id_rsa" \
             "secrets.json" "secret.json" "secrets.yaml" "secret.yml" \
-            "config/secrets.json" \
+            "secrets.toml" "secret.toml" "secrets.env" \
+            "config/secrets.json" "config/secrets.toml" \
             "prod.secret.yaml" "app.secrets.yml" \
             "api-token.txt" "my_api_token.json" \
             "team-credentials.toml" "service_credentials.txt"; do

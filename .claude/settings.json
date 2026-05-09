@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(git status:*)",
-      "Bash(git branch:*)",
+      "Bash(git branch)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list:*)",
+      "Bash(git branch -a:*)",
+      "Bash(git branch -r:*)",
+      "Bash(git branch -v:*)",
       "Bash(git rev-parse:*)",
       "Bash(git diff --stat:*)",
       "Bash(git diff --name-only:*)",

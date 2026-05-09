@@ -23,7 +23,10 @@ change, read these files in order:
 
 - Never push, open, merge, or close PRs.
 - Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-  `*.crt`, `id_rsa*`.
+  `*.crt`, `id_rsa*`, or any file matching a sensible secret naming
+  convention (e.g., `secrets.*`, `secret.*`, `*.secret.*`, `*.secrets.*`,
+  `*api-token*`, `*-credentials.*`). See
+  [pr-rules/common.md](mdc:pr-rules/common.md) §3 for the canonical list.
 - Every AI-assisted PR title must start with `[AI-Assisted]` and the body
   must include the originating Claude / agent chat URL.
 - Append edge cases to [pr-rules/edge-cases.md](mdc:pr-rules/edge-cases.md);

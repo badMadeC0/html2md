@@ -20,8 +20,12 @@ This file is a thin pointer. Authoritative guidance lives in
 
 - Never push, open, merge, or close PRs.
 - Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-  `*.crt`, `id_rsa*`. The hook `.claude/hooks/protect-sensitive-files.py`
-  enforces this for Edit/Write.
+  `*.crt`, `id_rsa*`, or any file matching a sensible secret naming
+  convention (e.g., `secrets.*`, `secret.*`, `*.secret.*`, `*.secrets.*`,
+  `*api-token*`, `*-credentials.*`). See
+  [`pr-rules/common.md`](../pr-rules/common.md) §3 for the canonical list.
+  The hook `.claude/hooks/protect-sensitive-files.py` enforces this for
+  Edit/Write.
 - Every AI-assisted PR title must start with `[AI-Assisted]`. The body must
   link to the originating Claude / agent chat URL.
 - Append edge cases to [`pr-rules/edge-cases.md`](../pr-rules/edge-cases.md);

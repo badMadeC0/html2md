@@ -26,15 +26,13 @@ SENSITIVE_BASENAME_PATTERNS = (
     "credentials.json",
     "id_rsa*",
     # "any file matching a sensible secret naming convention" (per
-    # pr-rules/common.md §3). Conservative set — additions welcome via
-    # PR + edge-case ledger entry, but err on the side of false-positive
-    # block for unfamiliar names rather than false-negative leak.
-    "secrets.json",
-    "secret.json",
-    "secrets.yaml",
-    "secrets.yml",
-    "secret.yaml",
-    "secret.yml",
+    # pr-rules/common.md §3). Use broad `secrets.*` / `secret.*` rather
+    # than enumerating each extension — `secrets.toml`, `secret.env`,
+    # etc. are equally sensitive and easy to miss in a hand-written list.
+    # Err on the side of false-positive block for unfamiliar names rather
+    # than false-negative leak.
+    "secrets.*",
+    "secret.*",
     "*.secret",
     "*.secret.*",
     "*.secrets",
