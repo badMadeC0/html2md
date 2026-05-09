@@ -11,7 +11,7 @@ def get_host_port():
     try:
         if port_str is not None:
             port_value = int(port_str)
-            if port_value < 1 or port_value > 65535:
+            if port_value < 0 or port_value > 65535:
                 raise ValueError('Port out of range')
         else:
             port_value = DEFAULT_PORT

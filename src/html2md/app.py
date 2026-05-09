@@ -3,7 +3,7 @@
 from flask import Flask, jsonify
 
 from html2md import __version__
-from html2md.config import DEFAULT_PORT, get_host_port
+from html2md.config import get_host_port
 
 app = Flask(__name__)
 
