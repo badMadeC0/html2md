@@ -3,6 +3,7 @@
 import io
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
@@ -16,12 +17,8 @@ from html2md.cli import main
 class TestCliBatch(unittest.TestCase):
     """Unit tests for CLI --batch mode."""
 
-    pass
-
     def test_batch_mode_success(self):
         """Test that batch mode successfully processes a file with URLs."""
-        # Using pytest tmp_path via tempfile
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             batch_file = Path(tmp_dir) / "urls.txt"
@@ -72,15 +69,17 @@ class TestCliBatch(unittest.TestCase):
         """Test that batch mode handles non-existent file correctly."""
         captured_stderr = io.StringIO()
 
-        with patch("sys.stderr", captured_stderr):
-            # Pass a file path that definitely doesn't exist
-            result = main(["--batch", "/path/that/does/not/exist/99999.txt"])
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            missing_file = str(Path(tmp_dir) / "nonexistent.txt")
+            with patch("sys.stderr", captured_stderr):
+                # Pass a file path that is guaranteed not to exist
+                result = main(["--batch", missing_file])
 
-            # The CLI logic returns 1 for missing batch file
-            self.assertEqual(result, 1)
+                # The CLI logic returns 1 for missing batch file
+                self.assertEqual(result, 1)
 
-            error_output = captured_stderr.getvalue()
-            self.assertIn(
-                "Error: Batch file not found: /path/that/does/not/exist/99999.txt",
-                error_output,
-            )
+                error_output = captured_stderr.getvalue()
+                self.assertIn(
+                    f"Error: Batch file not found: {missing_file}",
+                    error_output,
+                )
