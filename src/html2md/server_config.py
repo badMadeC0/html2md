@@ -18,19 +18,20 @@ def get_host_port():
     deploy-safe default unless HOST is explicitly set.
     """
     port_str = os.environ.get('PORT')
-    port_is_valid = False
-    try:
-        if port_str is None:
-            port_value = DEFAULT_PORT
-        else:
+    if port_str is None:
+        port_value = DEFAULT_PORT
+        port_is_valid = False
+    else:
+        try:
             port_value = int(port_str)
             port_is_valid = True
-    except ValueError:
-        print(
-            f'Warning: Invalid PORT environment variable value '
-            f'{port_str!r}; falling back to default {DEFAULT_PORT}.'
-        )
-        port_value = DEFAULT_PORT
+        except ValueError:
+            print(
+                f'Warning: Invalid PORT environment variable value '
+                f'{port_str!r}; falling back to default {DEFAULT_PORT}.'
+            )
+            port_value = DEFAULT_PORT
+            port_is_valid = False
 
     hostname = os.environ.get('HOST')
     if hostname:

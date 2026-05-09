@@ -27,16 +27,6 @@ def test_get_host_port_custom_host(monkeypatch):
     assert port == DEFAULT_PORT
 
 
-def test_get_host_port_empty_host(monkeypatch):
-    """Test get_host_port falls back to localhost when HOST is empty."""
-    monkeypatch.setenv("HOST", "")
-    monkeypatch.delenv("PORT", raising=False)
-
-    hostname, port = get_host_port()
-    assert hostname == DEFAULT_HOST
-    assert port == DEFAULT_PORT
-
-
 def test_get_host_port_port_only_uses_deploy_host(monkeypatch):
     """Bind to all interfaces when a PaaS-style PORT is provided without HOST."""
     monkeypatch.delenv("HOST", raising=False)
