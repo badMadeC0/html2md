@@ -4,11 +4,12 @@ import importlib.util
 
 import pytest
 
-flask_available = importlib.util.find_spec("flask") is not None
-pytestmark = pytest.mark.skipif(not flask_available, reason="Flask is not installed")
+from html2md import __version__
 
-if flask_available:
-    from html2md import __version__
+HAS_FLASK = importlib.util.find_spec("flask") is not None
+pytestmark = pytest.mark.skipif(not HAS_FLASK, reason="Flask is not installed")
+
+if HAS_FLASK:
     from html2md.app import DEFAULT_PORT, app, get_host_port
 
 
