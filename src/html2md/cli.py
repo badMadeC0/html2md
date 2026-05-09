@@ -95,7 +95,8 @@ def main(argv=None):
                                 return
 
                     html_bytes = bytes(content_bytes)
-                    html_content = html_bytes.decode(encoding, errors='replace')
+                    response_encoding = response.encoding or 'utf-8'
+                    html_content = html_bytes.decode(response_encoding, errors='replace')
 
                     print("Converting to Markdown...")
                     md_content = md(html_content, heading_style="ATX")
