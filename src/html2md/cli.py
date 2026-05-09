@@ -71,10 +71,9 @@ def main(argv=None):
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
-                try:
+                with session.get(target_url, timeout=30, stream=True) as response:
                     response.raise_for_status()
-
+                    response.raise_for_status()
                     max_size = 10 * 1024 * 1024
                     content_length = response.headers.get('Content-Length')
                     try:
@@ -93,10 +92,9 @@ def main(argv=None):
                         content_bytes.extend(chunk)
                         if len(content_bytes) > max_size:
                             print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                            return
+                                return
 
                     html_bytes = bytes(content_bytes)
-                    encoding = response.encoding or 'utf-8'
                     html_content = html_bytes.decode(encoding, errors='replace')
 
                     print("Converting to Markdown...")
