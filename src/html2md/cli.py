@@ -83,15 +83,15 @@ def main(argv=None):
                 except ValueError:
                     print("Warning: Invalid Content-Length header; enforcing size limit during download.", file=sys.stderr)
 
-                content_bytes = b""
+                content_bytes = bytearray()
                 for chunk in response.iter_content(chunk_size=8192):
-                    content_bytes += chunk
+                    content_bytes.extend(chunk)
                     if len(content_bytes) > max_size:
                         print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                         response.close()
                         return
 
-                response._content = content_bytes
+                response._content = bytes(content_bytes)
 
                 print("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")
