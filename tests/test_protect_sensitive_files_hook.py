@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 
 HOOK_PATH = (
@@ -27,9 +28,14 @@ def load_hook_module():
 
 def run_hook(payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
     """Run the hook with a serialized Claude Code payload."""
+    return run_hook_raw(json.dumps(payload))
+
+
+def run_hook_raw(payload: str) -> subprocess.CompletedProcess[str]:
+    """Run the hook with raw stdin content."""
     return subprocess.run(
         [sys.executable, str(HOOK_PATH)],
-        input=json.dumps(payload),
+        input=payload,
         text=True,
         capture_output=True,
         check=False,
@@ -73,8 +79,22 @@ def test_candidate_paths_extracts_supported_keys_only():
             "notebook_path": "notes.ipynb",
             "url": "https://example.com/.env",
             "empty": "",
+            "edits": [
+                {"file_path": "src/one.py"},
+                {"path": "src/two.py"},
+                {"notebook_path": "notes/two.ipynb"},
+                {"url": "https://example.com/secret.key"},
+                "not-a-dict",
+            ],
         }
-    ) == ["src/app.py", "README.md", "notes.ipynb"]
+    ) == [
+        "src/app.py",
+        "README.md",
+        "notes.ipynb",
+        "src/one.py",
+        "src/two.py",
+        "notes/two.ipynb",
+    ]
 
 
 def test_hook_blocks_protected_tool_targeting_sensitive_file():
@@ -115,3 +135,40 @@ def test_hook_allows_protected_tool_targeting_regular_file():
 
     assert result.returncode == 0
     assert result.stderr == ""
+
+
+def test_hook_blocks_multiedit_nested_sensitive_file():
+    """Nested MultiEdit targets are inspected before allowing the tool."""
+    result = run_hook(
+        {
+            "tool_name": "MultiEdit",
+            "tool_input": {
+                "edits": [
+                    {"file_path": "src/html2md/cli.py"},
+                    {"file_path": ".ssh/id_ed25519"},
+                ],
+            },
+        }
+    )
+
+    assert result.returncode == 2
+    assert "BLOCKED" in result.stderr
+    assert ".ssh/id_ed25519" in result.stderr
+
+
+def test_hook_fails_closed_on_bad_json():
+    """Malformed non-empty payloads are rejected because safety cannot be verified."""
+    result = run_hook_raw("{not valid json")
+
+    assert result.returncode == 1
+    assert "bad JSON payload" in result.stderr
+
+
+def test_hook_fails_closed_when_stdin_read_fails(capsys):
+    """stdin read failures are rejected because safety cannot be verified."""
+    hook = load_hook_module()
+
+    with patch.object(hook.sys.stdin, "read", side_effect=OSError("boom")):
+        assert hook.main() == 1
+
+    assert "failed to read stdin" in capsys.readouterr().err

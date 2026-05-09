@@ -12,7 +12,7 @@ import fnmatch
 import json
 import os
 import sys
-from typing import Any
+from typing import Any, List, Optional
 
 
 SENSITIVE_BASENAME_PATTERNS = (
@@ -45,7 +45,7 @@ def is_sensitive(path: str) -> bool:
     if not path:
         return False
 
-    normalized_path = os.path.normpath(path)
+    normalized_path = os.path.realpath(path)
     basename = os.path.basename(normalized_path)
 
     for pattern in SENSITIVE_BASENAME_PATTERNS:
@@ -66,10 +66,21 @@ def candidate_paths(tool_input: dict[str, Any]) -> list[str]:
         value = tool_input.get(key)
         if isinstance(value, str) and value:
             candidates.append(value)
+
+    edits = tool_input.get("edits")
+    if isinstance(edits, list):
+        for edit in edits:
+            if not isinstance(edit, dict):
+                continue
+            for key in PATH_KEYS:
+                value = edit.get(key)
+                if isinstance(value, str) and value:
+                    candidates.append(value)
+
     return candidates
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     """Run the hook and return a process exit status."""
     try:
         payload_raw = sys.stdin.read()
@@ -78,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
             f"protect-sensitive-files: failed to read stdin: {exc}",
             file=sys.stderr,
         )
-        return 0
+        return 1
 
     if not payload_raw.strip():
         return 0
@@ -90,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
             f"protect-sensitive-files: bad JSON payload: {exc}",
             file=sys.stderr,
         )
-        return 0
+        return 1
 
     tool_name = payload.get("tool_name") or ""
     if tool_name not in PROTECTED_TOOLS:
