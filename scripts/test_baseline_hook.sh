@@ -23,18 +23,22 @@ cd "$ROOT" || fail "cannot cd to repo root: $ROOT"
 HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
-# Probe candidates and pick the first one that satisfies >= 3.8. Trying
-# `python3` first then `python` covers pyenv setups where one shim may
-# resolve to an older interpreter than the other.
+# Probe candidates and pick the first one that satisfies >= 3.8.
+# `python3`/`python` come first so the test runs in a developer's normal
+# shell environment. The absolute system paths come next so the test still
+# runs when the repo's `.python-version` pins a pyenv version that isn't
+# installed (the pyenv shim would otherwise fail before reaching a usable
+# interpreter).
 PYTHON_BIN=""
-for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1 \
-     && "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
-    PYTHON_BIN="$candidate"
-    break
+for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+  if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
+    if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
   fi
 done
-[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python)"
+[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python, /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3)"
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {

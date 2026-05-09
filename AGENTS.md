@@ -34,7 +34,11 @@ the markers is managed centrally; do not hand-edit.
 Hard rules — no AI agent may override:
 1. Never push, open, merge, or close PRs without explicit human approval.
 2. Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-   `*.crt`, `id_rsa*`. The hook above blocks Edit/Write attempts.
+   `*.crt`, `id_rsa*`, or any file matching a sensible secret naming
+   convention (e.g., `secrets.{json,yaml,yml}`, `*.secret.*`,
+   `*.secrets.*`, `*api-token*`, `*-credentials.*`). The hook above
+   blocks Edit/Write attempts for this full set; see `pr-rules/common.md`
+   §3 for the canonical list.
 3. Every AI-assisted PR title MUST start with `[AI-Assisted]` and the
    body MUST include the originating Claude chat URL; draft PRs may use
    the `<CLAUDE_CHAT_URL>` placeholder until the real URL is added.

@@ -42,6 +42,11 @@
 
 - [ ] No `.env*`, `*.pem`, `*.key`, `credentials.json`, `*.crt`, or
       `id_rsa*` files were created, modified, or pasted into the diff.
+- [ ] No files matching common secret naming conventions
+      (e.g., `secrets.{json,yaml,yml}`, `*.secret.*`, `*.secrets.*`,
+      `*api-token*`, `*-credentials.*`) were created, modified, or
+      pasted into the diff. See `pr-rules/common.md` §3 for the full
+      canonical list.
 
 ## Notes for reviewers
 

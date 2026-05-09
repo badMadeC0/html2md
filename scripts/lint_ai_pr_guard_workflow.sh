@@ -27,16 +27,20 @@ WF=".github/workflows/ai-assisted-pr-guard.yml"
 [ -f "$WF" ] || fail "workflow not found: $WF"
 
 # Prefer pyyaml-based parse; fall back to grep checks.
-# Probe candidates and pick the first one that satisfies >= 3.8. Trying
-# both names covers pyenv setups where one shim may resolve to an older
-# interpreter than the other.
+# Probe candidates and pick the first one that satisfies >= 3.8.
+# `python3`/`python` come first so the lint runs in a developer's normal
+# shell environment. The absolute system paths come next so the lint still
+# runs when the repo's `.python-version` pins a pyenv version that isn't
+# installed (the pyenv shim would otherwise fail before reaching a usable
+# interpreter, and the grep-only path silently downgrades validation).
 have_yaml=0
 PYTHON_BIN=""
-for candidate in python3 python; do
-  if command -v "$candidate" >/dev/null 2>&1 \
-     && "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
-    PYTHON_BIN="$candidate"
-    break
+for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+  if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
+    if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
   fi
 done
 
