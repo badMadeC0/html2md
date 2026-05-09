@@ -75,12 +75,17 @@ def main(argv=None):
                 response.raise_for_status()
 
                 max_size = 10 * 1024 * 1024
+                content_length = response.headers.get('Content-Length')
                 try:
-                    if int(response.headers.get('Content-Length', 0)) > max_size:
-                        print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                        response.close()
-                        return
-                except ValueError:
+                    if content_length is not None:
+                        content_length_value = int(content_length)
+                        if content_length_value < 0:
+                            raise ValueError("Negative Content-Length header")
+                        if content_length_value > max_size:
+                            print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                            response.close()
+                            return
+                except (ValueError, TypeError):
                     print("Warning: Invalid Content-Length header; enforcing size limit during download.", file=sys.stderr)
 
                 content_bytes = bytearray()
