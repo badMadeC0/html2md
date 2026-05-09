@@ -7,13 +7,14 @@ import pytest
 
 from html2md import __version__
 
-HAS_FLASK = find_spec("flask") is not None
+FLASK_AVAILABLE = find_spec("flask") is not None
+
 pytestmark = pytest.mark.skipif(
-    not HAS_FLASK,
-    reason="Flask is not installed; install the deploy extra to run app tests",
+    not FLASK_AVAILABLE,
+    reason="Flask is required to test the health endpoint.",
 )
 
-if HAS_FLASK:
+if FLASK_AVAILABLE:
     from html2md.app import app
 else:
     app = None
