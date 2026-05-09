@@ -16,7 +16,7 @@ change, read these files in order:
 4. [pr-rules/python.local.md](mdc:pr-rules/python.local.md) — repo-local
    Python overrides.
 5. [pr-rules/service-html2md.md](mdc:pr-rules/service-html2md.md) —
-   service-specific rules (cli.py placeholder, log-export contract,
+   service-specific rules (CLI/runtime, log-export contract,
    Windows CI, symlinked CLAUDE.md).
 
 ## Hard rules — non-negotiable
