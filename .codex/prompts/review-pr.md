@@ -20,10 +20,15 @@ rule. Use whichever invocation Codex CLI supports for prompt files.
      start with `[AI-Assisted]`; otherwise, do not require or report that
      marker.
    - If the PR is AI-authored or substantially AI-edited, the body MUST
-     contain an originating agent transcript URL (claude.ai, cursor.com,
-     chatgpt.com/codex, jules.google.com — any of them). Warn on the
-     literal placeholder `<CLAUDE_CHAT_URL>`. For non-AI PRs, do NOT
-     report the missing transcript link as a violation.
+     contain an originating agent transcript URL with the `https://` scheme
+     in one of the accepted forms (matching the guard workflow):
+     `https://claude.ai/chat/<id>`, `https://claude.ai/share/<id>`,
+     `https://claude.ai/code/session_<id>`,
+     `https://cursor.com/share/<id>`,
+     `https://chatgpt.com/codex/<id>`, or
+     `https://jules.google.com/task/<id>`. Warn on the literal
+     placeholder `<CLAUDE_CHAT_URL>`. For non-AI PRs, do NOT report
+     the missing transcript link as a violation.
 2. List changed files via `git diff --name-only origin/main...HEAD`.
 3. Read each rule file in order; for every rule, scan the diff and the
    changed files for violations. Format violations as:

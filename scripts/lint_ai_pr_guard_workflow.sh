@@ -91,12 +91,38 @@ if "claude.ai" not in raw and "CLAUDE_CHAT_URL" not in raw and "Claude chat" not
 print(f"OK [yaml-parse]: {path} triggers on pull_request, has {len(jobs)} job(s), checks [AI-Assisted] + Claude chat link")
 PY
 else
-  # Fallback grep-based checks (no pyyaml available).
+  # Fallback grep-based checks (no pyyaml available). These can pass even
+  # for structurally invalid YAML (e.g. an unindented `run: |` block can
+  # still contain the substrings we look for), so attempt one more
+  # structural check: every non-blank, non-comment line at column 1 must
+  # be a known top-level key. This catches the unindented-heredoc class
+  # of bug where embedded code escapes the block scalar.
   grep -Eq '^[[:space:]]*pull_request:' "$WF" || fail "workflow must trigger on pull_request (grep)"
   grep -Eq '^[[:space:]]*jobs:' "$WF" || fail "workflow must define a 'jobs:' block (grep)"
   grep -Fq '[AI-Assisted]' "$WF" || fail "workflow must reference the [AI-Assisted] PR-title marker (grep)"
   if ! grep -Eq 'claude\.ai|CLAUDE_CHAT_URL|Claude chat' "$WF"; then
     fail "workflow must reference a Claude chat link check (grep)"
   fi
-  echo "OK [grep-only, pyyaml not installed]: $WF triggers on pull_request, has jobs, checks [AI-Assisted] + Claude chat link"
+  # Allowed top-level YAML keys for a GitHub Actions workflow. Anything
+  # else at column 1 is a strong indicator of an indentation bug (e.g.
+  # embedded shell/python escaping a `run: |` block).
+  bad=$(awk '
+    /^[[:space:]]*$/ || /^#/ { next }
+    /^[A-Za-z][A-Za-z0-9_-]*:/ {
+      key = $0; sub(/:.*/, "", key);
+      if (key !~ /^(name|on|permissions|env|defaults|concurrency|jobs|run-name)$/) {
+        print NR ": unexpected top-level key: " key;
+      }
+      next;
+    }
+    /^[^[:space:]#]/ {
+      print NR ": unindented non-key line: " $0;
+    }
+  ' "$WF")
+  if [ -n "$bad" ]; then
+    echo "FAIL: structural validation rejected the workflow:" >&2
+    echo "$bad" >&2
+    fail "workflow has unindented content (likely a broken \`run: |\` block); install pyyaml for full validation"
+  fi
+  echo "OK [grep-only + structural, pyyaml not installed]: $WF triggers on pull_request, has jobs, checks [AI-Assisted] + Claude chat link"
 fi

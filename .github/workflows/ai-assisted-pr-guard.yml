@@ -10,11 +10,8 @@ permissions:
 
 jobs:
   check-ai-assisted-marker:
-    # The job name reflects what is actually enforced: the [AI-Assisted]
-    # title prefix is opt-in (no enforcement when absent), and the chat
-    # link requirement is enforced only for PRs that already carry the
-    # tag. See pr-rules/common.md §1 for the policy.
-    name: Verify chat link for [AI-Assisted] PRs
+    # Enforce AI-assistance metadata without blocking human-authored PRs.
+    name: Verify AI-assisted PR metadata
     runs-on: ubuntu-latest
     steps:
       - name: Inspect PR title and body
@@ -26,47 +23,81 @@ jobs:
           set -euo pipefail
           echo "PR title: $PR_TITLE"
 
-          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "OK: PR is not marked [AI-Assisted]; skipping transcript enforcement."
-            exit 0
-          fi
+          # Body must reference an agent transcript URL for PRs explicitly
+          # marked as AI-assisted. Accepted hosts and required path prefixes:
+          #   claude.ai/(chat|share)/<id>
+          #   claude.ai/code/session_<id>
+          #   cursor.com/share/<id>
+          #   chatgpt.com/codex/<...>
+          #   jules.google.com/task/<id>
+          # The placeholder <CLAUDE_CHAT_URL> is acceptable in DRAFT PRs only.
+          # Ready/non-draft PRs fail if the placeholder is anywhere in the
+          # body — even alongside a real URL — because the baseline says the
+          # placeholder must be replaced before a PR is ready.
+          # Strip HTML comments from the body before any placeholder/URL
+          # match. The PR template intentionally never contains the literal
+          # `<CLAUDE_CHAT_URL>`, but other comment text in the template
+          # (or in PRs copied from older templates) shouldn't accidentally
+          # satisfy or trigger the metadata checks. python is preinstalled
+          # on ubuntu-latest runners. (Single-line invocation so no
+          # block-scalar indentation hazards exist.)
+          body=$(python3 -c "import os, re, sys; sys.stdout.write(re.sub(r'<!--.*?-->', '', os.environ.get('PR_BODY','') or '', flags=re.DOTALL))")
+          # Require the path to start with at least one ID character (alnum,
+          # `_`, or `-`). Using a strict ID class instead of "any non-slash,
+          # non-`?`" rejects `claude.ai/chat/)` or `claude.ai/chat/#` where
+          # the immediate trailing character is closing punctuation or a
+          # fragment marker.
+          transcript_regex='(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]|claude\.ai/code/session_[a-zA-Z0-9_-]|cursor\.com/share/[a-zA-Z0-9_-]|chatgpt\.com/codex/[a-zA-Z0-9_-]|jules\.google\.com/task/[a-zA-Z0-9_-])'
 
-          # Body must reference a Claude chat URL or other agent transcript
-          # only for PRs explicitly marked as AI-assisted.
-          # Accept claude.ai links, cursor.com, codex, jules.google, or the
-          # literal placeholder <CLAUDE_CHAT_URL> for drafts only (warn).
-          # Ready/non-draft PRs fail until the placeholder is replaced.
-          body="${PR_BODY:-}"
-
-          # Require a real chat/share path after each accepted host:
-          #   claude.ai/<path>, cursor.com/<path>, chatgpt.com/codex/<path>,
-          #   jules.google.com/<path>.
-          # This rejects:
-          #   - bare hosts like https://claude.ai, https://claude.ai?x=1,
-          #     or https://claude.ai/?x=1 (which are not transcript links)
-          #   - lookalikes like https://claude.ai.evil.example/foo
-          #   - URL-in-URL embeddings like
-          #     https://example.test/redirect/https://claude.ai/chat/fake,
-          #     because the leading-boundary group `(^|[[:space:]<>(])`
-          #     requires the `https?://` to start at a real link boundary
-          #     (start of string, whitespace, or a Markdown/autolink bracket).
-          # The trailing class `[^/?[:space:]]` requires at least one
-          # non-slash, non-`?`, non-whitespace path character so an empty `/`
-          # or a query-only root URL doesn't pass.
-          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai|cursor\.com|chatgpt\.com/codex|jules\.google\.com)/[^/?[:space:]]'; then
-            echo "OK: PR body contains an agent chat URL."
-            exit 0
-          fi
-
+          has_placeholder=false
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then
+            has_placeholder=true
+          fi
+
+          # The leading-boundary group `(^|[[:space:]<>(])` requires the URL
+          # to start at a real link boundary so that:
+          #   - bare hosts like https://claude.ai or https://claude.ai/settings
+          #     and generic provider pages like https://cursor.com/pricing
+          #     don't satisfy the check (they don't match a transcript prefix)
+          #   - lookalikes like https://claude.ai.evil.example/foo are rejected
+          #   - URL-in-URL embeddings like
+          #     https://example.test/redirect/https://claude.ai/chat/fake do
+          #     not match (the inner `https?://` is preceded by `/` not a
+          #     boundary char).
+          # Each accepted provider path includes at least one non-slash,
+          # non-`?`, non-whitespace character after its required prefix so
+          # empty transcript paths don't pass.
+          has_transcript=false
+          if printf '%s' "$body" | grep -Eqi "$transcript_regex"; then
+            has_transcript=true
+          fi
+
+          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
+            if [[ "$has_placeholder" == "true" || "$has_transcript" == "true" ]]; then
+              echo "::error::PR body contains AI-assistance transcript metadata, so the PR title must start with [AI-Assisted]."
+              exit 1
+            fi
+            echo "OK: PR is not marked [AI-Assisted] and no AI-assistance transcript metadata was found; skipping transcript enforcement."
+            exit 0
+          fi
+
+          # Reject the placeholder first for non-draft PRs. This must come
+          # before accepting a real URL so a PR with both a real URL AND a
+          # leftover placeholder still fails. Drafts may keep only the
+          # placeholder while the originating transcript is not ready yet.
+          if [[ "$has_placeholder" == "true" ]]; then
             if [[ "${PR_DRAFT:-false}" == "true" ]]; then
-              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review."
+              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real agent transcript URL before marking ready for review."
               exit 0
             fi
-
-            echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review or merging."
+            echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real agent transcript URL before marking ready for review or merging."
             exit 1
           fi
 
-          echo "::error::PR title is tagged [AI-Assisted] but the body does not include a Claude chat URL (or accepted alternative). Add the URL or remove the tag."
+          if [[ "$has_transcript" == "true" ]]; then
+            echo "OK: PR body contains an agent transcript URL."
+            exit 0
+          fi
+
+          echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat, claude.ai/share, claude.ai/code/session_, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
           exit 1

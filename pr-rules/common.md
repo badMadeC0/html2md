@@ -26,7 +26,7 @@ rules layer on top in `pr-rules/<lang>.md` and `pr-rules/service-*.md`.
 ## 3. Secrets and sensitive files
 
 - Never read, write, edit, or commit: `.env*`, `*.pem`, `*.key`,
-  `credentials.json`, `*.crt`, `id_rsa*`, or any file matching a sensible
+  `credentials.json`, `*.crt`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, or any file matching a sensible
   "secret" naming convention.
 - Never paste credentials into PR bodies, comments, or test fixtures.
 - The Claude Code hook `.claude/hooks/protect-sensitive-files.py` blocks
