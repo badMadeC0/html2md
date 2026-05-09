@@ -35,7 +35,12 @@ jobs:
           # body — even alongside a real URL — because the baseline says the
           # placeholder must be replaced before a PR is ready.
           body="${PR_BODY:-}"
-          transcript_regex='(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session_[^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'
+          # Require the path to start with at least one ID character (alnum,
+          # `_`, or `-`). Using a strict ID class instead of "any non-slash,
+          # non-`?`" rejects `claude.ai/chat/)` or `claude.ai/chat/#` where
+          # the immediate trailing character is closing punctuation or a
+          # fragment marker.
+          transcript_regex='(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]|claude\.ai/code/session_[a-zA-Z0-9_-]|cursor\.com/share/[a-zA-Z0-9_-]|chatgpt\.com/codex/[a-zA-Z0-9_-]|jules\.google\.com/task/[a-zA-Z0-9_-])'
 
           has_placeholder=false
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then

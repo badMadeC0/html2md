@@ -23,22 +23,29 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.pem",
     "*.key",
     "*.crt",
-    "credentials.json",
     "id_rsa*",
     # "any file matching a sensible secret naming convention" (per
-    # pr-rules/common.md §3). Use broad `secrets.*` / `secret.*` rather
-    # than enumerating each extension — `secrets.toml`, `secret.env`,
-    # etc. are equally sensitive and easy to miss in a hand-written list.
-    # Err on the side of false-positive block for unfamiliar names rather
-    # than false-negative leak.
+    # pr-rules/common.md §3). Use broad globs rather than enumerating
+    # each extension — `credentials.toml`, `secrets.env`, etc. are equally
+    # sensitive and easy to miss. Err on the side of false-positive block
+    # for unfamiliar names rather than false-negative leak.
+    #
+    # Both extensionless basenames (`secrets`, `secret`, `credentials`,
+    # `prod-credentials`) and any-extension forms are covered.
+    "secrets",
+    "secret",
+    "credentials",
     "secrets.*",
     "secret.*",
+    "credentials.*",
     "*.secret",
     "*.secret.*",
     "*.secrets",
     "*.secrets.*",
     "*api-token*",
     "*api_token*",
+    "*-credentials",
+    "*_credentials",
     "*-credentials.*",
     "*_credentials.*",
 )
