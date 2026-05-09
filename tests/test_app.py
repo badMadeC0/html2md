@@ -1,3 +1,5 @@
+"""Tests for src/html2md/app.py: health endpoint and get_host_port() env-var parsing."""
+
 import os
 from unittest.mock import patch
 
@@ -17,7 +19,7 @@ def test_get_host_port_defaults():
     with patch.dict(os.environ, clear=True):
         host, port = get_host_port()
         assert host == "0.0.0.0"
-        assert port == 10000
+        assert port == DEFAULT_PORT
 
 
 def test_get_host_port_env_vars():
@@ -29,5 +31,5 @@ def test_get_host_port_env_vars():
 
 def test_get_host_port_invalid_port():
     with patch.dict(os.environ, {"PORT": "invalid"}):
-        host, port = get_host_port()
-        assert port == 10000
+        _, port = get_host_port()
+        assert port == DEFAULT_PORT
