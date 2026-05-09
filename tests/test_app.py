@@ -52,12 +52,12 @@ def test_get_host_port_empty_host_falls_back_to_contextual_default(monkeypatch):
 def test_get_host_port_empty_host_with_port_uses_deploy_host(monkeypatch):
     """Treat an empty HOST like missing HOST for PaaS-style PORT-only launches."""
     monkeypatch.setenv("HOST", "")
-    monkeypatch.setenv("PORT", "18080")
+    monkeypatch.setenv("PORT", "3000")
 
     hostname, port = get_host_port()
 
     assert hostname == DEPLOY_HOST
-    assert port == 18080
+    assert port == 3000
 
 
 def test_get_host_port_invalid_port_is_treated_as_missing(monkeypatch):
