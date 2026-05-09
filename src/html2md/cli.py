@@ -91,10 +91,12 @@ def main(argv=None):
                         response.close()
                         return
 
-                response._content = bytes(content_bytes)
+                html_bytes = bytes(content_bytes)
+                encoding = response.encoding or 'utf-8'
+                html_content = html_bytes.decode(encoding, errors='replace')
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
