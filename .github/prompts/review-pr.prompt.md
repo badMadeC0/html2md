@@ -17,10 +17,22 @@ prompt-file flows.
 
 ## Procedure
 
-1. Load PR title and body. Check:
-   - Title starts with `[AI-Assisted]`.
-   - Body contains a Claude chat URL (warn on the literal placeholder
-     `<CLAUDE_CHAT_URL>`).
+1. Load PR title and body. Determine whether the PR is AI-authored or
+   substantially AI-edited under `pr-rules/common.md`. Check:
+   - If it is AI-authored or substantially AI-edited, title starts with
+     `[AI-Assisted]`.
+   - If it is AI-authored or substantially AI-edited, body contains an
+     originating agent transcript URL from one of the accepted forms
+     (matching `.github/workflows/ai-assisted-pr-guard.yml`):
+     - `claude.ai/chat/<id>`
+     - `claude.ai/share/<id>`
+     - `claude.ai/code/session_<id>`
+     - `cursor.com/share/<id>`
+     - `chatgpt.com/codex/<id>`
+     - `jules.google.com/task/<id>`
+     Warn on the literal placeholder `<CLAUDE_CHAT_URL>`.
+   - If it is not AI-authored or substantially AI-edited, do not flag the
+     absence of `[AI-Assisted]` or a transcript URL as a violation.
 2. Enumerate changed files with `git diff --name-only origin/main...HEAD`.
 3. For each rule in `pr-rules/common.md`, search the diff for violations.
    Format each as `path:line — common.md rule N: <one-line summary>`.

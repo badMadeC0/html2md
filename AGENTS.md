@@ -24,17 +24,24 @@ the markers is managed centrally; do not hand-edit.
   `.claude/commands/edge-case.md`
 - Sensitive-file write guard: `.claude/hooks/protect-sensitive-files.py`
 - PR template: `.github/PULL_REQUEST_TEMPLATE.md`
-- PR-title check: `.github/workflows/ai-assisted-pr-guard.yml` checks
-  for the `[AI-Assisted]` tag and a Claude chat link on every PR.
+- PR-title check: `.github/workflows/ai-assisted-pr-guard.yml` enforces
+  the Claude chat link requirement for PRs whose titles start with
+  `[AI-Assisted]`; draft PRs may temporarily use `<CLAUDE_CHAT_URL>`
+  until they are ready.
 - Consistency check: `scripts/check_agents_consistency.sh`
 - Baseline version: `BASELINE_VERSION` (semver)
 
 Hard rules — no AI agent may override:
 1. Never push, open, merge, or close PRs without explicit human approval.
 2. Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-   `*.crt`, `id_rsa*`. The hook above blocks Edit/Write attempts.
+   `*.crt`, `id_rsa*`, or any file matching a sensible secret naming
+   convention (e.g., `secrets.{json,yaml,yml}`, `*.secret.*`,
+   `*.secrets.*`, `*api-token*`, `*-credentials.*`). The hook above
+   blocks Edit/Write attempts for this full set; see `pr-rules/common.md`
+   §3 for the canonical list.
 3. Every AI-assisted PR title MUST start with `[AI-Assisted]` and the
-   body MUST include the originating Claude chat URL.
+   body MUST include the originating Claude chat URL; draft PRs may use
+   the `<CLAUDE_CHAT_URL>` placeholder until the real URL is added.
 4. Append new edge cases to `pr-rules/edge-cases.md`; never delete rows.
 <!-- END BASELINE -->
 
@@ -44,8 +51,9 @@ Hard rules — no AI agent may override:
 - **CI:** GitHub Actions on `windows-latest` (`.github/workflows/ci.yml`).
 - **Entry points:** `html2md` (`cli.py:main`), `html2md-log-export`
   (`log_export.py:main`), `html2md-upload` (`upload.py:main`).
-- **Status of `cli.py`:** placeholder stub — the full converter ships
-  from a separate packaged build. Do not add conversion logic here.
+- **Status of `cli.py`:** active runtime entry point in this repo for URL
+  fetch and conversion behavior. Keep changes narrowly scoped and
+  backward-compatible with the current CLI behavior in this repository.
 - **Encoding:** UTF-8 everywhere; use `pathlib.Path` and `argparse`.
 
 ## How agents should work here

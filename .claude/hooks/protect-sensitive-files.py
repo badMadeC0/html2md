@@ -23,24 +23,29 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.pem",
     "*.key",
     "*.crt",
-    "credentials.json",
     "id_rsa*",
     # "any file matching a sensible secret naming convention" (per
-    # pr-rules/common.md §3). Conservative set — additions welcome via
-    # PR + edge-case ledger entry, but err on the side of false-positive
-    # block for unfamiliar names rather than false-negative leak.
-    "secrets.json",
-    "secret.json",
-    "secrets.yaml",
-    "secrets.yml",
-    "secret.yaml",
-    "secret.yml",
+    # pr-rules/common.md §3). Use broad globs rather than enumerating
+    # each extension — `credentials.toml`, `secrets.env`, etc. are equally
+    # sensitive and easy to miss. Err on the side of false-positive block
+    # for unfamiliar names rather than false-negative leak.
+    #
+    # Both extensionless basenames (`secrets`, `secret`, `credentials`,
+    # `prod-credentials`) and any-extension forms are covered.
+    "secrets",
+    "secret",
+    "credentials",
+    "secrets.*",
+    "secret.*",
+    "credentials.*",
     "*.secret",
     "*.secret.*",
     "*.secrets",
     "*.secrets.*",
     "*api-token*",
     "*api_token*",
+    "*-credentials",
+    "*_credentials",
     "*-credentials.*",
     "*_credentials.*",
 )
@@ -118,12 +123,6 @@ def main(argv=None) -> int:
         return 2
 
     candidates = _collect_candidate_paths(tool_input)
-    if not candidates:
-        print(
-            f"protect-sensitive-files: BLOCKED — could not determine target path(s) for {tool_name}",
-            file=sys.stderr,
-        )
-        return 2
 
     # Fail-closed when an in-scope tool has no recognized path keys: a
     # future Claude Code version that uses different keys (e.g. `target`,
