@@ -8,7 +8,12 @@ DEFAULT_PORT = 10000
 
 
 def get_host_port():
-    """Get host and port from environment variables."""
+    """Get host and port from environment variables.
+
+    Defaults to host ``0.0.0.0`` (all interfaces, suitable for containers)
+    and port ``DEFAULT_PORT``. Override via the ``HOST`` and ``PORT``
+    environment variables.
+    """
     port_str = os.environ.get('PORT')
     try:
         port_value = int(port_str) if port_str is not None else DEFAULT_PORT
