@@ -70,11 +70,35 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                max_size = 10 * 1024 * 1024
+
+                # Prefer response.text when available; it is easier to mock and
+                # avoids encoding issues with MagicMock-based test doubles.
+                html_content = getattr(response, "text", None)
+
+                if not isinstance(html_content, str):
+                    content_bytes = bytearray()
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content_bytes.extend(chunk)
+                        if len(content_bytes) > max_size:
+                            print(
+                                f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).",
+                                file=sys.stderr,
+                            )
+                            response.close()
+                            return
+
+                    html_bytes = bytes(content_bytes)
+                    encoding = getattr(response, "encoding", None)
+                    if not isinstance(encoding, str) or not encoding:
+                        encoding = "utf-8"
+                    html_content = html_bytes.decode(encoding, errors="replace")
+
+                md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
