@@ -73,7 +73,6 @@ def main(argv=None):
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
                 with session.get(target_url, timeout=30, stream=True) as response:
                     response.raise_for_status()
-                    response.raise_for_status()
                     max_size = 10 * 1024 * 1024
                     content_length = response.headers.get('Content-Length')
                     try:
