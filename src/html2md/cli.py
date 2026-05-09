@@ -45,7 +45,9 @@ def main(argv=None):
                 'image/avif,image/webp,image/apng,*/*;q=0.8'
             ),
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
+            # Prefer uncompressed responses so streaming limits apply to network chunks
+            # without Requests inflating compressed content into oversized chunks.
+            'Accept-Encoding': 'identity',
             'Referer': 'https://www.google.com/',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
@@ -89,10 +91,10 @@ def main(argv=None):
 
                     content = bytearray()
                     for chunk in response.iter_content(chunk_size=8192):
-                        content.extend(chunk)
-                        if len(content) > max_size:
+                        if len(content) + len(chunk) > max_size:
                             print("Error: Content exceeds maximum allowed size (10MB).", file=sys.stderr)
                             return 1
+                        content.extend(chunk)
 
                     # Decode using Requests' charset choice when available, falling back safely for bad headers.
                     encoding = response.encoding

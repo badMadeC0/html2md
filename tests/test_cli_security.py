@@ -59,3 +59,26 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_oversized_stream_chunk_is_rejected_before_buffer_extend(mock_get, capsys, tmp_path):
+    """A decoded chunk larger than the limit is rejected before buffer extension."""
+    response = mock_response(b"x" * (10 * 1024 * 1024 + 1))
+    mock_get.return_value = response
+
+    class GuardedBytearray:
+        def __len__(self):
+            return 0
+
+        def extend(self, chunk):
+            raise AssertionError("oversized chunk should not be appended")
+
+    with patch("html2md.cli.bytearray", return_value=GuardedBytearray(), create=True):
+        with patch("markdownify.markdownify") as mock_md:
+            status = cli.main(["--url", "http://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert status == 1
+    assert "Error: Content exceeds maximum allowed size (10MB)." in outerr.err
+    mock_md.assert_not_called()
