@@ -25,7 +25,7 @@ the markers is managed centrally; do not hand-edit.
 - Sensitive-file write guard: `.claude/hooks/protect-sensitive-files.py`
 - PR template: `.github/PULL_REQUEST_TEMPLATE.md`
 - PR-title check: `.github/workflows/ai-assisted-pr-guard.yml` enforces
-  the Claude chat link requirement for PRs whose titles start with
+  the agent transcript link requirement for PRs whose titles start with
   `[AI-Assisted]`; draft PRs may temporarily use `<CLAUDE_CHAT_URL>`
   until they are ready.
 - Consistency check: `scripts/check_agents_consistency.sh`
@@ -40,8 +40,10 @@ Hard rules — no AI agent may override:
    blocks Edit/Write attempts for this full set; see `pr-rules/common.md`
    §3 for the canonical list.
 3. Every AI-assisted PR title MUST start with `[AI-Assisted]` and the
-   body MUST include the originating Claude chat URL; draft PRs may use
-   the `<CLAUDE_CHAT_URL>` placeholder until the real URL is added.
+   body MUST include the originating agent transcript URL (for example,
+   an accepted Claude, Cursor, Codex, or Jules transcript link); draft
+   PRs may use the `<CLAUDE_CHAT_URL>` placeholder until the real URL is
+   added.
 4. Append new edge cases to `pr-rules/edge-cases.md`; never delete rows.
 <!-- END BASELINE -->
 
