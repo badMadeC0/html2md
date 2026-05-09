@@ -11,6 +11,8 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         env:
@@ -20,8 +22,11 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python - <<'PY'
+          from __future__ import annotations
+
           import json
           import os
+          import sys
           import urllib.error
           import urllib.request
 
@@ -64,7 +69,7 @@ jobs:
                       "Review request for @google-labs-jules already exists on "
                       f"PR #{pr_number}; skipping duplicate comment."
                   )
-                  raise SystemExit(0)
+                  sys.exit(0)
           except urllib.error.HTTPError as error:
               error_body = error.read().decode("utf-8")
               print(
@@ -72,14 +77,14 @@ jobs:
                   "continuing without failing the workflow."
               )
               print(f"HTTP {error.code}: {error_body}")
-              raise SystemExit(0)
+              sys.exit(0)
           except urllib.error.URLError as error:
               print(
                   "Could not check existing @google-labs-jules comments due to a "
                   "network error; continuing without failing the workflow."
               )
               print(f"Error: {error}")
-              raise SystemExit(0)
+              sys.exit(0)
 
           request = urllib.request.Request(
               url=comments_url,
@@ -95,6 +100,9 @@ jobs:
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context (HTTP 403).")
+                  sys.exit(0)
               error_body = error.read().decode("utf-8")
               print(
                   "Could not request review from @google-labs-jules; "
