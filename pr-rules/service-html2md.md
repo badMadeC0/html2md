@@ -56,8 +56,16 @@ for any PR in this repository specifically.
 
 ## 7. Baseline sync
 
-- Files inside `<!-- BEGIN BASELINE --> ... <!-- END BASELINE -->` markers
-  in `AGENTS.md`, plus everything under `pr-rules/` (except
-  `python.local.md` and `edge-cases.md`), are synced from the AI-PR-Review
-  template repo. Local edits to those regions will be overwritten by
-  `.github/workflows/sync-from-template.yml`.
+- The block inside `<!-- BEGIN BASELINE --> ... <!-- END BASELINE -->`
+  markers in `AGENTS.md` and the cross-stack rule sets `pr-rules/common.md`
+  and `pr-rules/python.md` are synced from the AI-PR-Review template repo
+  by `.github/workflows/sync-from-template.yml`. Local edits to those
+  regions will be overwritten when sync runs.
+- Files that are **repo-local and never synced** (safe to edit):
+  - `pr-rules/python.local.md`
+  - `pr-rules/edge-cases.md`
+  - `pr-rules/service-html2md.md` (this file — service-specific to html2md)
+  - `BASELINE_VERSION` (bumped manually after each sync)
+- Authoritative scope is whatever `sync-from-template.yml` declares; if
+  this list and the workflow disagree, treat the workflow as canonical
+  and update this section.
