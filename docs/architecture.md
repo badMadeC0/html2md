@@ -6,16 +6,18 @@
 
 <!--
   Replace with a text-mode or mermaid diagram. Suggested first version:
-  user → html2md (CLI) → packaged-runtime → output (md|pdf|txt)
-                       ↘ html2md-log-export (CLI) → CSV
-                       ↘ html2md-upload (CLI) → S3 / etc.
+  user → html2md (CLI; src/html2md/cli.py) → markdown output (.md)
+       ↘ html2md-log-export (CLI; src/html2md/log_export.py) → CSV
+       ↘ html2md-upload (CLI; src/html2md/upload.py) → upload target
+  The conversion runtime is in-repo (markdownify-based). Packaged builds
+  may extend it; document that here when applicable.
 -->
 
 ## Modules
 
 | Module | Path | Responsibility |
 | ------ | ---- | -------------- |
-| `cli` | `src/html2md/cli.py` | CLI entry point (placeholder stub). |
+| `cli` | `src/html2md/cli.py` | CLI entry point for fetching HTML inputs and running the in-repo conversion flow. |
 | `log_export` | `src/html2md/log_export.py` | JSONL → CSV log exporter. |
 | `upload` | `src/html2md/upload.py` | Upload entry point. |
 | `app` | `src/html2md/app.py` | (describe responsibility) |

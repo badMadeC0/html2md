@@ -3,15 +3,17 @@
 These rules layer on top of `pr-rules/common.md` and `pr-rules/python.md`
 for any PR in this repository specifically.
 
-## 1. CLI placeholder boundary
+## 1. CLI runtime scope
 
-- `src/html2md/cli.py` is a **placeholder stub**. The full HTML→Markdown /
-  PDF / TXT conversion runtime ships from a separate packaged build.
-- Do **not** add real conversion logic, URL fetching, rate-limiting, or
-  ReportLab rendering to `cli.py` here. Bug fixes to argument parsing and
-  help output are fine.
-- If a PR proposes pulling the full runtime into this repo, that requires
-  an ADR under `adr/` first.
+- `src/html2md/cli.py` in this repository is the active runtime for URL
+  fetching and HTML conversion flows.
+- Keep CLI changes scoped and backward-compatible (argument parsing,
+  output handling, conversion behavior, and error handling). Output format
+  changes and different handling of existing edge cases should be treated
+  as breaking unless explicitly approved.
+- If a PR proposes a major architecture move (for example, splitting core
+  conversion runtime across packages/repos), that requires an ADR under
+  `adr/` first.
 
 ## 2. Log-export utility contract
 
@@ -54,8 +56,16 @@ for any PR in this repository specifically.
 
 ## 7. Baseline sync
 
-- Files inside `<!-- BEGIN BASELINE --> ... <!-- END BASELINE -->` markers
-  in `AGENTS.md`, plus everything under `pr-rules/` (except
-  `python.local.md` and `edge-cases.md`), are synced from the AI-PR-Review
-  template repo. Local edits to those regions will be overwritten by
-  `.github/workflows/sync-from-template.yml`.
+- The block inside `<!-- BEGIN BASELINE --> ... <!-- END BASELINE -->`
+  markers in `AGENTS.md` and the cross-stack rule sets `pr-rules/common.md`
+  and `pr-rules/python.md` are synced from the AI-PR-Review template repo
+  by `.github/workflows/sync-from-template.yml`. Local edits to those
+  regions will be overwritten when sync runs.
+- Files that are **repo-local and never synced** (safe to edit):
+  - `pr-rules/python.local.md`
+  - `pr-rules/edge-cases.md`
+  - `pr-rules/service-html2md.md` (this file — service-specific to html2md)
+  - `BASELINE_VERSION` (bumped manually after each sync)
+- Authoritative scope is whatever `sync-from-template.yml` declares; if
+  this list and the workflow disagree, treat the workflow as canonical
+  and update this section.
