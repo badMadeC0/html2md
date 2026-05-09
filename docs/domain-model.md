@@ -23,7 +23,8 @@ The vocabulary the project uses internally and externally.
 - **JSONL log:** Newline-delimited JSON file produced by the runtime,
   consumed by `html2md-log-export`. Default fields: `ts`, `input`,
   `output`, `status`, `reason`.
-- **Conversion runtime:** The HTML→Markdown / PDF / TXT conversion
-  pipeline exposed by this project's CLI and documentation; this repo
-  contains the interface/stub for that flow, while the full production
-  runtime is delivered by a separate packaged build.
+- **Conversion runtime:** The production HTML→Markdown / PDF / TXT
+  conversion implementation. This repository provides the CLI surface,
+  interface, and placeholder stub for that flow for contributor and
+  packaging workflows, but the full production runtime is shipped in a
+  separate packaged build.
