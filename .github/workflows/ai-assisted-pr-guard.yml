@@ -34,7 +34,17 @@ jobs:
           # Ready/non-draft PRs fail if the placeholder is anywhere in the
           # body — even alongside a real URL — because the baseline says the
           # placeholder must be replaced before a PR is ready.
-          body="${PR_BODY:-}"
+          # Strip HTML comments from the body before any placeholder/URL
+          # match. The PR template intentionally never contains the literal
+          # `<CLAUDE_CHAT_URL>`, but other comment text in the template
+          # (or in PRs copied from older templates) shouldn't accidentally
+          # satisfy or trigger the metadata checks. python is preinstalled
+          # on ubuntu-latest runners.
+          body=$(python3 -c '
+import os, re, sys
+body = os.environ.get("PR_BODY", "") or ""
+sys.stdout.write(re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL))
+')
           # Require the path to start with at least one ID character (alnum,
           # `_`, or `-`). Using a strict ID class instead of "any non-slash,
           # non-`?`" rejects `claude.ai/chat/)` or `claude.ai/chat/#` where

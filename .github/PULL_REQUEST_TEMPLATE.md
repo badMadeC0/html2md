@@ -10,19 +10,18 @@
 <!-- 1–3 sentences. What changes and why. -->
 
 <!--
-  ## Originating agent transcript
-
-  ONLY for AI-assisted PRs (title starts with [AI-Assisted]). Uncomment
-  this section and replace the placeholder with the real transcript URL
-  (claude.ai/chat/..., claude.ai/share/..., claude.ai/code/session_...,
-  cursor.com/share/..., chatgpt.com/codex/..., jules.google.com/task/...).
-
-  Drop this section entirely for human-authored PRs — leaving the
-  placeholder in the body of an untagged PR will fail the
-  ai-assisted-pr-guard workflow because it counts as AI-assistance
-  metadata without the [AI-Assisted] title marker.
-
-  <CLAUDE_CHAT_URL>
+  AI-assisted PRs only (title starts with [AI-Assisted]): add a section
+  named "Originating agent transcript" with the real transcript URL on
+  its own line. Accepted forms:
+      claude.ai/chat/<id>
+      claude.ai/share/<id>
+      claude.ai/code/session_<id>
+      cursor.com/share/<id>
+      chatgpt.com/codex/<id>
+      jules.google.com/task/<id>
+  Human-authored PRs: omit that section entirely — do NOT include the
+  literal string "<" + "CLAUDE_CHAT_URL" + ">" in your body, because the
+  ai-assisted-pr-guard workflow treats it as AI-assistance metadata.
 -->
 
 ## Scope
