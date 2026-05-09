@@ -41,6 +41,9 @@ Repo-local overrides: [`pr-rules/python.local.md`](../../pr-rules/python.local.m
 
 ## Service-specific
 
-- `src/html2md/cli.py` is an active runtime entry point in this repository;
-  keep changes scoped and backward-compatible. See
+- `src/html2md/cli.py` is a placeholder stub in this repository. Do not add
+  real network, fetch, or conversion logic there; keep it limited to the
+  stub/entry-point contract (including `main(argv=None) -> int`) used by the
+  packaged runtime build. If the architecture needs to change, do that in a
+  dedicated PR. See
   [`pr-rules/service-html2md.md`](../../pr-rules/service-html2md.md).
