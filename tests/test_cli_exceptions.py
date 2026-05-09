@@ -59,14 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        real_open = open
-                        def my_open(file, *args, **kwargs):
-                            if str(file).endswith('.md'):
-                                m = unittest.mock.mock_open()()
-                                m.write = MagicMock()
-                                return m
-                            return real_open(file, *args, **kwargs)
-                        with patch('builtins.open', side_effect=my_open) as mock_open:
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -77,4 +70,9 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            self.assertNotIn('/tmp/outside/a.md', [call[0][0] for call in mock_open.call_args_list if call[0]])
+                            opened_md_paths = [
+                                str(call[0][0])
+                                for call in mock_open.call_args_list
+                                if call[0] and str(call[0][0]).endswith('.md')
+                            ]
+                            self.assertNotIn('/tmp/outside/a.md', opened_md_paths)
