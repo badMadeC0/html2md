@@ -99,8 +99,6 @@ def main(argv=None):
 
                     print("Converting to Markdown...")
                     md_content = md(html_content, heading_style="ATX")
-                finally:
-                    response.close()
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
