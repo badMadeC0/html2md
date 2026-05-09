@@ -12,7 +12,8 @@ rules layer on top in `pr-rules/<lang>.md` and `pr-rules/service-*.md`.
   draft PRs; CI may warn during draft PR checks if it remains unfilled, but
   once the PR is ready for review, CI will fail until the placeholder is
   replaced with the actual link.
-- Reviewers should not approve a PR that lacks the tag or the required link.
+- Reviewers should not approve an AI-authored or substantially AI-edited PR
+  that lacks the tag or the required link.
 
 ## 2. Scope discipline
 
