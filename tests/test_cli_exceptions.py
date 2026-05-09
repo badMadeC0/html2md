@@ -2,7 +2,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
-import builtins
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
@@ -60,13 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-
-                        real_open = builtins.open
-                        def fake_open(file, *args, **kwargs):
-                            if '/tmp/' in str(file):
-                                return MagicMock()
-                            return real_open(file, *args, **kwargs)
-                        with patch('builtins.open', side_effect=fake_open) as mock_open:
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -77,6 +70,4 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            # Only assert not called for /tmp/ (our actual test case target)
-                            for call in mock_open.call_args_list:
-                                self.assertNotIn('/tmp/', str(call))
+                            mock_open.assert_not_called()
