@@ -11,11 +11,10 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
-        # Requesting a Jules review is best-effort; do not block PR checks if
-        # the workflow token cannot write issue comments (common for forks).
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_API_URL: ${{ github.api_url }}
@@ -23,8 +22,11 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python - <<'PY'
+          from __future__ import annotations
+
           import json
           import os
+          import sys
           import urllib.error
           import urllib.request
 
@@ -53,17 +55,13 @@ jobs:
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
-              error_body = error.read().decode("utf-8")
-              print(
-                  "Could not request review from @google-labs-jules; "
-                  "continuing without failing the workflow."
-              )
-              print(f"HTTP {error.code}: {error_body}")
-              print("Ensure the workflow token has permission to comment.")
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context (HTTP 403).")
+                  sys.exit(0)
+              body = error.read().decode("utf-8")
+              print(f"Could not request review: {body}")
+              raise
           except urllib.error.URLError as error:
-              print(
-                  "Could not request review from @google-labs-jules due to a "
-                  "network error; continuing without failing the workflow."
-              )
-              print(f"Error: {error}")
+              print(f"Skipping: network error while requesting review: {error}")
+              sys.exit(0)
           PY
