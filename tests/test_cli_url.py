@@ -2,7 +2,6 @@
 
 import sys
 from unittest.mock import MagicMock, patch
-import pytest
 
 from html2md import cli
 
@@ -25,7 +24,8 @@ def test_process_url_fixes_query_param_typo():
     expected_corrected_url = "http://example.com?q=1"
 
     with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-        cli.main(['--url', url_with_typo])
+        exit_code = cli.main(['--url', url_with_typo])
 
+        assert exit_code == 0
         # Verify get was called with the corrected URL
         mock_session.get.assert_called_once_with(expected_corrected_url, timeout=30)
