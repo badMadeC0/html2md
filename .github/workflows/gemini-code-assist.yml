@@ -18,17 +18,17 @@ jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.fork == false) ||
       (github.event_name == 'pull_request_review_comment' &&
-       contains(github.event.comment.body, '@gemini-code-assist')) ||
+       github.event.pull_request.head.repo.fork == false &&
+       startsWith(github.event.comment.body, '@gemini-code-assist') &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
-       contains(github.event.comment.body, '@gemini-code-assist'))
+       startsWith(github.event.comment.body, '@gemini-code-assist') &&
+       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Prepare Gemini prompt
         id: prompt
         uses: actions/github-script@v7
@@ -37,21 +37,117 @@ jobs:
             const eventName = context.eventName;
             const payload = context.payload;
 
+            let prompt = '/pr-code-review';
+            let prNumber;
+            let safeToRun = true;
+
             if (eventName === 'pull_request') {
-              core.setOutput('prompt', '/pr-code-review');
-              core.setOutput('pr_number', String(payload.pull_request.number));
-              return;
+              prNumber = payload.pull_request.number;
+            } else if (eventName === 'pull_request_review_comment') {
+              prNumber = payload.pull_request.number;
+              prompt = (payload.comment?.body || '')
+                .replace(/^@gemini-code-assist\b/, '')
+                .trim() || '/pr-code-review';
+            } else if (eventName === 'issue_comment') {
+              prNumber = payload.issue?.number;
+              prompt = (payload.comment?.body || '')
+                .replace(/^@gemini-code-assist\b/, '')
+                .trim() || '/pr-code-review';
+
+              const {data: pullRequest} = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+
+              safeToRun = !pullRequest.head.repo?.fork;
+              if (!safeToRun) {
+                core.warning(
+                  `Skipping Gemini Code Assist for fork pull request #${prNumber}.`
+                );
+              }
             }
 
-            const comment = payload.comment?.body || '';
-            const prompt = comment.replace(/@gemini-code-assist\b/, '').trim();
-            core.setOutput('prompt', prompt || '/pr-code-review');
-            core.setOutput(
-              'pr_number',
-              String(payload.pull_request?.number || payload.issue?.number || '')
-            );
+            core.setOutput('prompt', prompt);
+            core.setOutput('pr_number', String(prNumber || ''));
+            core.setOutput('safe_to_run', String(safeToRun));
+
+      - uses: actions/checkout@v4
+        if: steps.prompt.outputs.safe_to_run == 'true'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare Gemini context
+        if: steps.prompt.outputs.safe_to_run == 'true'
+        shell: bash
+        run: |
+          mkdir -p .gemini
+          jq -n \
+            --arg repo "${REPOSITORY}" \
+            --arg pr "${PULL_REQUEST_NUMBER}" \
+            '{repository: $repo, pull_request_number: $pr}' > .gemini/context.json
+        env:
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ steps.prompt.outputs.pr_number }}
 
       - name: Gemini Code Assist
+        if: >
+          steps.prompt.outputs.safe_to_run == 'true' &&
+          vars.GOOGLE_GENAI_USE_GCA == 'true'
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          use_gemini_code_assist: 'true'
+          gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
+          gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          gcp_service_account: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
+          gcp_workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          gemini_cli_version: ${{ vars.GEMINI_CLI_VERSION }}
+          gemini_model: ${{ vars.GEMINI_MODEL }}
+          workflow_name: gemini-code-assist
+          settings: |-
+            {
+              "model": {
+                "maxSessionTurns": 25
+              },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              "tools": {
+                "core": []
+              }
+            }
+          extensions: |
+            [
+              "https://github.com/gemini-cli-extensions/code-review"
+            ]
+          prompt: ${{ steps.prompt.outputs.prompt }}
+
+      - name: Gemini API key review
+        if: >
+          steps.prompt.outputs.safe_to_run == 'true' &&
+          vars.GOOGLE_GENAI_USE_GCA != 'true'
         uses: google-github-actions/run-gemini-cli@v0
         env:
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
@@ -59,7 +155,6 @@ jobs:
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           google_api_key: ${{ secrets.GOOGLE_API_KEY }}
-          use_gemini_code_assist: ${{ vars.GOOGLE_GENAI_USE_GCA || 'true' }}
           use_vertex_ai: ${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}
           gcp_location: ${{ vars.GOOGLE_CLOUD_LOCATION }}
           gcp_project_id: ${{ vars.GOOGLE_CLOUD_PROJECT }}
@@ -68,5 +163,38 @@ jobs:
           gemini_cli_version: ${{ vars.GEMINI_CLI_VERSION }}
           gemini_model: ${{ vars.GEMINI_MODEL }}
           workflow_name: gemini-code-assist
-          github_pr_number: ${{ steps.prompt.outputs.pr_number }}
+          settings: |-
+            {
+              "model": {
+                "maxSessionTurns": 25
+              },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              "tools": {
+                "core": []
+              }
+            }
+          extensions: |
+            [
+              "https://github.com/gemini-cli-extensions/code-review"
+            ]
           prompt: ${{ steps.prompt.outputs.prompt }}
