@@ -3,6 +3,8 @@ name: Gemini Code Assist
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
   pull_request_review_comment:
     types: [created]
   issue_comment:
@@ -16,11 +18,14 @@ permissions:
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
-    # Gemini uses secret-backed authentication and writes PR reviews/comments,
-    # so skip forked pull_request runs where tokens are read-only and secrets are unavailable.
+    # Same-repository PRs can run on pull_request. Forked PRs use pull_request_target
+    # so the review can access secrets/write scopes without relying on the read-only
+    # fork pull_request token; checkout below intentionally stays on the trusted base ref.
     if: >
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.fork == false) ||
+      (github.event_name == 'pull_request_target' &&
+       github.event.pull_request.head.repo.fork == true) ||
       ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
        contains(github.event.comment.body, '@gemini-code-assist') &&
@@ -34,6 +39,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # On pull_request_target, keep the checkout on the trusted base branch;
+          # do not checkout or execute code from the forked PR head.
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.base.ref || github.ref }}
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != ''
         continue-on-error: true
