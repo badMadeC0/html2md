@@ -1,3 +1,5 @@
+"""Tests for html2md.server_config host/port resolution."""
+
 from html2md.server_config import DEFAULT_HOST, DEFAULT_PORT, get_host_port
 
 
@@ -40,3 +42,17 @@ def test_get_host_port_custom_port(monkeypatch):
     hostname, port = get_host_port()
     assert hostname == DEFAULT_HOST
     assert port == 8080
+
+
+def test_get_host_port_invalid_port_falls_back_to_default(monkeypatch, capsys):
+    """Test get_host_port falls back to DEFAULT_PORT when PORT is not a valid integer."""
+    monkeypatch.delenv("HOST", raising=False)
+    monkeypatch.setenv("PORT", "not-a-number")
+
+    hostname, port = get_host_port()
+    assert port == DEFAULT_PORT
+    assert hostname == DEFAULT_HOST
+
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err
+    assert "not-a-number" in captured.err

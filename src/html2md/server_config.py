@@ -1,6 +1,9 @@
 """Server configuration helpers for the optional Flask app."""
 
+from __future__ import annotations
+
 import os
+import sys
 
 DEFAULT_HOST = '127.0.0.1'
 DEFAULT_PORT = 10000
@@ -14,7 +17,8 @@ def get_host_port():
     except ValueError:
         print(
             f'Warning: Invalid PORT environment variable value '
-            f'{port_str!r}; falling back to default {DEFAULT_PORT}.'
+            f'{port_str!r}; falling back to default {DEFAULT_PORT}.',
+            file=sys.stderr,
         )
         port_value = DEFAULT_PORT
 
