@@ -1,4 +1,4 @@
-"""Server configuration helpers for the optional Flask app."""
+"""Server configuration helpers for the optional web app."""
 
 from __future__ import annotations
 
