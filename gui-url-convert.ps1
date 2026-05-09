@@ -98,7 +98,7 @@ $xaml = @"
 
         <TextBox Name="UrlBox" Grid.Row="1" FontSize="14" Margin="0,5,0,10" AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
-                 ToolTip="Enter one or more URLs (one per line)"/>
+                 ToolTip="Enter one or more URLs (one per line)" AutomationProperties.Name="URL Input List"/>
 
         <Grid Grid.Row="2" VerticalAlignment="Center">
             <Grid.ColumnDefinitions>
@@ -108,7 +108,7 @@ $xaml = @"
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Label Name="OutBoxLabel" Grid.Column="0" Content="_Save To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox Grid.Column="1" Name="OutBox" FontSize="14" AutomationProperties.LabeledBy="{Binding ElementName=OutBoxLabel}" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
+            <TextBox Grid.Column="1" Name="OutBox" FontSize="14" AutomationProperties.LabeledBy="{Binding ElementName=OutBoxLabel}" AutomationProperties.Name="Output Directory Path" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
             <Button Grid.Column="2" Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder">_Browse...</Button>
             <Button Grid.Column="3" Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </Grid>
@@ -175,7 +175,7 @@ $OpenFolderBtn.Add_Click({
         Invoke-Item -LiteralPath $path
     } else {
         $StatusText.Text = "Output folder does not exist."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#D32F2F"
     }
 })
 
@@ -240,8 +240,7 @@ $PasteBtn.Add_Click({
         }
     } catch {
         $StatusText.Text = "Error pasting from clipboard."
-        $StatusText.Foreground = "Red"
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#D32F2F"
     }
 })
 
@@ -275,7 +274,7 @@ $ConvertBtn.Add_Click({
 
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
-        $StatusText.Foreground = "Red"
+        $StatusText.Foreground = "#D32F2F"
         return
     }
 
@@ -322,7 +321,7 @@ $ConvertBtn.Add_Click({
         if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
         else {
             $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "#D32F2F"
             $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
             $ProgressBar.IsIndeterminate = $false
             return
@@ -379,7 +378,7 @@ $ConvertBtn.Add_Click({
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
+            $StatusText.Foreground = "#D32F2F"
             $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
             $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
             $ProgressBar.IsIndeterminate = $false
