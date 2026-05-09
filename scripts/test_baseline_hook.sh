@@ -40,6 +40,38 @@ for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/
 done
 [ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python, /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3)"
 
+# Static Claude permissions must also deny direct reads of secret-named
+# files, because the Python PreToolUse hook protects write-like tools only.
+"$PYTHON_BIN" - <<'PYCHECK'
+import json
+import sys
+from pathlib import Path
+
+settings = json.loads(Path(".claude/settings.json").read_text(encoding="utf-8"))
+deny = set(settings.get("permissions", {}).get("deny", []))
+expected_read_denies = {
+    "Read(**/secrets.*)",
+    "Read(**/secret.*)",
+    "Read(**/*.secret)",
+    "Read(**/*.secret.*)",
+    "Read(**/*.secrets)",
+    "Read(**/*.secrets.*)",
+    "Read(**/*api-token*)",
+    "Read(**/*api_token*)",
+    "Read(**/*-credentials.*)",
+    "Read(**/*_credentials.*)",
+}
+missing = sorted(expected_read_denies - deny)
+if missing:
+    print(
+        "FAIL: .claude/settings.json missing Read deny patterns: "
+        + ", ".join(missing),
+        file=sys.stderr,
+    )
+    sys.exit(1)
+PYCHECK
+pass "settings deny Read access to common secret-named files"
+
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
   local tool="$1" path="$2"
