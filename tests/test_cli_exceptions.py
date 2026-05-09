@@ -59,12 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        original_open = open
-                        def custom_open(*args, **kwargs):
-                            if 'locale' in str(args[0]) or 'gettext' in str(args[0]) or 'LC_MESSAGES' in str(args[0]):
-                                return original_open(*args, **kwargs)
-                            return MagicMock()
-                        with patch('builtins.open', side_effect=custom_open) as mock_open:
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -75,5 +70,4 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open_calls = [c for c in mock_open.call_args_list if 'LC_MESSAGES' not in str(c)]
-                            self.assertEqual(len(mock_open_calls), 0)
+                            mock_open.assert_not_called()
