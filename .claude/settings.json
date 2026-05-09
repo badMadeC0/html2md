@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/protect-sensitive-files.py"
+            "command": "/bin/sh -c 'for py in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3 python3 python; do if { [ -x \"$py\" ] || command -v \"$py\" >/dev/null 2>&1; } && \"$py\" -c \"import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)\" >/dev/null 2>&1; then exec \"$py\" .claude/hooks/protect-sensitive-files.py; fi; done; echo \"protect-sensitive-files: BLOCKED \u2014 no Python >= 3.8 interpreter found\" >&2; exit 2'"
           }
         ]
       }

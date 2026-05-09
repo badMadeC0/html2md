@@ -28,14 +28,12 @@ WF=".github/workflows/ai-assisted-pr-guard.yml"
 
 # Prefer pyyaml-based parse; fall back to grep checks.
 # Probe candidates and pick the first one that satisfies >= 3.8.
-# `python3`/`python` come first so the lint runs in a developer's normal
-# shell environment. The absolute system paths come next so the lint still
-# runs when the repo's `.python-version` pins a pyenv version that isn't
-# installed (the pyenv shim would otherwise fail before reaching a usable
-# interpreter, and the grep-only path silently downgrades validation).
+# Absolute system paths come first so the lint avoids broken pyenv shims
+# when the repo's `.python-version` pins an uninstalled version. Bare
+# `python3`/`python` remain as fallbacks for normal developer shells.
 have_yaml=0
 PYTHON_BIN=""
-for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+for candidate in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3 python3 python; do
   if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
     if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
       PYTHON_BIN="$candidate"
