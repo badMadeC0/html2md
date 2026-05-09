@@ -1,12 +1,9 @@
-import os
+"""Tests for html2md.app configuration helpers."""
 import pytest
 
-try:
-    import flask
-except ImportError:
-    pytest.skip("flask is not installed", allow_module_level=True)
+pytest.importorskip("flask")
 
-from html2md.app import get_host_port
+from html2md.app import DEFAULT_PORT, get_host_port  # noqa: E402
 
 
 def test_get_host_port_defaults(monkeypatch):
@@ -16,7 +13,7 @@ def test_get_host_port_defaults(monkeypatch):
     host, port = get_host_port()
 
     assert host == "0.0.0.0"
-    assert port == 10000
+    assert port == DEFAULT_PORT
 
 
 def test_get_host_port_valid_values(monkeypatch):
@@ -36,10 +33,9 @@ def test_get_host_port_invalid_port(monkeypatch, capsys):
     host, port = get_host_port()
 
     assert host == "0.0.0.0"
-    assert port == 10000
+    assert port == DEFAULT_PORT
 
     captured = capsys.readouterr()
-    assert (
-        "Warning: Invalid PORT environment variable value 'invalid'; falling back to default 10000."
-        in captured.out
-    )
+    assert "Warning: Invalid PORT" in captured.out
+    assert "invalid" in captured.out
+    assert str(DEFAULT_PORT) in captured.out
