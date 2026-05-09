@@ -63,11 +63,20 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
             "secrets.pem" "server.key" "credentials.json" \
             "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
             "src/keys/id_rsa" \
+            "id_ed25519" "id_ed25519.pub" \
+            "id_ecdsa" "id_ecdsa.pub" \
+            "id_dsa" \
+            ".ssh/id_ed25519" "src/keys/id_ecdsa" \
             "secrets.json" "secret.json" "secrets.yaml" "secret.yml" \
-            "config/secrets.json" \
+            "secrets.toml" "secret.toml" "secrets.env" \
+            "config/secrets.json" "config/secrets.toml" \
             "prod.secret.yaml" "app.secrets.yml" \
             "api-token.txt" "my_api_token.json" \
-            "team-credentials.toml" "service_credentials.txt"; do
+            "team-credentials.toml" "service_credentials.txt" \
+            "credentials.yaml" "credentials.yml" "credentials.toml" \
+            "secrets" "secret" "credentials" \
+            "config/secrets" "vault/credentials" \
+            "prod-credentials" "prod_credentials"; do
   if run_hook "Write" "$path" >/dev/null 2>&1; then
     fail "hook should BLOCK Write to '$path' but allowed it"
   fi

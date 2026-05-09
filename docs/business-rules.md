@@ -8,8 +8,9 @@ by review.
 
 ## Rule list
 
-- **BR-0001 — `cli.py` is a placeholder.** No real conversion logic in
-  this repo; the runtime ships separately. (Source: `pr-rules/service-html2md.md` §1.)
+- **BR-0001 — `cli.py` is the active runtime.** This repo contains the
+  URL-fetching and conversion runtime; contributors should maintain that
+  behavior here. (Source: `pr-rules/service-html2md.md` §1.)
 - **BR-0002 — log-export default fields.** `html2md-log-export` defaults to
   `ts,input,output,status,reason`. Changing this is a breaking change.
   (Source: `pr-rules/service-html2md.md` §2.)

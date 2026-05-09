@@ -13,15 +13,19 @@ This file is a thin pointer. Authoritative guidance lives in
 4. [`pr-rules/python.local.md`](../pr-rules/python.local.md) — repo-local
    Python overrides (currently empty).
 5. [`pr-rules/service-html2md.md`](../pr-rules/service-html2md.md) —
-   service-specific rules (placeholder `cli.py`, JSONL log-export contract,
-   Windows CI runner, symlinked `CLAUDE.md`).
+   service-specific rules (active `cli.py` runtime scope, JSONL log-export
+   contract, Windows CI runner, symlinked `CLAUDE.md`).
 
 ## Hard rules
 
 - Never push, open, merge, or close PRs.
 - Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-  `*.crt`, `id_rsa*`. The hook `.claude/hooks/protect-sensitive-files.py`
-  enforces this for Edit/Write.
+  `*.crt`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, or any file matching a sensible secret naming
+  convention (e.g., `secrets.*`, `secret.*`, `*.secret.*`, `*.secrets.*`,
+  `*api-token*`, `*-credentials.*`). See
+  [`pr-rules/common.md`](../pr-rules/common.md) §3 for the canonical list.
+  The hook `.claude/hooks/protect-sensitive-files.py` enforces this for
+  Edit/Write.
 - Every AI-assisted PR title must start with `[AI-Assisted]`. The body must
   link to the originating Claude / agent chat URL.
 - Append edge cases to [`pr-rules/edge-cases.md`](../pr-rules/edge-cases.md);
@@ -35,8 +39,8 @@ This file is a thin pointer. Authoritative guidance lives in
 - `pathlib.Path` and explicit `encoding="utf-8"`?
 - No new runtime / build dependencies in `pyproject.toml`?
 - For new CLI utilities: a smoke test that asserts `--help` exits 0?
-- For changes to `src/html2md/cli.py`: still a placeholder, no real
-  conversion logic added?
+- For changes to `src/html2md/cli.py`: keep behavior backward-compatible
+  unless an ADR and explicit approval cover a breaking change?
 
 ## Review prompt
 
