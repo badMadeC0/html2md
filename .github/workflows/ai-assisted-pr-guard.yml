@@ -10,9 +10,10 @@ permissions:
 
 jobs:
   check-ai-assisted-marker:
-    # Enforce both requirements for AI-assisted PR metadata:
-    # - title must start with [AI-Assisted]
-    # - body must include a valid transcript URL
+    # The job name reflects what is actually enforced: the [AI-Assisted]
+    # title prefix is opt-in (no enforcement when absent), and the chat
+    # link requirement is enforced only for PRs that already carry the
+    # tag. See pr-rules/common.md §1 for the policy.
     name: Verify chat link for [AI-Assisted] PRs
     runs-on: ubuntu-latest
     steps:
@@ -26,8 +27,8 @@ jobs:
           echo "PR title: $PR_TITLE"
 
           if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "::error::PR title must start with [AI-Assisted] for AI-assisted changes."
-            exit 1
+            echo "OK: PR is not marked [AI-Assisted]; skipping transcript enforcement."
+            exit 0
           fi
 
           # Body must reference an agent transcript URL for PRs explicitly
@@ -70,10 +71,10 @@ jobs:
           #     https://example.test/redirect/https://claude.ai/chat/fake do
           #     not match (the inner `https?://` is preceded by `/` not a
           #     boundary char).
-          # The trailing class `[^/?[:space:]]` requires at least one
-          # non-slash, non-`?`, non-whitespace path character after the
-          # transcript prefix so an empty `/` doesn't pass.
-          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/|claude\.ai/code/session_|cursor\.com/share/|chatgpt\.com/codex/|jules\.google\.com/task/)[^/?[:space:]]'; then
+          # Each accepted provider path includes at least one non-slash,
+          # non-`?`, non-whitespace character after its required prefix so
+          # empty transcript paths don't pass.
+          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session_[^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'; then
             # If a draft PR has the placeholder AND a real URL, the warning
             # above is what surfaces; this exit 0 keeps the check green so
             # drafts can iterate.
@@ -84,5 +85,5 @@ jobs:
           # No real transcript URL found, and we've already exited 1 if a
           # non-draft body had the placeholder. Anything reaching here is an
           # AI-assisted PR with no transcript link and no placeholder.
-          echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat|share, claude.ai/code/session_, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
+          echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat, claude.ai/share, claude.ai/code/session_, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
           exit 1
