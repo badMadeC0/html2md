@@ -39,7 +39,6 @@ for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/
   fi
 done
 [ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python, /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3)"
-
 # The static Claude permissions should mirror the hook's common secret-name
 # coverage so Read is denied too (the Python hook only handles write-like tools).
 "$PYTHON_BIN" - <<'PY' || fail ".claude/settings.json missing common secret-name denies"
