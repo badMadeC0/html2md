@@ -52,8 +52,8 @@ Hard rules — no AI agent may override:
 - **Entry points:** `html2md` (`cli.py:main`), `html2md-log-export`
   (`log_export.py:main`), `html2md-upload` (`upload.py:main`).
 - **Status of `cli.py`:** active runtime entry point in this repo for URL
-  fetch and conversion behavior. Keep changes scoped and backward-compatible;
-  see `pr-rules/service-html2md.md` §1 for compatibility expectations.
+  fetch and conversion behavior. Keep changes narrowly scoped and
+  backward-compatible with the current CLI behavior in this repository.
 - **Encoding:** UTF-8 everywhere; use `pathlib.Path` and `argparse`.
 
 ## How agents should work here
