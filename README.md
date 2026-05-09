@@ -1,16 +1,16 @@
 
 # html2md-cli (0.11.6) — Repository Snapshot
 
-This repository contains the current source snapshot: a placeholder `html2md` CLI entry point, a working JSONL→CSV log export utility, Windows helper scripts, tests, and documentation.
+This repository contains the current source snapshot: an active `html2md` CLI runtime, a working JSONL→CSV log export utility, Windows helper scripts, tests, and documentation.
 
 ## Purpose
 
 This repo currently provides:
 
-- A placeholder `html2md` CLI command that exposes parser/help behavior (`--help`/`--help-only`) and prints a runtime availability message.
+- A functional `html2md` CLI command for URL fetching and HTML→Markdown conversion flows.
 - A functional `html2md-log-export` utility for exporting JSONL logs to CSV.
 
-The full runtime conversion workflow described in earlier packaging notes is **not embedded in this source tree**.
+The primary runtime conversion workflow is embedded in this source tree under `src/html2md/cli.py`.
 
 ## Tech Stack
 
@@ -44,7 +44,7 @@ The full runtime conversion workflow described in earlier packaging notes is **n
 
 ## Features in this repository
 
-- `html2md` CLI placeholder command (`--help` and `--help-only` parsing)
+- `html2md` CLI runtime for URL fetching and HTML→Markdown conversion
 - JSONL-based log export to CSV via `html2md-log-export`
 - Package/module entry points and smoke tests
 - Windows bootstrap and launcher scripts (PowerShell + batch)
