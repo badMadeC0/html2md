@@ -18,12 +18,15 @@ the baseline rule set. Read-only — do not edit files.
 
 1. Run `gh pr view --json number,title,body,headRefName,baseRefName` and
    capture the title and body. Then:
-   - If the title starts with `[AI-Assisted]`, confirm the body contains a
-     Claude chat URL (`claude.ai/chat/...`) and flag the literal placeholder
-     `<CLAUDE_CHAT_URL>` if still present.
+   - If the title starts with `[AI-Assisted]`, confirm the body contains an
+     originating agent transcript URL accepted by the guard workflow, such as
+     `claude.ai/chat/...`, `claude.ai/share/...`,
+     `claude.ai/code/session_...`, `cursor.com/share/...`,
+     `chatgpt.com/codex/...`, or `jules.google.com/task/...`; flag the
+     literal placeholder `<CLAUDE_CHAT_URL>` if still present.
    - If the title does not start with `[AI-Assisted]`, treat the PR as
      non-AI-authored for this check and do not report the missing marker or
-     missing Claude chat URL as a violation.
+     missing agent transcript URL as a violation.
 2. Run `git diff --name-only origin/main...HEAD` to enumerate changed files.
 3. Read `pr-rules/common.md`. For each rule, scan the diff and the changed
    files for violations. Report each violation as:
