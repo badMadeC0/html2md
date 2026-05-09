@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 import io
 import sys
 import os
+import requests as _real_requests  # noqa: E402  type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
@@ -21,6 +22,7 @@ class TestCliUrlTypo(unittest.TestCase):
         captured_stdout = io.StringIO()
 
         mock_requests = MagicMock()
+        mock_requests.RequestException = _real_requests.RequestException
         mock_session = MagicMock()
         mock_requests.Session.return_value = mock_session
 
