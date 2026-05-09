@@ -6,9 +6,9 @@
 
 `html2md-cli` exposes the `html2md`, `html2md-log-export`, and
 `html2md-upload` command-line entry points. This repository contains the
-source for those entry points and the current placeholder CLI stub used in
-this repo. The full packaged runtime provides the complete HTML conversion
-support, including Markdown, PDF, and TXT outputs.
+source for those entry points and the current in-repo runtime, including
+URL fetching and HTML-to-Markdown conversion. Packaged builds may extend
+that baseline with additional output formats such as PDF and TXT.
 
 ## Who uses it
 
