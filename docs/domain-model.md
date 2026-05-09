@@ -24,7 +24,7 @@ The vocabulary the project uses internally and externally.
   consumed by `html2md-log-export`. Default fields: `ts`, `input`,
   `output`, `status`, `reason`.
 - **Conversion runtime:** The production HTML→Markdown / PDF / TXT
-  conversion implementation. This repository provides the CLI surface,
-  interface, and placeholder stub for that flow for contributor and
-  packaging workflows, but the full production runtime is shipped in a
-  separate packaged build.
+  conversion implementation used by this repository. The current
+  in-repo runtime entry point is `src/html2md/cli.py`, which owns URL
+  fetching and conversion behavior for contributor and packaging
+  workflows.
