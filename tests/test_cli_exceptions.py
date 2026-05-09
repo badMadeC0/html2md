@@ -1,17 +1,19 @@
+"""Tests for html2md CLI exception-handling paths."""
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 import io
-import requests
+import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
 
 class TestCliExceptions(unittest.TestCase):
+    """Unit tests for CLI network, file, and path-containment error handling."""
+
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        # Mock sys.stderr to capture output
         captured_stderr = io.StringIO()
         with patch("sys.stderr", captured_stderr):
-            # Patch requests.Session.get directly
+            # Patch requests.Session so our per-request session returns a mock
             with patch("requests.Session") as mock_get:
                 mock_get.return_value.get.side_effect = requests.RequestException("Network unreachable")
 
@@ -21,7 +23,6 @@ class TestCliExceptions(unittest.TestCase):
                     self.fail(f"main raised exception {e}")
 
                 output = captured_stderr.getvalue()
-                # Expect "Network error: Network unreachable"
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
@@ -54,7 +55,7 @@ class TestCliExceptions(unittest.TestCase):
                         "os.path.exists", return_value=False
                     ):
                         with patch(
-                            "builtins.open", side_effect=OSError("Permission denied")
+                            "html2md.cli.open", side_effect=OSError("Permission denied")
                         ):
                             try:
                                 main(
@@ -64,7 +65,6 @@ class TestCliExceptions(unittest.TestCase):
                                 self.fail(f"main raised exception {e}")
 
                             output = captured_stderr.getvalue()
-                            # Expect "File error: Permission denied"
                             self.assertIn("File error", output)
                             self.assertIn("Permission denied", output)
 
