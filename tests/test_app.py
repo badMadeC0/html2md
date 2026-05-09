@@ -2,9 +2,7 @@ import os
 import pytest
 from unittest.mock import patch
 
-pytest.importorskip("flask")
-
-from html2md.app import get_host_port, DEFAULT_PORT
+from html2md.config import get_host_port, DEFAULT_PORT
 
 
 def test_get_host_port_defaults():

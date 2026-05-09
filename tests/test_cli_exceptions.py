@@ -37,7 +37,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
-                        with patch('html2md.cli.open', side_effect=OSError("Permission denied")):
+                        with patch('html2md.cli.open', create=True, side_effect=OSError("Permission denied")):
                             try:
                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
                             except (SystemExit, RuntimeError, ValueError) as e:
@@ -59,7 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('html2md.cli.open') as mock_open:
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
