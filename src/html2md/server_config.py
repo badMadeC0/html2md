@@ -1,4 +1,4 @@
-"""Server configuration helpers for the optional web app."""
+"""Server configuration helpers for the optional Flask app."""
 
 from __future__ import annotations
 
@@ -18,8 +18,13 @@ def get_host_port():
     deploy-safe default unless HOST is explicitly set.
     """
     port_str = os.environ.get('PORT')
+    port_from_env_valid = False
     try:
-        port_value = int(port_str) if port_str is not None else DEFAULT_PORT
+        if port_str is None:
+            port_value = DEFAULT_PORT
+        else:
+            port_value = int(port_str)
+            port_from_env_valid = True
     except ValueError:
         print(
             f'Warning: Invalid PORT environment variable value '
@@ -31,7 +36,7 @@ def get_host_port():
     if hostname:
         return hostname, port_value
 
-    if port_str is not None:
+    if port_from_env_valid:
         return DEPLOY_HOST, port_value
 
     return DEFAULT_HOST, port_value
