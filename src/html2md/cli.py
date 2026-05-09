@@ -74,6 +74,8 @@ def main(argv=None):
 
             session = None
             try:
+                # Build a fresh Session for every request so batch worker
+                # threads never share mutable Session state such as cookies.
                 session = requests.Session()
                 session.headers.update(session_headers)
                 response = session.get(target_url, timeout=30)
