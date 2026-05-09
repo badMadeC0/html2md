@@ -12,10 +12,6 @@ except ImportError:
 if HAS_FLASK:
     from html2md.app import get_host_port, DEFAULT_PORT, app, __version__
 else:
-    # We still need to test get_host_port if it doesn't strictly depend on flask
-    # But wait, app.py imports Flask at the top level.
-    # We will just skip the whole module if flask is missing, as per memory:
-    # "Tests in tests/test_app.py require the flask library and are skipped automatically if it is not installed in the environment."
     pytest.skip("Flask is not installed", allow_module_level=True)
 
 
@@ -40,7 +36,7 @@ def test_get_host_port_invalid_port(capsys):
         assert port == DEFAULT_PORT
         captured = capsys.readouterr()
         assert (
-            "Warning: Invalid PORT environment variable value 'invalid'; falling back to default 10000."
+            f"Warning: Invalid PORT environment variable value 'invalid'; falling back to default {DEFAULT_PORT}."
             in captured.out
         )
 
