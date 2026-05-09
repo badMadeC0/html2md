@@ -41,6 +41,6 @@ Repo-local overrides: [`pr-rules/python.local.md`](../../pr-rules/python.local.m
 
 ## Service-specific
 
-- `src/html2md/cli.py` is a **placeholder stub**; do not add real
-  conversion logic here. See
+- `src/html2md/cli.py` is an active runtime entry point in this repository;
+  keep changes scoped and backward-compatible. See
   [`pr-rules/service-html2md.md`](../../pr-rules/service-html2md.md).

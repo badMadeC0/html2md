@@ -51,8 +51,9 @@ Hard rules — no AI agent may override:
 - **CI:** GitHub Actions on `windows-latest` (`.github/workflows/ci.yml`).
 - **Entry points:** `html2md` (`cli.py:main`), `html2md-log-export`
   (`log_export.py:main`), `html2md-upload` (`upload.py:main`).
-- **Status of `cli.py`:** placeholder stub — the full converter ships
-  from a separate packaged build. Do not add conversion logic here.
+- **Status of `cli.py`:** active runtime entry point in this repo for URL
+  fetch and conversion behavior. Keep changes scoped and backward-compatible;
+  see `pr-rules/service-html2md.md` §1 for compatibility expectations.
 - **Encoding:** UTF-8 everywhere; use `pathlib.Path` and `argparse`.
 
 ## How agents should work here
