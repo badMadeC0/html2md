@@ -52,9 +52,16 @@ else
   fail "CLAUDE.md missing (expected symlink to AGENTS.md or materialized file)"
 fi
 
-# 6. BASELINE_VERSION exists and is a valid semver line
+# 6. BASELINE_VERSION exists and is a SINGLE semver line.
+# Enforce literally: must be exactly one non-empty line that matches
+# MAJOR.MINOR.PATCH, plus an optional trailing newline. Multi-line files
+# or files with non-version content are rejected so the file's role as
+# the canonical single-source-of-truth version cannot drift.
 [ -f BASELINE_VERSION ] || fail "BASELINE_VERSION missing"
-ver=$(tr -d ' \t\n\r' < BASELINE_VERSION)
+nonblank_count=$(grep -c '[^[:space:]]' BASELINE_VERSION || true)
+[ "$nonblank_count" -eq 1 ] \
+  || fail "BASELINE_VERSION must be a single non-blank line (got $nonblank_count non-blank lines)"
+ver=$(grep -m1 '[^[:space:]]' BASELINE_VERSION | tr -d ' \t\r')
 echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
   || fail "BASELINE_VERSION must contain MAJOR.MINOR.PATCH (got '$ver')"
 
