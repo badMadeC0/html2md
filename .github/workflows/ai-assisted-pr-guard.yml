@@ -34,6 +34,7 @@ jobs:
           # Body must reference an agent transcript URL for PRs explicitly
           # marked as AI-assisted. Accepted hosts and required path prefixes:
           #   claude.ai/(chat|share)/<id>
+          #   claude.ai/code/session_<id> (Claude Code sessions)
           #   cursor.com/share/<id>
           #   chatgpt.com/codex/<...>
           #   jules.google.com/task/<id>
@@ -49,16 +50,15 @@ jobs:
           # short-circuiting the placeholder check).
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then
             if [[ "${PR_DRAFT:-false}" == "true" ]]; then
-              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review."
-              # Don't exit yet — fall through so we still validate that the
-              # draft body has a real URL (drafts can have both during edits).
+              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real agent transcript URL before marking ready for review."
+              exit 0
             else
-              echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review or merging."
+              echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real agent transcript URL before marking ready for review or merging."
               exit 1
             fi
           fi
 
-          # Step 2: require a real transcript URL with a known share/chat
+          # Step 2: require a real transcript URL with a known transcript
           # path prefix per provider.
           # The leading-boundary group `(^|[[:space:]<>(])` requires the URL
           # to start at a real link boundary so that:
@@ -70,13 +70,11 @@ jobs:
           #     https://example.test/redirect/https://claude.ai/chat/fake do
           #     not match (the inner `https?://` is preceded by `/` not a
           #     boundary char).
-          # The trailing class `[^/?[:space:]]` requires at least one
-          # non-slash, non-`?`, non-whitespace path character after the
-          # transcript prefix so an empty `/` doesn't pass.
-          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)|cursor\.com/share|chatgpt\.com/codex|jules\.google\.com/task)/[^/?[:space:]]'; then
-            # If a draft PR has the placeholder AND a real URL, the warning
-            # above is what surfaces; this exit 0 keeps the check green so
-            # drafts can iterate.
+          # Each provider alternative includes the required transcript path
+          # prefix plus at least one non-slash, non-`?`, non-whitespace
+          # character after that prefix so empty paths and query-only root
+          # URLs do not pass.
+          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session[_/][^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'; then
             echo "OK: PR body contains an agent transcript URL."
             exit 0
           fi
@@ -84,5 +82,5 @@ jobs:
           # No real transcript URL found, and we've already exited 1 if a
           # non-draft body had the placeholder. Anything reaching here is an
           # AI-assisted PR with no transcript link and no placeholder.
-          echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat|share, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
+          echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat|share|code/session, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
           exit 1
