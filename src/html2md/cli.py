@@ -72,36 +72,37 @@ def main(argv=None):
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
                 response = session.get(target_url, timeout=30, stream=True)
-                response.raise_for_status()
-
-                max_size = 10 * 1024 * 1024
-                content_length = response.headers.get('Content-Length')
                 try:
-                    if content_length is not None:
-                        content_length_value = int(content_length)
-                        if content_length_value < 0:
-                            raise ValueError("Negative Content-Length header")
-                        if content_length_value > max_size:
-                            print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                            response.close()
+                    response.raise_for_status()
+
+                    max_size = 10 * 1024 * 1024
+                    content_length = response.headers.get('Content-Length')
+                    try:
+                        if content_length is not None:
+                            content_length_value = int(content_length)
+                            if content_length_value < 0:
+                                raise ValueError("Negative Content-Length header")
+                            if content_length_value > max_size:
+                                print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                                return
+                    except (ValueError, TypeError):
+                        print("Warning: Invalid Content-Length header; enforcing size limit during download.", file=sys.stderr)
+
+                    content_bytes = bytearray()
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content_bytes.extend(chunk)
+                        if len(content_bytes) > max_size:
+                            print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                             return
-                except (ValueError, TypeError):
-                    print("Warning: Invalid Content-Length header; enforcing size limit during download.", file=sys.stderr)
 
-                content_bytes = bytearray()
-                for chunk in response.iter_content(chunk_size=8192):
-                    content_bytes.extend(chunk)
-                    if len(content_bytes) > max_size:
-                        print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                        response.close()
-                        return
+                    html_bytes = bytes(content_bytes)
+                    encoding = response.encoding or 'utf-8'
+                    html_content = html_bytes.decode(encoding, errors='replace')
 
-                html_bytes = bytes(content_bytes)
-                encoding = response.encoding or 'utf-8'
-                html_content = html_bytes.decode(encoding, errors='replace')
-
-                print("Converting to Markdown...")
-                md_content = md(html_content, heading_style="ATX")
+                    print("Converting to Markdown...")
+                    md_content = md(html_content, heading_style="ATX")
+                finally:
+                    response.close()
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
