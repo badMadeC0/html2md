@@ -10,8 +10,8 @@ permissions:
 
 jobs:
   check-ai-assisted-marker:
-    # Enforce [AI-Assisted] title marker and transcript URL requirements.
-    name: Verify chat link for [AI-Assisted] PRs
+    # Enforce AI-assistance metadata without blocking human-authored PRs.
+    name: Verify AI-assisted PR metadata
     runs-on: ubuntu-latest
     steps:
       - name: Inspect PR title and body
@@ -22,11 +22,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "PR title: $PR_TITLE"
-
-          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "::error::PR title must start with [AI-Assisted]."
-            exit 1
-          fi
 
           # Body must reference an agent transcript URL for PRs explicitly
           # marked as AI-assisted. Accepted hosts and required path prefixes:
@@ -40,24 +35,13 @@ jobs:
           # body — even alongside a real URL — because the baseline says the
           # placeholder must be replaced before a PR is ready.
           body="${PR_BODY:-}"
+          transcript_regex='(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session_[^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'
 
-          # Step 1: reject the placeholder first for non-draft PRs. This must
-          # come before the real-URL check so a PR with both a real URL AND a
-          # leftover placeholder still fails (rather than the real URL match
-          # short-circuiting the placeholder check).
+          has_placeholder=false
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then
-            if [[ "${PR_DRAFT:-false}" == "true" ]]; then
-              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review."
-              # Don't exit yet — fall through so we still validate that the
-              # draft body has a real URL (drafts can have both during edits).
-            else
-              echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review or merging."
-              exit 1
-            fi
+            has_placeholder=true
           fi
 
-          # Step 2: require a real transcript URL with a known share/chat
-          # path prefix per provider.
           # The leading-boundary group `(^|[[:space:]<>(])` requires the URL
           # to start at a real link boundary so that:
           #   - bare hosts like https://claude.ai or https://claude.ai/settings
@@ -71,16 +55,37 @@ jobs:
           # Each accepted provider path includes at least one non-slash,
           # non-`?`, non-whitespace character after its required prefix so
           # empty transcript paths don't pass.
-          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session_[^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'; then
-            # If a draft PR has the placeholder AND a real URL, the warning
-            # above is what surfaces; this exit 0 keeps the check green so
-            # drafts can iterate.
+          has_transcript=false
+          if printf '%s' "$body" | grep -Eqi "$transcript_regex"; then
+            has_transcript=true
+          fi
+
+          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
+            if [[ "$has_placeholder" == "true" || "$has_transcript" == "true" ]]; then
+              echo "::error::PR body contains AI-assistance transcript metadata, so the PR title must start with [AI-Assisted]."
+              exit 1
+            fi
+            echo "OK: PR is not marked [AI-Assisted] and no AI-assistance transcript metadata was found; skipping transcript enforcement."
+            exit 0
+          fi
+
+          # Reject the placeholder first for non-draft PRs. This must come
+          # before accepting a real URL so a PR with both a real URL AND a
+          # leftover placeholder still fails. Drafts may keep only the
+          # placeholder while the originating transcript is not ready yet.
+          if [[ "$has_placeholder" == "true" ]]; then
+            if [[ "${PR_DRAFT:-false}" == "true" ]]; then
+              echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real agent transcript URL before marking ready for review."
+              exit 0
+            fi
+            echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real agent transcript URL before marking ready for review or merging."
+            exit 1
+          fi
+
+          if [[ "$has_transcript" == "true" ]]; then
             echo "OK: PR body contains an agent transcript URL."
             exit 0
           fi
 
-          # No real transcript URL found, and we've already exited 1 if a
-          # non-draft body had the placeholder. Anything reaching here is an
-          # AI-assisted PR with no transcript link and no placeholder.
           echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat, claude.ai/share, claude.ai/code/session_, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
           exit 1
