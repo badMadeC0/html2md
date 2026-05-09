@@ -50,7 +50,11 @@ fi
 
 if [ "$have_yaml" -eq 1 ]; then
   "$PYTHON_BIN" - "$WF" <<'PY' || exit 1
+import os
+import subprocess
 import sys
+import tempfile
+
 import yaml
 
 path = sys.argv[1]
@@ -88,7 +92,62 @@ if "[AI-Assisted]" not in raw:
 if "claude.ai" not in raw and "CLAUDE_CHAT_URL" not in raw and "Claude chat" not in raw:
     print("FAIL: workflow must reference a Claude chat link check", file=sys.stderr); sys.exit(1)
 
-print(f"OK [yaml-parse]: {path} triggers on pull_request, has {len(jobs)} job(s), checks [AI-Assisted] + Claude chat link")
+run_script = None
+for job in jobs.values():
+    if not isinstance(job, dict):
+        continue
+    for step in job.get("steps", []):
+        if isinstance(step, dict) and step.get("name") == "Inspect PR title and body":
+            run_script = step.get("run")
+            break
+    if run_script is not None:
+        break
+if not isinstance(run_script, str) or not run_script.strip():
+    print("FAIL: workflow must include an executable 'Inspect PR title and body' run block", file=sys.stderr); sys.exit(1)
+
+
+def run_case(name, title, body, draft, expect_code, expect_text):
+    env = os.environ.copy()
+    env.update({"PR_TITLE": title, "PR_BODY": body, "PR_DRAFT": draft})
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".sh", delete=False) as tmp:
+        tmp.write(run_script)
+        tmp_path = tmp.name
+    try:
+        proc = subprocess.run(["bash", tmp_path], env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    finally:
+        os.unlink(tmp_path)
+    output = proc.stdout
+    if proc.returncode != expect_code:
+        print(f"FAIL: {name} exited {proc.returncode}, expected {expect_code}\n{output}", file=sys.stderr); sys.exit(1)
+    if expect_text not in output:
+        print(f"FAIL: {name} output missing {expect_text!r}\n{output}", file=sys.stderr); sys.exit(1)
+
+run_case(
+    "untagged human PR",
+    "Fix typo",
+    "Small documentation typo fix.",
+    "false",
+    0,
+    "skipping transcript checks",
+)
+run_case(
+    "untagged PR with AI evidence",
+    "Fix typo",
+    "Originating Claude chat: https://claude.ai/chat/example",
+    "false",
+    1,
+    "title does not start with [AI-Assisted]",
+)
+run_case(
+    "tagged AI PR with transcript",
+    "[AI-Assisted] Fix typo",
+    "Originating Claude chat: https://claude.ai/chat/example",
+    "false",
+    0,
+    "contains an agent transcript URL",
+)
+
+print(f"OK [yaml-parse]: {path} triggers on pull_request, has {len(jobs)} job(s), checks [AI-Assisted] + Claude chat link, and allows untagged human PRs")
 PY
 else
   # Fallback grep-based checks (no pyyaml available).

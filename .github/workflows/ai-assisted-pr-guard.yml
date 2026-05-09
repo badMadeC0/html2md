@@ -23,9 +23,17 @@ jobs:
           set -euo pipefail
           echo "PR title: $PR_TITLE"
 
+          body="${PR_BODY:-}"
+          transcript_url_pattern='(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session_[^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'
+
           if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
-            echo "::error::PR title must start with [AI-Assisted]."
-            exit 1
+            if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>' || printf '%s' "$body" | grep -Eqi "$transcript_url_pattern"; then
+              echo "::error::PR appears to include AI-assistance evidence but the title does not start with [AI-Assisted]. Add the marker or remove the AI-assistance evidence."
+              exit 1
+            fi
+
+            echo "OK: Untagged PR has no AI-assistance evidence; skipping transcript checks."
+            exit 0
           fi
 
           # Body must reference an agent transcript URL for PRs explicitly
@@ -39,8 +47,6 @@ jobs:
           # Ready/non-draft PRs fail if the placeholder is anywhere in the
           # body — even alongside a real URL — because the baseline says the
           # placeholder must be replaced before a PR is ready.
-          body="${PR_BODY:-}"
-
           # Step 1: reject the placeholder first for non-draft PRs. This must
           # come before the real-URL check so a PR with both a real URL AND a
           # leftover placeholder still fails (rather than the real URL match
@@ -71,7 +77,7 @@ jobs:
           # Each accepted provider path includes at least one non-slash,
           # non-`?`, non-whitespace character after its required prefix so
           # empty transcript paths don't pass.
-          if printf '%s' "$body" | grep -Eqi '(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[^/?[:space:]]|claude\.ai/code/session_[^/?[:space:]]|cursor\.com/share/[^/?[:space:]]|chatgpt\.com/codex/[^/?[:space:]]|jules\.google\.com/task/[^/?[:space:]])'; then
+          if printf '%s' "$body" | grep -Eqi "$transcript_url_pattern"; then
             # If a draft PR has the placeholder AND a real URL, the warning
             # above is what surfaces; this exit 0 keeps the check green so
             # drafts can iterate.
