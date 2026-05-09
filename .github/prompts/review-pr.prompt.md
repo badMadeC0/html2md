@@ -24,12 +24,12 @@ prompt-file flows.
    - If it is AI-authored or substantially AI-edited, body contains an
      originating agent transcript URL from one of the accepted forms
      (matching `.github/workflows/ai-assisted-pr-guard.yml`):
-     - `claude.ai/chat/<id>`
-     - `claude.ai/share/<id>`
-     - `claude.ai/code/session_<id>`
-     - `cursor.com/share/<id>`
-     - `chatgpt.com/codex/<id>`
-     - `jules.google.com/task/<id>`
+     - `https://claude.ai/chat/<id>`
+     - `https://claude.ai/share/<id>`
+     - `https://claude.ai/code/session_<id>`
+     - `https://cursor.com/share/<id>`
+     - `https://chatgpt.com/codex/<id>`
+     - `https://jules.google.com/task/<id>`
      Warn on the literal placeholder `<CLAUDE_CHAT_URL>`.
    - If it is not AI-authored or substantially AI-edited, do not flag the
      absence of `[AI-Assisted]` or a transcript URL as a violation.

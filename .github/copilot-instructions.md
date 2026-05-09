@@ -20,7 +20,7 @@ This file is a thin pointer. Authoritative guidance lives in
 
 - Never push, open, merge, or close PRs.
 - Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-  `*.crt`, `id_rsa*`, or any file matching a sensible secret naming
+  `*.crt`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, or any file matching a sensible secret naming
   convention (e.g., `secrets.*`, `secret.*`, `*.secret.*`, `*.secrets.*`,
   `*api-token*`, `*-credentials.*`). See
   [`pr-rules/common.md`](../pr-rules/common.md) §3 for the canonical list.

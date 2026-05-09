@@ -34,7 +34,7 @@ the markers is managed centrally; do not hand-edit.
 Hard rules — no AI agent may override:
 1. Never push, open, merge, or close PRs without explicit human approval.
 2. Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-   `*.crt`, `id_rsa*`, or any file matching a sensible secret naming
+   `*.crt`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, or any file matching a sensible secret naming
    convention (e.g., `secrets.{json,yaml,yml}`, `*.secret.*`,
    `*.secrets.*`, `*api-token*`, `*-credentials.*`). The hook above
    blocks Edit/Write attempts for this full set; see `pr-rules/common.md`

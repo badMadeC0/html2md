@@ -22,12 +22,12 @@ the baseline rule set. Read-only — do not edit files.
      an originating agent transcript URL from one of the accepted forms
      (matches `.github/workflows/ai-assisted-pr-guard.yml` and
      `pr-rules/common.md`):
-     - `claude.ai/chat/<id>`
-     - `claude.ai/share/<id>`
-     - `claude.ai/code/session_<id>`
-     - `cursor.com/share/<id>`
-     - `chatgpt.com/codex/<id>`
-     - `jules.google.com/task/<id>`
+     - `https://claude.ai/chat/<id>`
+     - `https://claude.ai/share/<id>`
+     - `https://claude.ai/code/session_<id>`
+     - `https://cursor.com/share/<id>`
+     - `https://chatgpt.com/codex/<id>`
+     - `https://jules.google.com/task/<id>`
      Flag the literal placeholder `<CLAUDE_CHAT_URL>` if still present in
      a non-draft PR.
    - If the title does not start with `[AI-Assisted]`, treat the PR as

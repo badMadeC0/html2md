@@ -16,9 +16,9 @@ in [.claude/commands/review-pr.md](mdc:.claude/commands/review-pr.md).
    - If it is, confirm the title starts with `[AI-Assisted]`.
    - If it is, confirm the body contains an originating agent transcript
      URL from one of the accepted forms (matching the guard workflow):
-     `claude.ai/chat/<id>`, `claude.ai/share/<id>`,
-     `claude.ai/code/session_<id>`, `cursor.com/share/<id>`,
-     `chatgpt.com/codex/<id>`, or `jules.google.com/task/<id>`.
+     `https://claude.ai/chat/<id>`, `https://claude.ai/share/<id>`,
+     `https://claude.ai/code/session_<id>`, `https://cursor.com/share/<id>`,
+     `https://chatgpt.com/codex/<id>`, or `https://jules.google.com/task/<id>`.
      Flag the literal placeholder `<CLAUDE_CHAT_URL>` in non-draft PRs.
    - If it is not, do not flag the absence of the title prefix or
      transcript URL.

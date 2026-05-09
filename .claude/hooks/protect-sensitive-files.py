@@ -23,7 +23,11 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.pem",
     "*.key",
     "*.crt",
+    # SSH private keys: cover all standard key types, not just RSA.
     "id_rsa*",
+    "id_ed25519*",
+    "id_ecdsa*",
+    "id_dsa*",
     # "any file matching a sensible secret naming convention" (per
     # pr-rules/common.md §3). Use broad globs rather than enumerating
     # each extension — `credentials.toml`, `secrets.env`, etc. are equally

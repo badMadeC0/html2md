@@ -39,12 +39,9 @@ jobs:
           # `<CLAUDE_CHAT_URL>`, but other comment text in the template
           # (or in PRs copied from older templates) shouldn't accidentally
           # satisfy or trigger the metadata checks. python is preinstalled
-          # on ubuntu-latest runners.
-          body=$(python3 -c '
-import os, re, sys
-body = os.environ.get("PR_BODY", "") or ""
-sys.stdout.write(re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL))
-')
+          # on ubuntu-latest runners. (Single-line invocation so no
+          # block-scalar indentation hazards exist.)
+          body=$(python3 -c "import os, re, sys; sys.stdout.write(re.sub(r'<!--.*?-->', '', os.environ.get('PR_BODY','') or '', flags=re.DOTALL))")
           # Require the path to start with at least one ID character (alnum,
           # `_`, or `-`). Using a strict ID class instead of "any non-slash,
           # non-`?`" rejects `claude.ai/chat/)` or `claude.ai/chat/#` where
