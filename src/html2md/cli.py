@@ -91,7 +91,7 @@ def main(argv=None):
                         content_bytes.extend(chunk)
                         if len(content_bytes) > max_size:
                             print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                                return
+                            return
 
                     html_bytes = bytes(content_bytes)
                     response_encoding = response.encoding or 'utf-8'
