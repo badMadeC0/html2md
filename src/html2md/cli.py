@@ -71,34 +71,29 @@ def main(argv=None):
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                with session.get(target_url, timeout=30, stream=True) as response:
-                    response.raise_for_status()
-                    max_size = 10 * 1024 * 1024
-                    content_length = response.headers.get('Content-Length')
-                    try:
-                        if content_length is not None:
-                            content_length_value = int(content_length)
-                            if content_length_value < 0:
-                                raise ValueError("Negative Content-Length header")
-                            if content_length_value > max_size:
-                                print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                                return
-                    except (ValueError, TypeError):
-                        print("Warning: Invalid Content-Length header; enforcing size limit during download.", file=sys.stderr)
+                response = session.get(target_url, timeout=30, stream=True)
+                response.raise_for_status()
 
-                    content_bytes = bytearray()
-                    for chunk in response.iter_content(chunk_size=8192):
-                        content_bytes.extend(chunk)
-                        if len(content_bytes) > max_size:
-                            print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                            return
+                max_size = 10 * 1024 * 1024
+                try:
+                    if int(response.headers.get('Content-Length', 0)) > max_size:
+                        print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                        response.close()
+                        return
+                except ValueError:
+                    pass
 
-                    html_bytes = bytes(content_bytes)
-                    response_encoding = response.encoding or 'utf-8'
-                    html_content = html_bytes.decode(response_encoding, errors='replace')
+                content_bytes = b""
+                for chunk in response.iter_content(chunk_size=8192):
+                    content_bytes += chunk
+                    if len(content_bytes) > max_size:
+                        print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                        response.close()
+                        return
+                response._content = content_bytes
 
-                    print("Converting to Markdown...")
-                    md_content = md(html_content, heading_style="ATX")
+                print("Converting to Markdown...")
+                md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
