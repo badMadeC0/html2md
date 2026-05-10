@@ -8,12 +8,11 @@ import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
 
-def make_stream_response(chunks=None, encoding="utf-8", apparent_encoding="utf-8"):
+def make_stream_response(chunks=None, encoding="utf-8"):
     """Create a response mock that supports streamed context-manager usage."""
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.encoding = encoding
-    mock_resp.apparent_encoding = apparent_encoding
     mock_resp.iter_content.return_value = chunks or [b"<h1>Hello</h1>"]
     mock_resp.raise_for_status.return_value = None
     mock_resp.__enter__.return_value = mock_resp
@@ -115,16 +114,14 @@ class TestCliExceptions(unittest.TestCase):
                 mock_md.assert_not_called()
                 mock_resp.__exit__.assert_called_once()
 
-    def test_streamed_decode_uses_apparent_encoding_when_charset_missing(self):
-        """Missing charset should use Requests-style apparent encoding fallback."""
-        word = "café"
+    def test_streamed_decode_uses_utf8_when_charset_missing(self):
+        """Missing charset should fall back to utf-8 without apparent_encoding."""
         captured_stdout = io.StringIO()
         with patch('sys.stdout', captured_stdout):
             with patch('requests.Session.get') as mock_get:
                 mock_get.return_value = make_stream_response(
-                    chunks=[f"<p>{word}</p>".encode('iso-8859-1')],
+                    chunks=["<p>café</p>".encode('utf-8')],
                     encoding=None,
-                    apparent_encoding='iso-8859-1',
                 )
 
                 with patch(
@@ -135,16 +132,50 @@ class TestCliExceptions(unittest.TestCase):
 
         self.assertEqual(result, 0)
         mock_md.assert_called_once()
-        self.assertIn(word, mock_md.call_args.args[0])
-        self.assertIn(word, captured_stdout.getvalue())
+        self.assertIn("café", mock_md.call_args.args[0])
+        self.assertIn("café", captured_stdout.getvalue())
+
+    def test_streamed_decode_does_not_read_apparent_encoding(self):
+        """Consumed streamed bodies must not trigger apparent_encoding access."""
+
+        class ResponseWithRaisingApparentEncoding:
+            encoding = "utf-8"
+
+            @property
+            def apparent_encoding(self):
+                raise RuntimeError("The content for this response was already consumed")
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return None
+
+            def raise_for_status(self):
+                return None
+
+            def iter_content(self, chunk_size=8192):
+                del chunk_size
+                return iter([b"<p>ok</p>"])
+
+        with patch('requests.Session.get') as mock_get:
+            mock_get.return_value = ResponseWithRaisingApparentEncoding()
+
+            with patch(
+                'markdownify.markdownify',
+                side_effect=lambda html, **_: html,
+            ) as mock_md:
+                result = main(['--url', 'http://example.com'])
+
+        self.assertEqual(result, 0)
+        self.assertIn("ok", mock_md.call_args.args[0])
 
     def test_invalid_charset_label_falls_back_without_failing(self):
-        """Invalid charset labels should fall back like response.text."""
+        """Invalid charset labels should fall back to utf-8."""
         with patch('requests.Session.get') as mock_get:
             mock_get.return_value = make_stream_response(
                 chunks=["<p>ok</p>".encode('utf-8')],
                 encoding='not-a-real-codec',
-                apparent_encoding='utf-8',
             )
 
             with patch(
