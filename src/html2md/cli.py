@@ -95,9 +95,12 @@ def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, tim
         return original_getaddrinfo(host, request_port, family, type, proto, flags)
 
     socket.getaddrinfo = pinned_getaddrinfo
+    original_trust_env = getattr(session, "trust_env", True)
+    session.trust_env = False
     try:
         return session.get(target_url, timeout=timeout, allow_redirects=False)
     finally:
+        session.trust_env = original_trust_env
         socket.getaddrinfo = original_getaddrinfo
 
 
