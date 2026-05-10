@@ -19,7 +19,7 @@ def process_url(target_url: str, args: argparse.Namespace, session: Any) -> None
             "Please run: pip install requests markdownify",
             file=sys.stderr,
         )
-        return
+        sys.exit(1)
 
     # Fix common URL typo: trailing slash before query parameters
     if "/?" in target_url:
