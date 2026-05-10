@@ -14,50 +14,73 @@ permissions:
   issues: write
 
 jobs:
-  gemini-code-assist:
+  gemini-code-assist-preflight:
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'pull_request') ||
       ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
        contains(github.event.comment.body, '@gemini-code-assist') &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR'))
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+      is_same_repo: ${{ steps.pr.outputs.is_same_repo }}
+    steps:
+      # Comment-triggered events fire from the base repo regardless of where
+      # the PR's head lives. Check the head repo in a no-secrets preflight job
+      # before the Gemini job receives GEMINI_API_KEY/GITHUB_TOKEN and starts a
+      # --yolo run with write-capable MCP tools.
+      - name: Resolve pull request trust boundary
+        id: pr
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            head_repo=$(jq -r '.pull_request.head.repo.full_name' "${GITHUB_EVENT_PATH}")
+          else
+            head_repo=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.head.repo.full_name')
+          fi
+
+          echo "pr_number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+          if [ "${head_repo}" = "${REPO}" ]; then
+            echo "is_same_repo=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "is_same_repo=false" >> "${GITHUB_OUTPUT}"
+            echo "Refusing to run secret-backed Gemini review on fork PR (head=${head_repo})" >&2
+          fi
+
+  gemini-code-assist:
+    needs: gemini-code-assist-preflight
+    runs-on: ubuntu-latest
+    if: needs.gemini-code-assist-preflight.outputs.is_same_repo == 'true'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      HAS_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY != '' }}
       GEMINI_CLI_TRUST_WORKSPACE: "true"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Comment-triggered events fire from the base repo regardless of where
-      # the PR's head lives. The job-level author_association check rejects
-      # untrusted commenters, but a trusted collaborator commenting on a
-      # fork PR would still feed the fork's diff to a --yolo run with
-      # write-capable MCP tools and GEMINI_API_KEY in scope. Verify the PR
-      # head repo before any secret-using step runs.
-      - name: Verify PR head is not a fork (comment-triggered runs)
-        if: github.event_name != 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-        run: |
-          set -euo pipefail
-          head_repo=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.head.repo.full_name')
-          if [ "${head_repo}" != "${REPO}" ]; then
-            echo "Refusing to run secret-backed Gemini review on fork PR (head=${head_repo})" >&2
-            exit 1
-          fi
       # Install the code-review extension from a pinned commit by cloning
       # locally and passing the path to the action's `extensions:` input.
       # The action's installer treats non-https sources as local paths, so
       # this avoids the floating default-branch install while still letting
       # `gemini extensions install` set up the manifest.
       - name: Clone gemini code-review extension at pinned commit
-        if: env.GEMINI_API_KEY != ''
+        if: env.HAS_GEMINI_API_KEY == 'true'
         env:
           EXTENSION_REF: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
         run: |
@@ -67,16 +90,16 @@ jobs:
             "${RUNNER_TEMP}/gemini-code-review-ext"
           git -C "${RUNNER_TEMP}/gemini-code-review-ext" checkout "${EXTENSION_REF}"
       - name: Gemini Code Assist
-        if: env.GEMINI_API_KEY != ''
+        if: env.HAS_GEMINI_API_KEY == 'true'
         continue-on-error: true
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PULL_REQUEST_NUMBER: ${{ needs.gemini-code-assist-preflight.outputs.pr_number }}
         with:
-          gemini_api_key: ${{ env.GEMINI_API_KEY }}
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          github_pr_number: ${{ needs.gemini-code-assist-preflight.outputs.pr_number }}
           prompt: '/pr-code-review'
           # Pin the Gemini CLI alongside the action/extension/MCP image so
           # the full toolchain handed GITHUB_TOKEN and review-write MCP is
