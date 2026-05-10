@@ -63,7 +63,18 @@ jobs:
         # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
         # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
         # so wiping it is safe and removes the attack surface.
-        run: rm -rf .gemini
+        run: |
+          rm -rf .gemini
+          rm -rf .github/gemini-code-review-extension
+      - name: Checkout pinned code-review extension
+        uses: actions/checkout@v4
+        with:
+          repository: gemini-cli-extensions/code-review
+          # Pin the extension content so upstream default-branch changes do
+          # not silently alter automated PR review behavior.
+          ref: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+          path: .github/gemini-code-review-extension
+          persist-credentials: false
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -122,7 +133,7 @@ jobs:
             }
           extensions: |
             [
-              "https://github.com/gemini-cli-extensions/code-review"
+              "./.github/gemini-code-review-extension"
             ]
           prompt: "/pr-code-review"
       - name: Note Gemini API quota exhaustion
