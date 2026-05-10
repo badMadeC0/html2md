@@ -1,70 +1,38 @@
 #!/usr/bin/env node
-/* Targeted, ordered repairs. Each step is idempotent and re-runs healthcheck.
-   Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
+/* Python CI-oriented self-heal entrypoint.
+   This repo's automatic trigger follows .github/workflows/ci.yml, so repairs must
+   be validated by scripts/healthcheck.mjs instead of pnpm workspace checks.
 */
-import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
 
-const sh = (cmd, opts={}) => {
-  console.log(`\n$ ${cmd}`);
-  return execSync(cmd, { stdio: "inherit", ...opts });
+const run = (cmd, args) => {
+  console.log(`\n$ ${[cmd, ...args].join(" ")}`);
+  execFileSync(cmd, args, { stdio: "inherit" });
 };
-const trySh = (cmd, opts={}) => {
-  try { sh(cmd, opts); return true; } catch { return false; }
-};
+
 const changed = () => {
-  const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
+  const out = spawnSync(
+    "git",
+    ["status", "--porcelain", "--", ".", ":!selfheal-*.txt"],
+    { encoding: "utf8" },
+  );
   return (out.stdout || "").trim().length > 0;
 };
+
 const passHealth = () => {
-  try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
+  try {
+    run("node", ["scripts/healthcheck.mjs"]);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
-let fixed = false;
-
-// 1) Lint/format
-trySh("pnpm -w run lint --fix");
-trySh("pnpm -w run format");
-if (passHealth()) fixed = fixed || changed();
-
-// 2) Snapshot updates (only if tests fail with snapshots)
-if (!passHealth()) {
-  trySh("pnpm -w exec vitest -u");
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 3) Type acquisition
-if (!passHealth()) {
-  trySh("pnpm dlx typesync --save-dev");
-  // In case typesync suggests @types/node et al.
-  trySh("pnpm -w install");
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 4) Lockfile repair (only if integrity complaints)
-if (!passHealth()) {
-  // Try a clean install + re-resolve
-  trySh("pnpm install");
-  if (!passHealth()) {
-    // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
-  }
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 5) Known generators (icons/docs), if present
-if (!passHealth()) {
-  if (existsSync("scripts/update-icon-docs.mjs")) {
-    trySh("node scripts/update-icon-docs.mjs");
-  }
-  if (existsSync("scripts/verify-static.mjs")) {
-    trySh("node scripts/verify-static.mjs");
-  }
-  if (passHealth()) fixed = fixed || changed();
-}
-
-if (fixed) {
+// Placeholder for future targeted Python repairs. For now, only report success
+// when an earlier/manual repair changed files and the reproduced CI check passes.
+if (changed() && passHealth()) {
   process.exit(0);
-} else {
-  process.exit(1);
 }
+
+console.error("[self-heal] No automatic Python repair was produced.");
+process.exit(1);

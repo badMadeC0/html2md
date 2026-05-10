@@ -1,50 +1,28 @@
 #!/usr/bin/env node
-/* Minimal, opinionated healthcheck for a pnpm monorepo:
-   - root: typecheck? test? lint? build?
-   - workspaces: smoke build where available
+/* Reproduce this repository's Python CI locally:
+   - install package/test dependencies the same way .github/workflows/ci.yml does
+   - run pytest -q so self-heal gates PR creation on the same check that failed
 */
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
 
-const run = (cmd) => execSync(cmd, { stdio: "inherit" });
-const hasScript = (name) => {
-  try {
-    const out = execSync("pnpm run -r", { stdio: "pipe" }).toString();
-    return out.includes(name);
-  } catch { return false; }
+const run = (cmd, args) => {
+  console.log(`\n$ ${[cmd, ...args].join(" ")}`);
+  execFileSync(cmd, args, { stdio: "inherit" });
 };
 
-const tryRun = (name, cmd) => {
-  if (!cmd) return;
-  console.log(`\n==> ${name}`);
-  run(cmd);
-};
+const python = process.platform === "win32" ? "python" : "python3";
+
+if (!existsSync("pyproject.toml")) {
+  console.error("[healthcheck] pyproject.toml not found; cannot reproduce Python CI");
+  process.exit(1);
+}
 
 try {
-  // Root-level checks (best-effort if scripts exist)
-  tryRun("Typecheck", hasScript("typecheck") ? "pnpm -w run typecheck" : null);
-  tryRun("Lint", hasScript("lint") ? "pnpm -w run lint" : null);
-  tryRun("Unit tests", hasScript("test") ? "pnpm -w run test -- --run" : null);
-
-  // Workspace smoke builds (apps/* and packages/* if build exists)
-  const roots = ["apps", "packages"];
-  for (const base of roots) {
-    if (!existsSync(base)) continue;
-    for (const name of readdirSync(base)) {
-      const dir = join(base, name);
-      if (!statSync(dir).isDirectory()) continue;
-      try {
-        execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
-      } catch (e) {
-        console.error(`[healthcheck] build failed in ${dir}`);
-        process.exitCode = 1;
-      }
-    }
-  }
-  process.exit(process.exitCode ?? 0);
-} catch (e) {
-  console.error(e);
-  process.exit(1);
+  run(python, ["-m", "pip", "install", "--upgrade", "pip", "wheel", "setuptools"]);
+  run(python, ["-m", "pip", "install", "-e", "."]);
+  run(python, ["-m", "pip", "install", "pytest"]);
+  run(python, ["-m", "pytest", "-q"]);
+} catch (error) {
+  process.exit(error.status ?? 1);
 }
