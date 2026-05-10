@@ -51,3 +51,12 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_process_url_missing_netloc_rejected_before_network_call(mock_get, capsys, tmp_path):
+    """Malformed http URL without netloc is rejected before any network call."""
+    cli.main(["--url", "http:///something", "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert "Error: Invalid URL. Missing network location." in outerr.err
+    mock_get.assert_not_called()
