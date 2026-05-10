@@ -3,7 +3,7 @@
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
@@ -27,13 +27,7 @@ trySh("pnpm -w run lint --fix");
 trySh("pnpm -w run format");
 if (passHealth()) fixed = fixed || changed();
 
-// 2) Snapshot updates (only if tests fail with snapshots)
-if (!passHealth()) {
-  trySh("pnpm -w exec vitest -u");
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 3) Type acquisition
+// 2) Type acquisition
 if (!passHealth()) {
   trySh("pnpm dlx typesync --save-dev");
   // In case typesync suggests @types/node et al.
@@ -41,7 +35,7 @@ if (!passHealth()) {
   if (passHealth()) fixed = fixed || changed();
 }
 
-// 4) Lockfile repair (only if integrity complaints)
+// 3) Lockfile repair (only if integrity complaints)
 if (!passHealth()) {
   // Try a clean install + re-resolve
   trySh("pnpm install");
@@ -52,7 +46,7 @@ if (!passHealth()) {
   if (passHealth()) fixed = fixed || changed();
 }
 
-// 5) Known generators (icons/docs), if present
+// 4) Known generators (icons/docs), if present
 if (!passHealth()) {
   if (existsSync("scripts/update-icon-docs.mjs")) {
     trySh("node scripts/update-icon-docs.mjs");
