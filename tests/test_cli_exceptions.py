@@ -116,12 +116,13 @@ class TestCliExceptions(unittest.TestCase):
                             return "/tmp/out"
 
                         with patch("os.path.realpath", side_effect=fake_realpath):
+                            blocked_outdir = "/tmp/out"
                             main(
                                 [
                                     "--url",
                                     "http://example.com/a",
                                     "--outdir",
-                                    "/tmp/out",
+                                    blocked_outdir,
                                 ]
                             )
 
@@ -129,7 +130,7 @@ class TestCliExceptions(unittest.TestCase):
                         self.assertIn("Output path escapes output directory", output)
                         self.assertFalse(
                             any(
-                                str(call.args[0]).startswith("/tmp/out")
+                                str(call.args[0]).startswith(blocked_outdir)
                                 for call in mock_open.call_args_list
                             )
                         )
