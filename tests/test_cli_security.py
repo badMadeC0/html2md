@@ -53,9 +53,30 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert not (tmp_path / "secret.txt.md").exists()
 
 
-def test_whole_page_option_is_accepted_for_gui_batch_mode(capsys):
-    """GUI batch mode may pass --whole-page through to the CLI."""
-    rc = cli.main(["--whole-page", "--help-only"])
-    outerr = capsys.readouterr()
+@patch("markdownify.markdownify", return_value="# Body")
+@patch("requests.Session.get")
+def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_path):
+    """GUI batch mode --whole-page should drive conversion behavior."""
+    batch_file = tmp_path / "urls.txt"
+    batch_file.write_text("https://example.com/article\n", encoding="utf-8")
+    outdir = tmp_path / "out"
+
+    response = MagicMock()
+    response.text = "<header>Header</header><main>Body</main><footer>Footer</footer>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    rc = cli.main([
+        "--batch", str(batch_file),
+        "--outdir", str(outdir),
+        "--whole-page",
+    ])
+
     assert rc == 0
-    assert "--whole-page" in outerr.out
+    mock_get.assert_called_once_with("https://example.com/article", timeout=30)
+    mock_md.assert_called_once_with(
+        response.text,
+        heading_style="ATX",
+        strip=None,
+    )
+    assert (outdir / "article.md").read_text(encoding="utf-8") == "# Body"

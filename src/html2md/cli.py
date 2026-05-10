@@ -78,7 +78,12 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                tags_to_strip = None if args.whole_page else ["header", "footer"]
+                md_content = md(
+                    response.text,
+                    heading_style="ATX",
+                    strip=tags_to_strip,
+                )
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
