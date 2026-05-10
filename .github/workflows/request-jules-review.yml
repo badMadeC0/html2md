@@ -49,10 +49,21 @@ jobs:
                       link_header = list_response.headers.get("Link", "")
               except urllib.error.HTTPError as error:
                   body = error.read().decode("utf-8")
-                  # 403/404 are non-actionable (permissions, missing PR); log and skip
-                  # like the fork guard above. Surface every other failure so a transient
-                  # API error shows up as a red check the maintainer can retry.
-                  if error.code in (403, 404):
+                  # GitHub uses 403 for both permission denials AND rate limit /
+                  # abuse detection, so only log-and-skip when it looks like a
+                  # true permission context. 404 is always non-actionable here.
+                  # Anything else (including rate-limited 403s) raises so the
+                  # maintainer sees a red check they can retry.
+                  permission_skip = error.code == 404
+                  if error.code == 403:
+                      rate_limited = (
+                          error.headers.get("X-RateLimit-Remaining") == "0"
+                          or error.headers.get("Retry-After") is not None
+                          or "rate limit" in body.lower()
+                          or "abuse" in body.lower()
+                      )
+                      permission_skip = not rate_limited
+                  if permission_skip:
                       print(
                           f"Could not list existing comments ({error.code}): {body}"
                       )
