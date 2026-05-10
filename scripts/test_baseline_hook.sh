@@ -41,6 +41,14 @@ import sys
 print(sys.executable)
 PY
 )" || fail "could not resolve python interpreter: $PYTHON_BIN"
+PYTHON3_BIN_PATH=""
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON3_BIN_PATH="$(python3 - <<'PY'
+import sys
+print(sys.executable)
+PY
+)" || fail "could not resolve python3 interpreter"
+fi
 
 SETTINGS_HOOK_COMMAND="$($PYTHON_BIN - <<'PY'
 import json
@@ -70,25 +78,33 @@ run_hook_payload() {
 
 # Ensure the configured Claude hook command skips an unusable `python` shim
 # (for example, pyenv with a missing .python-version) when `python3` works.
-TMP_DIR="$(mktemp -d)" || fail "could not create temporary directory"
+make_tmp_dir() {
+  mktemp -d 2>/dev/null || mktemp -d -t html2md-hook-test
+}
+
+TMP_DIR="$(make_tmp_dir)" || fail "could not create temporary directory"
 cleanup_tmp_dir() { rm -rf "$TMP_DIR"; }
 trap cleanup_tmp_dir EXIT
-cat >"$TMP_DIR/python" <<'SH'
-#!/usr/bin/env sh
+if [ -n "$PYTHON3_BIN_PATH" ]; then
+  cat >"$TMP_DIR/python" <<'SH'
+#!/bin/sh
 echo "simulated broken python" >&2
 exit 127
 SH
-cat >"$TMP_DIR/python3" <<SH
-#!/usr/bin/env sh
-exec "$PYTHON_BIN_PATH" "\$@"
+  cat >"$TMP_DIR/python3" <<SH
+#!/bin/sh
+exec "$PYTHON3_BIN_PATH" "\$@"
 SH
-chmod +x "$TMP_DIR/python" "$TMP_DIR/python3"
-if ! PATH="$TMP_DIR:$PATH" sh -c "$SETTINGS_HOOK_COMMAND" <<'EOF' >/dev/null 2>&1; then
+  chmod +x "$TMP_DIR/python" "$TMP_DIR/python3"
+  if ! PATH="$TMP_DIR:$PATH" /bin/sh -c "$SETTINGS_HOOK_COMMAND" <<'EOF' >/dev/null 2>&1; then
 {"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/html2md/cli.py"}}
 EOF
-  fail "settings hook command should use working python3 when python is unavailable"
+    fail "settings hook command should use working python3 when python is unavailable"
+  fi
+  pass "settings hook command uses working python3 when python is unavailable"
+else
+  pass "skipped python3 preference check because python3 is not available"
 fi
-pass "settings hook command uses working python3 when python is unavailable"
 
 NO_PYTHON_DIR="$TMP_DIR/no-usable-python"
 mkdir "$NO_PYTHON_DIR" || fail "could not create no-usable-python directory"
