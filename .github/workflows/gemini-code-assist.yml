@@ -116,7 +116,11 @@ jobs:
                   "read_many_files",
                   "list_directory",
                   "glob",
-                  "grep_search"
+                  "grep_search",
+                  "run_shell_command(cat)",
+                  "run_shell_command(grep)",
+                  "run_shell_command(head)",
+                  "run_shell_command(tail)"
                 ]
               }
             }
