@@ -59,14 +59,13 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        def fake_realpath(path):
-                            if str(path).endswith('.md'):
-                                return '/tmp/outside/a.md'
-                            return '/tmp/out'
+                        with patch('html2md.cli.open', create=True) as mock_open:
+                            def fake_realpath(path):
+                                if str(path).endswith('.md'):
+                                    return '/tmp/outside/a.md'
+                                return '/tmp/out'
 
-                        with patch('os.path.realpath', side_effect=fake_realpath):
-                            # In main(), 'with open(out_path, ...)' is used. We can patch it in cli module.
-                            with patch('html2md.cli.open', create=True) as mock_open:
+                            with patch('os.path.realpath', side_effect=fake_realpath):
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
