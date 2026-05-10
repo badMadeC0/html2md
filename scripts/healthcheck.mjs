@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Minimal, opinionated healthcheck for this Python project:
-   - run the same pytest suite as CI when tests are present
+   - install Python test dependencies before running the same pytest suite as CI
    - optionally run root package scripts, without pnpm workspace flags
    - in real pnpm workspaces only, smoke build packages that declare build
 */
@@ -21,9 +21,18 @@ const tryRun = (name, cmd) => {
   run(cmd);
 };
 
+const runPythonTests = () => {
+  if (!existsSync("tests")) return;
+
+  // Match CI's Python setup before invoking pytest so clean self-heal runners
+  // have pytest and the src-layout package installed.
+  tryRun("Python test dependencies", "python -m pip install -e . pytest");
+  tryRun("Python tests", "python -m pytest -q");
+};
+
 try {
-  // Match the repository's Python CI gate first; this repo is not a pnpm workspace.
-  tryRun("Python tests", existsSync("tests") ? "python -m pytest -q" : null);
+  // Run the repository's Python CI gate first; this repo is not a pnpm workspace.
+  runPythonTests();
 
   // Optional root-level package checks. Use plain pnpm commands, never `pnpm -w`,
   // because this repository has no pnpm-workspace.yaml.
