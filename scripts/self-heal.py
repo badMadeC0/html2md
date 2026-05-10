@@ -1,53 +1,56 @@
 #!/usr/bin/env python
 """
 Targeted, ordered repairs. Each step is idempotent and re-runs healthcheck.
-Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
+Exit 0 if repairs were applied and healthcheck passes; exit 1 otherwise.
 """
+from __future__ import annotations
+
 import subprocess
 import sys
 
-def sh(cmd):
-    print(f"\n$ {cmd}")
-    subprocess.run(cmd, shell=True, check=True)
 
-def try_sh(cmd):
+def sh(argv: list) -> None:
+    print(f"\n$ {' '.join(str(a) for a in argv)}")
+    subprocess.run(argv, check=True)
+
+
+def try_sh(argv: list) -> bool:
     try:
-        sh(cmd)
+        sh(argv)
         return True
     except Exception:
         return False
 
-def changed():
+
+def changed() -> bool:
     out = subprocess.check_output(["git", "status", "--porcelain"], encoding="utf-8")
     return len(out.strip()) > 0
 
-def pass_health():
+
+def pass_health() -> bool:
     try:
-        subprocess.run([sys.executable, "scripts/healthcheck.py"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(
+            [sys.executable, "scripts/healthcheck.py"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         return True
     except subprocess.CalledProcessError:
         return False
 
-def main():
-    fixed = False
 
+def main() -> None:
     # 1) Lint/format auto-fix
-    try_sh("black src tests")
+    try_sh([sys.executable, "-m", "black", "src", "tests"])
 
-    if pass_health():
-        fixed = fixed or changed()
+    if pass_health() and changed():
+        print("\nRepairs applied and healthcheck passes.")
+        sys.exit(0)
 
-    # In a more advanced setup, you could add more self-healing logic here,
-    # such as running automated type-fixing tools, etc.
-    # We only care if we fixed it *and* produced a diff.
-    # (If the codebase was already healthy and there's no diff, fixed will be False)
-    # The workflow relies on post-repair healthcheck succeeding and git commands to push.
+    print("\nNo repairs were successfully applied or healthcheck still fails.")
+    sys.exit(1)
 
-    if not fixed:
-        print("\nNo repairs were successfully applied.")
-
-    # Exit successfully so workflow continues if we attempted repairs
-    sys.exit(0)
 
 if __name__ == "__main__":
     main()
