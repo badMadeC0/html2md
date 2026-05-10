@@ -54,6 +54,7 @@ jobs:
             const sameRepo = pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("is_same_repo", String(sameRepo));
+            core.setOutput("pr_number", String(pr.number));
 
       - uses: actions/checkout@v6
         if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
@@ -69,6 +70,7 @@ jobs:
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           gemini_model: gemini-2.0-flash
+          github_pr_number: ${{ github.event.issue.number || steps.pr_head.outputs.pr_number }}
           prompt: |
             You are Gemini Code Assist running in a GitHub Actions workflow for ${{ github.repository }}.
 
