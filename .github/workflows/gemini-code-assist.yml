@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   pull-requests: write
   issues: write
 
@@ -29,19 +30,30 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_CLI_TRUST_WORKSPACE: "true"
       GOOGLE_GENAI_USE_GCA: ${{ vars.GOOGLE_GENAI_USE_GCA }}
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Gemini Code Assist
-        if: env.GEMINI_API_KEY != '' || env.GOOGLE_GENAI_USE_GCA == 'true'
+        if: >
+          env.GEMINI_API_KEY != '' ||
+          (env.GOOGLE_GENAI_USE_GCA == 'true' &&
+           env.GCP_PROJECT_ID != '' &&
+           env.GCP_SERVICE_ACCOUNT != '' &&
+           env.GCP_WORKLOAD_IDENTITY_PROVIDER != '')
         continue-on-error: true
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
-          use_gemini_code_assist: ${{ env.GOOGLE_GENAI_USE_GCA }}
+          gcp_project_id: ${{ env.GEMINI_API_KEY == '' && env.GOOGLE_GENAI_USE_GCA == 'true' && env.GCP_PROJECT_ID || '' }}
+          gcp_service_account: ${{ env.GEMINI_API_KEY == '' && env.GOOGLE_GENAI_USE_GCA == 'true' && env.GCP_SERVICE_ACCOUNT || '' }}
+          gcp_workload_identity_provider: ${{ env.GEMINI_API_KEY == '' && env.GOOGLE_GENAI_USE_GCA == 'true' && env.GCP_WORKLOAD_IDENTITY_PROVIDER || '' }}
+          use_gemini_code_assist: ${{ env.GEMINI_API_KEY == '' && env.GOOGLE_GENAI_USE_GCA == 'true' }}
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           extensions: |
             [
