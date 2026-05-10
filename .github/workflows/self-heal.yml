@@ -79,10 +79,21 @@ jobs:
             selfheal-repair.txt
             selfheal-post.txt
 
+      - name: Verify CI-triggering PR token is configured
+        if: steps.post.outcome == 'success'
+        env:
+          SELF_HEAL_PR_TOKEN: ${{ secrets.SELF_HEAL_PR_TOKEN }}
+        run: |
+          if [ -z "$SELF_HEAL_PR_TOKEN" ]; then
+            echo "SELF_HEAL_PR_TOKEN must be configured with a PAT or GitHub App token so generated PRs trigger CI." >&2
+            exit 1
+          fi
+
       - name: Create PR with fixes
         if: steps.post.outcome == 'success'
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.SELF_HEAL_PR_TOKEN }}
           commit-message: "chore: auto-fix lint/format and lockfiles"
           title: "🔧 Auto-healing fixes"
           body: |
