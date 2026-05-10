@@ -1,6 +1,9 @@
 """Security-focused tests for CLI URL and output path handling."""
 
+import sys
+import types
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from html2md import cli
@@ -93,6 +96,44 @@ def test_process_url_blocks_redirect_to_private_address(mock_get, capsys, tmp_pa
     mock_get.assert_called_once_with(
         "http://public.example/start", timeout=30, allow_redirects=False
     )
+
+
+def test_process_url_uses_requests_connection_module_for_rebinding_guard(capsys):
+    """The CLI patches the create_connection symbol requests/urllib3 calls."""
+    fake_requests = types.ModuleType("requests")
+    fake_requests.RequestException = RuntimeError
+    fake_requests.Session = MagicMock(return_value=MagicMock())
+    fake_markdownify = types.ModuleType("markdownify")
+    fake_markdownify.markdownify = MagicMock(return_value="guarded")
+    fake_urllib3 = types.ModuleType("urllib3")
+    fake_connection = types.ModuleType("urllib3.connection")
+    fake_connection.create_connection = MagicMock()
+    fake_urllib3.connection = fake_connection
+
+    response = MagicMock()
+    response.text = "<h1>guarded</h1>"
+    response.raise_for_status.return_value = None
+    captured = {}
+
+    def fake_fetch(session, target_url, connection_module, timeout=30):
+        captured["connection_module"] = connection_module
+        return response
+
+    modules = {
+        "requests": fake_requests,
+        "markdownify": fake_markdownify,
+        "urllib3": fake_urllib3,
+        "urllib3.connection": fake_connection,
+    }
+    with patch.dict(sys.modules, modules):
+        with patch("html2md.cli.socket.getaddrinfo", return_value=addrinfo("93.184.216.34")):
+            with patch("html2md.cli._fetch_with_validated_redirects", side_effect=fake_fetch):
+                cli.main(["--url", "http://public.example/start"])
+
+    outerr = capsys.readouterr()
+    assert "guarded" in outerr.out
+    assert outerr.err == ""
+    assert captured["connection_module"] is fake_connection
 
 
 def test_validated_fetch_disables_environment_proxy_settings():

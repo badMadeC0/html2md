@@ -99,6 +99,13 @@ def _validated_create_connection(
     raise socket.gaierror("No addresses found")
 
 
+def _get_connection_patch_target(connection_module):
+    """Return the object whose create_connection urllib3 calls for new sockets."""
+    if hasattr(connection_module, 'create_connection'):
+        return connection_module
+    return connection_module.connection
+
+
 def _fetch_with_validated_redirects(
     session, target_url: str, connection_module, timeout: int = 30
 ):
@@ -109,12 +116,13 @@ def _fetch_with_validated_redirects(
     current_url = target_url
     for _ in range(MAX_REDIRECTS + 1):
         _validate_fetch_url(current_url)
-        original_create_connection = connection_module.create_connection
-        connection_module.create_connection = _validated_create_connection
+        patch_target = _get_connection_patch_target(connection_module)
+        original_create_connection = patch_target.create_connection
+        patch_target.create_connection = _validated_create_connection
         try:
             response = session.get(current_url, timeout=timeout, allow_redirects=False)
         finally:
-            connection_module.create_connection = original_create_connection
+            patch_target.create_connection = original_create_connection
 
         if response.status_code not in REDIRECT_STATUSES:
             return response
@@ -154,7 +162,7 @@ def main(argv=None):
                   "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
 
-        import urllib3.util.connection as urllib3_connection  # type: ignore
+        import urllib3.connection as urllib3_connection  # type: ignore
 
         session = requests.Session()
         session.headers.update({
