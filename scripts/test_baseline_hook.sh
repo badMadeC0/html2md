@@ -90,6 +90,28 @@ EOF
 fi
 pass "settings hook command uses working python3 when python is unavailable"
 
+NO_PYTHON_DIR="$TMP_DIR/no-usable-python"
+mkdir "$NO_PYTHON_DIR" || fail "could not create no-usable-python directory"
+cat >"$NO_PYTHON_DIR/python" <<'SH'
+#!/bin/sh
+echo "simulated missing python" >&2
+exit 127
+SH
+cat >"$NO_PYTHON_DIR/python3" <<'SH'
+#!/bin/sh
+echo "simulated missing python3" >&2
+exit 127
+SH
+chmod +x "$NO_PYTHON_DIR/python" "$NO_PYTHON_DIR/python3"
+PATH="$NO_PYTHON_DIR" /bin/sh -c "$SETTINGS_HOOK_COMMAND" <<'EOF' >/dev/null 2>&1
+{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/html2md/cli.py"}}
+EOF
+NO_PYTHON_STATUS=$?
+if [ "$NO_PYTHON_STATUS" -ne 2 ]; then
+  fail "settings hook command should exit 2 when no usable Python is available, got $NO_PYTHON_STATUS"
+fi
+pass "settings hook command exits 2 when no usable Python is available"
+
 # --- BLOCK cases (expect non-zero exit) ---
 for path in ".env" ".env.local" ".env.production" "config/.env" \
             ".envrc" ".envrc.local" "config/.envrc" \
