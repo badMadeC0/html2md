@@ -115,28 +115,42 @@ class TestCliExceptions(unittest.TestCase):
                 mock_md.assert_not_called()
                 mock_resp.__exit__.assert_called_once()
 
-    def test_streamed_decode_uses_apparent_encoding_when_charset_missing(self):
-        """Missing charset should use Requests-style apparent encoding fallback."""
-        word = "café"
-        captured_stdout = io.StringIO()
-        with patch('sys.stdout', captured_stdout):
-            with patch('requests.Session.get') as mock_get:
-                mock_get.return_value = make_stream_response(
-                    chunks=[f"<p>{word}</p>".encode('iso-8859-1')],
-                    encoding=None,
-                    apparent_encoding='iso-8859-1',
+    def test_streamed_decode_avoids_apparent_encoding_after_streaming(self):
+        """Decoding should not inspect apparent_encoding after consuming a stream."""
+
+        class StreamedResponseWithConsumedContent:
+            encoding = 'utf-8'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return None
+
+            @property
+            def apparent_encoding(self):
+                raise RuntimeError(
+                    "The content for this response was already consumed"
                 )
 
-                with patch(
-                    'markdownify.markdownify',
-                    side_effect=lambda html, **_: html,
-                ) as mock_md:
-                    result = main(['--url', 'http://example.com'])
+            def raise_for_status(self):
+                return None
+
+            def iter_content(self, chunk_size=8192):
+                return iter([b"<p>ok</p>"])
+
+        with patch('requests.Session.get') as mock_get:
+            mock_get.return_value = StreamedResponseWithConsumedContent()
+
+            with patch(
+                'markdownify.markdownify',
+                side_effect=lambda html, **_: html,
+            ) as mock_md:
+                result = main(['--url', 'http://example.com'])
 
         self.assertEqual(result, 0)
         mock_md.assert_called_once()
-        self.assertIn(word, mock_md.call_args.args[0])
-        self.assertIn(word, captured_stdout.getvalue())
+        self.assertIn("ok", mock_md.call_args.args[0])
 
     def test_invalid_charset_label_falls_back_without_failing(self):
         """Invalid charset labels should fall back like response.text."""
