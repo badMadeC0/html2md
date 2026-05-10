@@ -95,6 +95,45 @@ def test_process_url_blocks_redirect_to_private_address(mock_get, capsys, tmp_pa
     )
 
 
+def test_validated_fetch_disables_environment_proxy_settings():
+    """Validated fetches must not use HTTP_PROXY/HTTPS_PROXY from the environment."""
+    session = MagicMock()
+    session.trust_env = True
+    response = MagicMock()
+    response.status_code = 200
+    session.get.return_value = response
+    connection_module = MagicMock()
+
+    with patch("html2md.cli.socket.getaddrinfo", return_value=addrinfo("93.184.216.34")):
+        result = cli._fetch_with_validated_redirects(
+            session, "http://public.example/start", connection_module
+        )
+
+    assert result is response
+    assert session.trust_env is False
+    session.get.assert_called_once_with(
+        "http://public.example/start", timeout=30, allow_redirects=False
+    )
+
+
+def test_validated_fetch_returns_open_redirect_response_without_location():
+    """Redirect responses without Location are returned open for caller handling."""
+    session = MagicMock()
+    response = MagicMock()
+    response.status_code = 302
+    response.headers = {}
+    session.get.return_value = response
+    connection_module = MagicMock()
+
+    with patch("html2md.cli.socket.getaddrinfo", return_value=addrinfo("93.184.216.34")):
+        result = cli._fetch_with_validated_redirects(
+            session, "http://public.example/start", connection_module
+        )
+
+    assert result is response
+    response.close.assert_not_called()
+
+
 def test_validated_create_connection_rejects_mixed_private_candidates():
     """The connection resolver refuses hostnames with any restricted candidate."""
     mixed_addresses = addrinfo("93.184.216.34") + addrinfo("127.0.0.1")

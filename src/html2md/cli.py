@@ -32,6 +32,7 @@ def _validate_fetch_url(target_url: str) -> None:
 
     Raises:
         ValueError: If the URL scheme or resolved addresses are unsafe.
+        PermissionError: If any resolved address is restricted/private.
         socket.gaierror: If the hostname cannot be resolved.
     """
     parsed = urlparse(target_url)
@@ -102,6 +103,9 @@ def _fetch_with_validated_redirects(
     session, target_url: str, connection_module, timeout: int = 30
 ):
     """Fetch a URL, validating every redirect target before following it."""
+    # Environment proxies resolve the target outside our validated DNS path,
+    # so force these guarded fetches to connect directly.
+    session.trust_env = False
     current_url = target_url
     for _ in range(MAX_REDIRECTS + 1):
         _validate_fetch_url(current_url)
@@ -116,9 +120,9 @@ def _fetch_with_validated_redirects(
             return response
 
         location = response.headers.get('Location')
-        response.close()
         if not location:
             return response
+        response.close()
         current_url = urljoin(current_url, location)
 
     raise RuntimeError("Too many redirects while fetching URL.")
