@@ -28,7 +28,7 @@ jobs:
       contents: write
       pull-requests: write
       actions: read
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 25
     steps:
       - name: Checkout
@@ -45,29 +45,30 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.x'
 
       - name: Install Python deps
         run: |
-          set -euxo pipefail
           python -m pip install --upgrade pip
           python -m pip install -e . pytest black
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
         run: |
-          set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          node scripts/healthcheck.mjs 2>&1 | Tee-Object -FilePath selfheal-pre.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Attempt self-heal repairs
-        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+        run: |
+          node scripts/self-heal.mjs 2>&1 | Tee-Object -FilePath selfheal-repair.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
         run: |
-          set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          node scripts/healthcheck.mjs 2>&1 | Tee-Object -FilePath selfheal-post.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Collect logs
         if: always()
