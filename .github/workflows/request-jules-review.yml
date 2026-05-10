@@ -11,6 +11,8 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         env:
@@ -20,6 +22,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python - <<'PY'
+          from __future__ import annotations
+
           import json
           import os
           import urllib.error
