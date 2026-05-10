@@ -57,17 +57,17 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          node scripts/healthcheck.mjs | tee "${{ runner.temp }}/selfheal-pre.txt"
 
       - name: Attempt self-heal repairs
-        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+        run: node scripts/self-heal.mjs | tee "${{ runner.temp }}/selfheal-repair.txt"
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          node scripts/healthcheck.mjs | tee "${{ runner.temp }}/selfheal-post.txt"
 
       - name: Collect logs
         if: always()
@@ -75,9 +75,9 @@ jobs:
         with:
           name: selfheal-logs
           path: |
-            selfheal-pre.txt
-            selfheal-repair.txt
-            selfheal-post.txt
+            ${{ runner.temp }}/selfheal-pre.txt
+            ${{ runner.temp }}/selfheal-repair.txt
+            ${{ runner.temp }}/selfheal-post.txt
 
       - name: Create PR with fixes
         if: steps.post.outcome == 'success'
