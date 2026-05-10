@@ -20,32 +20,33 @@ if ($BatchFile) {
     $pyScript = Join-Path $scriptDir "html2md.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
-    Get-Content -LiteralPath $BatchFile | ForEach-Object {
-        $url = $_.Trim()
-        if (-not [string]::IsNullOrWhiteSpace($url)) {
-            # Security Validation
-            $uriOut = $null
-            if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
-                $url = $uriOut.AbsoluteUri
-            } else {
-                Write-Error "Invalid URL skipped: $url"
-                return
-            }
+    $urls = Get-Content -LiteralPath $BatchFile
+    foreach ($line in $urls) {
+        $url = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($url)) { continue }
 
-            Write-Host "Processing: $url"
-            # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+        # Security Validation
+        $uriOut = $null
+        if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
+            $url = $uriOut.AbsoluteUri
+        } else {
+            Write-Error "Invalid URL skipped: $url"
+            continue
+        }
 
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
-            } elseif (Test-Path -LiteralPath $pyScript) {
-                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                $argsList = @("$pyScript") + $argsList
-                & $pyCmd $argsList
-            } else {
-                Write-Error "Could not find html2md executable or script."
-            }
+        Write-Host "Processing: $url"
+        # Default to main content unless BatchWholePage is set
+        $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
+        if (-not $BatchWholePage) { $argsList += "--main-content" }
+
+        if (Test-Path -LiteralPath $venvExe) {
+            & $venvExe $argsList
+        } elseif (Test-Path -LiteralPath $pyScript) {
+            $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+            $argsList = @("$pyScript") + $argsList
+            & $pyCmd $argsList
+        } else {
+            Write-Error "Could not find html2md executable or script."
         }
     }
     exit
@@ -285,6 +286,7 @@ $ConvertBtn.Add_Click({
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
@@ -303,9 +305,10 @@ $ConvertBtn.Add_Click({
     }
     $urlList = $validatedUrls.ToArray()
 
-    # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"()\[\]]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+    # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth.
+    # We allow () and [] as they are common in Windows paths and safe within quoted arguments.
+    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
+        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory (e.g. quotes or redirects).","Security Warning","OK","Warning") | Out-Null
         $ProgressBar.IsIndeterminate = $false
         return
     }
@@ -360,7 +363,7 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
 
         # Sanitize for -File arguments by using double quotes to handle spaces
-        # Windows command line splitting treats " as the primary quote character.
+        # Windows command line splitting treates " as the primary quote character.
         $safeCommandPath = "`"$PSCommandPath`""
         $safeTempFile = "`"$tempFile`""
         $safeOutDir = "`"$outdir`""
@@ -378,11 +381,12 @@ $ConvertBtn.Add_Click({
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         # Sanitize inputs for PowerShell -Command interpolation.
-        # We use double quotes around paths and escape internal double quotes with backticks.
-        $safeUrl = $url -replace '"', '`"'
-        $safeOutDir = $outdir -replace '"', '`"'
-        $safeVenvExe = $venvExe -replace '"', '`"'
-        $safePyScript = $pyScript -replace '"', '`"'
+        # We use double quotes around arguments and escape internal double quotes, dollar signs,
+        # and backticks with the PowerShell escape character (backtick) to prevent subexpression execution.
+        $safeUrl = $url -replace '["$`]', '`$0'
+        $safeOutDir = $outdir -replace '["$`]', '`$0'
+        $safeVenvExe = $venvExe -replace '["$`]', '`$0'
+        $safePyScript = $pyScript -replace '["$`]', '`$0'
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
