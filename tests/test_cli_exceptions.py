@@ -78,3 +78,9 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
+                            opened_paths = [
+                                str(call.args[0])
+                                for call in m_open.call_args_list
+                                if call.args
+                            ]
+                            self.assertNotIn('/tmp/outside/a.md', opened_paths)
