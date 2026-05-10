@@ -1,4 +1,6 @@
-name: copilot-setup-steps
+import os
+
+content = """name: copilot-setup-steps
 
 on:
   workflow_call:
@@ -18,3 +20,7 @@ jobs:
       - name: Prepare environment for Copilot agents
         run: |
           echo "Copilot setup applied: memory fetch disabled."
+"""
+
+with open(".github/workflows/copilot-setup-steps.yml", "w") as f:
+    f.write(content)
