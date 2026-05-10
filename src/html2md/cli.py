@@ -8,6 +8,29 @@ import socket
 import ipaddress
 from urllib.parse import urlparse, unquote
 
+
+def _hostname_resolves_to_global_addresses(hostname: str) -> bool:
+    """Return True only when all IPv4/IPv6 answers for hostname are global."""
+    try:
+        addrinfo = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        return False
+
+    if not addrinfo:
+        return False
+
+    for result in addrinfo:
+        try:
+            ip_obj = ipaddress.ip_address(result[4][0])
+        except (IndexError, ValueError):
+            return False
+
+        if not ip_obj.is_global:
+            return False
+
+    return True
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -69,17 +92,12 @@ def main(argv=None):
                 return
 
             hostname = parsed.hostname
-            if hostname:
-                try:
-                    ip = socket.gethostbyname(hostname)
-                    ip_obj = ipaddress.ip_address(ip)
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved):
-                        print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
-                        return
-                except (socket.gaierror, ValueError):
-                    print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
-                    return
+            if hostname and not _hostname_resolves_to_global_addresses(hostname):
+                print(
+                    "Error: URL resolves to a restricted/private network address.",
+                    file=sys.stderr,
+                )
+                return
 
             print(f"Processing URL: {target_url}")
 
