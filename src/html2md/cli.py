@@ -31,6 +31,11 @@ def _is_allowed_public_ip(ip: str) -> bool:
     )
 
 
+def _normalize_hostname_for_dns_pin(hostname: str) -> str:
+    """Normalize hostnames to the IDNA form used by urllib3 before connecting."""
+    return str(hostname).rstrip('.').lower().encode('idna').decode('ascii').lower()
+
+
 def _resolve_vetted_addresses(hostname: str, port: int):
     """Resolve all stream addresses for hostname and reject any non-public result."""
     addrinfos = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
@@ -74,7 +79,7 @@ def _validate_url_target(target_url: str):
 def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, timeout: int):
     """Fetch a URL while forcing socket resolution to reuse vetted DNS answers."""
     original_getaddrinfo = socket.getaddrinfo
-    hostname = parsed.hostname
+    hostname = _normalize_hostname_for_dns_pin(parsed.hostname)
     port = parsed.port or (443 if parsed.scheme == 'https' else 80)
 
     def pinned_getaddrinfo(host, request_port, family=0, type=0, proto=0, flags=0):
@@ -84,7 +89,7 @@ def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, tim
             request_port_matches = False
 
         if (
-            str(host).rstrip('.').lower() == hostname.rstrip('.').lower()
+            _normalize_hostname_for_dns_pin(host) == hostname
             and request_port_matches
         ):
             return [
