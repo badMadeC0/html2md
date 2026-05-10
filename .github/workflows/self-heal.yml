@@ -25,16 +25,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Install deps (best-effort frozen)
         id: install_try_frozen
@@ -50,15 +50,24 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
-        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
-        run: node scripts/healthcheck.mjs | tee selfheal-post.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/healthcheck.mjs | tee selfheal-post.txt
 
       - name: Collect logs
         if: always()
