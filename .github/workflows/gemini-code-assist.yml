@@ -121,6 +121,19 @@ jobs:
           rm -rf .gemini
           find . \( -type f -o -type l \) -name 'GEMINI.md' -delete
           find . \( -type f -o -type l \) -name '.env' -delete
+      - name: Pin code-review extension
+        # run-gemini-cli@v0.1.22 invokes `gemini extensions install
+        # <url>` without forwarding --ref, and URL fragment syntax
+        # (#sha) is not understood by git clone, so pinning via the
+        # extensions: input is not possible. Check out the extension
+        # at a known-good commit into a sibling directory and install
+        # it from that local path instead.
+        uses: actions/checkout@v4
+        with:
+          repository: gemini-cli-extensions/code-review
+          ref: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+          path: .gemini-extensions/code-review
+          persist-credentials: false
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -182,7 +195,7 @@ jobs:
             }
           extensions: |
             [
-              "https://github.com/gemini-cli-extensions/code-review"
+              "./.gemini-extensions/code-review"
             ]
           prompt: "/pr-code-review"
       - name: Note Gemini API quota exhaustion
