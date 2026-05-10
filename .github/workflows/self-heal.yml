@@ -19,7 +19,8 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.pull_requests[0].number != null)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -27,8 +28,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-          repository: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name || github.repository }}
+          # pull_request CI runs test the synthetic merge commit on refs/pull/<n>/merge;
+          # replay that ref instead of the contributor head SHA so repairs validate
+          # against the same base-branch integration state that failed.
+          ref: ${{ github.event_name == 'workflow_run' && format('refs/pull/{0}/merge', github.event.workflow_run.pull_requests[0].number) || github.sha }}
+          repository: ${{ github.repository }}
 
       - name: Use Python 3.x
         uses: actions/setup-python@v5
