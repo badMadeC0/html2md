@@ -2,8 +2,67 @@
 
 from unittest.mock import MagicMock, patch
 import pytest
+import requests
 
 from html2md import cli
+
+
+class StreamingResponse(requests.Response):
+    """requests.Response test double that fails if .text is used."""
+
+    def __init__(self, chunks, status_error=None):
+        super().__init__()
+        self.status_code = 200
+        self.encoding = "utf-8"
+        self._chunks = chunks
+        self._status_error = status_error
+        self.closed = False
+
+    @property
+    def text(self):
+        raise AssertionError("response.text should not be used for real responses")
+
+    def iter_content(self, chunk_size=1, decode_unicode=False):
+        return iter(self._chunks)
+
+    def raise_for_status(self):
+        if self._status_error is not None:
+            raise self._status_error
+
+    def close(self):
+        self.closed = True
+
+
+@patch("requests.Session.get")
+def test_real_response_streaming_enforces_download_cap(mock_get, capsys):
+    """Real requests responses must stream so oversized bodies are rejected."""
+    max_size = 10 * 1024 * 1024
+    response = StreamingResponse([b"x" * (max_size + 1)])
+    mock_get.return_value = response
+
+    with patch("markdownify.markdownify") as markdownify:
+        cli.main(["--url", "http://example.com/large"])
+
+    outerr = capsys.readouterr()
+    assert (
+        f"Downloaded content exceeds maximum allowed size ({max_size} bytes)"
+        in outerr.err
+    )
+    assert response.closed
+    markdownify.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_real_response_closes_when_status_check_fails(mock_get, capsys):
+    """Streamed responses must close even if raise_for_status raises."""
+    response = StreamingResponse([], requests.HTTPError("500 Server Error"))
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/fail"])
+
+    outerr = capsys.readouterr()
+    assert "Network error: 500 Server Error" in outerr.err
+    assert response.closed
 
 
 @pytest.mark.parametrize(

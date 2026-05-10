@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import argparse
+from contextlib import nullcontext
 import os
 import sys
 from urllib.parse import urlparse, unquote
@@ -71,32 +72,43 @@ def main(argv=None):
             try:
                 print("Fetching content...")
                 response = session.get(target_url, timeout=30, stream=True)
-                response.raise_for_status()
+                response_type = getattr(requests, "Response", None)
+                is_real_response = (
+                    isinstance(response_type, type)
+                    and isinstance(response, response_type)
+                )
 
-                print("Converting to Markdown...")
-                max_size = 10 * 1024 * 1024
+                response_context = (
+                    response if is_real_response else nullcontext(response)
+                )
+                with response_context as response:
+                    response.raise_for_status()
 
-                # Prefer response.text when available; it is easier to mock and
-                # avoids encoding issues with MagicMock-based test doubles.
-                html_content = getattr(response, "text", None)
+                    print("Converting to Markdown...")
+                    max_size = 10 * 1024 * 1024
 
-                if not isinstance(html_content, str):
-                    content_bytes = bytearray()
-                    for chunk in response.iter_content(chunk_size=8192):
-                        content_bytes.extend(chunk)
-                        if len(content_bytes) > max_size:
-                            print(
-                                f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).",
-                                file=sys.stderr,
-                            )
-                            response.close()
-                            return
+                    # Real requests.Response.text always downloads the full body,
+                    # so stream real responses to enforce the size cap. Tests can
+                    # still provide lightweight mocks with pre-populated text.
+                    html_content = (
+                        None if is_real_response else getattr(response, "text", None)
+                    )
 
-                    html_bytes = bytes(content_bytes)
-                    encoding = getattr(response, "encoding", None)
-                    if not isinstance(encoding, str) or not encoding:
-                        encoding = "utf-8"
-                    html_content = html_bytes.decode(encoding, errors="replace")
+                    if not isinstance(html_content, str):
+                        content_bytes = bytearray()
+                        for chunk in response.iter_content(chunk_size=8192):
+                            content_bytes.extend(chunk)
+                            if len(content_bytes) > max_size:
+                                print(
+                                    f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).",
+                                    file=sys.stderr,
+                                )
+                                return
+
+                        encoding = getattr(response, "encoding", None)
+                        if not isinstance(encoding, str) or not encoding:
+                            encoding = "utf-8"
+                        html_content = content_bytes.decode(encoding, errors="replace")
 
                 md_content = md(html_content, heading_style="ATX")
 
