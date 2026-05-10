@@ -6,34 +6,44 @@ import os
 import sys
 import socket
 import ipaddress
+from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse, unquote
 
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
 MAX_REDIRECTS = 10
 
 
-def _validate_url_target(target_url: str) -> bool:
-    """Return True when a URL has an allowed scheme and resolves globally."""
+def _port_for_url(parsed) -> int:
+    """Return the explicit or scheme-default port for a parsed URL."""
+    if parsed.port is not None:
+        return parsed.port
+    return 443 if parsed.scheme == 'https' else 80
+
+
+def _validated_addrinfo_for_url(target_url: str):
+    """Return validated address info for an allowed URL, or None if blocked."""
     parsed = urlparse(target_url)
     if parsed.scheme not in ('http', 'https'):
         print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
               "Only http and https are allowed.", file=sys.stderr)
-        return False
+        return None
 
     hostname = parsed.hostname
     if not hostname:
         print("Error: URL must include a hostname.", file=sys.stderr)
-        return False
+        return None
 
     try:
-        addrinfo = socket.getaddrinfo(hostname, parsed.port, type=socket.SOCK_STREAM)
+        addrinfo = socket.getaddrinfo(
+            hostname, _port_for_url(parsed), type=socket.SOCK_STREAM
+        )
     except socket.gaierror:
         print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
-        return False
+        return None
 
     if not addrinfo:
         print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
-        return False
+        return None
 
     for result in addrinfo:
         ip = result[4][0]
@@ -43,28 +53,72 @@ def _validate_url_target(target_url: str) -> bool:
             ip_obj = ipaddress.ip_address(ip)
         except ValueError:
             print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
-            return False
+            return None
         if not ip_obj.is_global:
             print(
                 "Error: URL resolves to a restricted/private network address.",
                 file=sys.stderr,
             )
-            return False
+            return None
 
-    return True
+    return addrinfo
+
+
+def _validate_url_target(target_url: str) -> bool:
+    """Return True when a URL has an allowed scheme and resolves globally."""
+    return _validated_addrinfo_for_url(target_url) is not None
+
+
+def _addrinfo_with_port(addrinfo, port):
+    """Return address info with socket addresses adjusted to the requested port."""
+    pinned_addrinfo = []
+    for family, socktype, proto, canonname, sockaddr in addrinfo:
+        if len(sockaddr) == 2:
+            host, _ = sockaddr
+            sockaddr = (host, port)
+        elif len(sockaddr) == 4:
+            host, _, flowinfo, scopeid = sockaddr
+            sockaddr = (host, port, flowinfo, scopeid)
+        pinned_addrinfo.append((family, socktype, proto, canonname, sockaddr))
+    return pinned_addrinfo
+
+
+@contextmanager
+def _pin_dns_resolution(hostname: str, port: int, addrinfo):
+    """Force socket lookups for hostname:port to reuse prevalidated addresses."""
+    original_getaddrinfo = socket.getaddrinfo
+
+    def pinned_getaddrinfo(host, service, *args, **kwargs):
+        if host == hostname and service in (port, str(port)):
+            return _addrinfo_with_port(addrinfo, port)
+        return original_getaddrinfo(host, service, *args, **kwargs)
+
+    socket.getaddrinfo = pinned_getaddrinfo
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
 
 
 def _get_with_validated_redirects(
-    session, target_url: str, timeout: int, first_url_validated=False
+    session, target_url: str, timeout: int, first_validated_addrinfo=None
 ):
-    """Fetch a URL while validating every redirect target before following it."""
+    """Fetch a URL while validating and pinning every redirect target."""
     current_url = target_url
-    for redirect_count in range(MAX_REDIRECTS + 1):
-        if not (first_url_validated and redirect_count == 0):
-            if not _validate_url_target(current_url):
+    validated_addrinfo = first_validated_addrinfo
+    for _ in range(MAX_REDIRECTS + 1):
+        if validated_addrinfo is None:
+            validated_addrinfo = _validated_addrinfo_for_url(current_url)
+            if validated_addrinfo is None:
                 return None
 
-        response = session.get(current_url, timeout=timeout, allow_redirects=False)
+        parsed = urlparse(current_url)
+        with _pin_dns_resolution(
+            parsed.hostname, _port_for_url(parsed), validated_addrinfo
+        ):
+            response = session.get(
+                current_url, timeout=timeout, allow_redirects=False
+            )
         status_code = getattr(response, 'status_code', None)
         if status_code not in REDIRECT_STATUSES:
             return response
@@ -74,6 +128,7 @@ def _get_with_validated_redirects(
             return response
 
         current_url = urljoin(current_url, location)
+        validated_addrinfo = None
 
     print("Error: Too many redirects.", file=sys.stderr)
     return None
@@ -133,7 +188,8 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            if not _validate_url_target(target_url):
+            validated_addrinfo = _validated_addrinfo_for_url(target_url)
+            if validated_addrinfo is None:
                 return
 
             print(f"Processing URL: {target_url}")
@@ -141,7 +197,10 @@ def main(argv=None):
             try:
                 print("Fetching content...")
                 response = _get_with_validated_redirects(
-                    session, target_url, timeout=30, first_url_validated=True
+                    session,
+                    target_url,
+                    timeout=30,
+                    first_validated_addrinfo=validated_addrinfo,
                 )
                 if response is None:
                     return
