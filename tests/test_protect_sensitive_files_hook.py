@@ -3,14 +3,10 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Union
-
-import pytest
 
 
 HOOK_SCRIPT = Path(__file__).resolve().parents[1] / ".claude" / "hooks" / "protect_sensitive_files.py"
@@ -76,82 +72,41 @@ def test_malformed_payload_does_not_block() -> None:
     assert "bad JSON payload" in result.stderr
 
 
-def test_node_launcher_blocks_sensitive_file_without_pyenv_version() -> None:
-    """The configured launcher should still block when pyenv cannot resolve bare python."""
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("node is required to exercise the Claude Code hook launcher")
-
-    launcher_path = (
-        Path(__file__).resolve().parents[1]
-        / ".claude"
-        / "hooks"
-        / "run_protect_sensitive_files.js"
-    )
-    env = os.environ.copy()
-    env.pop("PYENV_VERSION", None)
-    result = subprocess.run(
-        [node, str(launcher_path)],
-        input=json.dumps(tool_payload("Write", ".env")),
-        text=True,
-        capture_output=True,
-        check=False,
-        env=env,
-    )
-
-    assert result.returncode == 2
-    assert "BLOCKED" in result.stderr
-
-
-def test_node_launcher_fails_closed_when_no_python_launcher_works(tmp_path: Path) -> None:
-    """Launcher failure must block PreToolUse instead of failing open."""
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("node is required to exercise the Claude Code hook launcher")
-
-    launcher_path = (
-        Path(__file__).resolve().parents[1]
-        / ".claude"
-        / "hooks"
-        / "run_protect_sensitive_files.js"
-    )
-    env = os.environ.copy()
-    env["PATH"] = str(tmp_path)
-    result = subprocess.run(
-        [node, str(launcher_path)],
-        input=json.dumps(tool_payload("Write", ".env")),
-        text=True,
-        capture_output=True,
-        check=False,
-        env=env,
-    )
-
-    assert result.returncode == 2
-    assert "no working Python 3 launcher found" in result.stderr
-
-
-def test_hook_settings_uses_node_launcher_and_project_dir() -> None:
-    """Claude Code should use the Node launcher from the project root."""
+def test_hook_settings_uses_python_directly_and_fails_closed() -> None:
+    """Claude Code should run Python directly and block if launch fails."""
     settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
-    assert command == 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/run_protect_sensitive_files.js"'
-    assert "python" not in command
-
-
-def test_node_launcher_prefers_python3_before_bare_python() -> None:
-    """The launcher should avoid pyenv-sensitive bare python when python3 is available."""
-    launcher_path = (
-        Path(__file__).resolve().parents[1]
-        / ".claude"
-        / "hooks"
-        / "run_protect_sensitive_files.js"
+    assert command == (
+        'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" '
+        '|| py -3 "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" '
+        '|| python "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" '
+        '|| exit 2'
     )
-    launcher = launcher_path.read_text(encoding="utf-8")
+    assert "node" not in command
+    assert "run_protect_sensitive_files.js" not in command
+    assert command.endswith("|| exit 2")
 
-    python3_index = launcher.index('command: "python3"')
-    py_index = launcher.index('command: "py"')
-    python_index = launcher.index('command: "python"')
 
-    assert python3_index < py_index < python_index
+def test_hook_settings_fails_closed_when_no_python_launcher_works(tmp_path: Path) -> None:
+    """The configured shell fallback must return 2 if no Python command works."""
+    settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    env = {
+        "CLAUDE_PROJECT_DIR": str(Path(__file__).resolve().parents[1]),
+        "PATH": str(tmp_path),
+    }
+
+    result = subprocess.run(
+        command,
+        input=json.dumps(tool_payload("Write", ".env")),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+        shell=True,
+    )
+
+    assert result.returncode == 2
