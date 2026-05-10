@@ -78,10 +78,18 @@ jobs:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           prompt: '/pr-code-review'
+          # Pin the Gemini CLI alongside the action/extension/MCP image so
+          # the full toolchain handed GITHUB_TOKEN and review-write MCP is
+          # reproducible run-to-run. The action's default of `latest`
+          # would otherwise re-resolve on every execution.
+          gemini_cli_version: '0.41.2'
           extensions: |
             ["${{ runner.temp }}/gemini-code-review-ext"]
           settings: |-
             {
+              "tools": {
+                "core": []
+              },
               "mcpServers": {
                 "github": {
                   "command": "docker",
@@ -97,7 +105,6 @@ jobs:
                     "add_comment_to_pending_review",
                     "create_pending_pull_request_review",
                     "pull_request_read",
-                    "pull_request_review_write",
                     "submit_pending_pull_request_review"
                   ],
                   "env": {
