@@ -56,4 +56,4 @@ for (const candidate of candidates) {
 console.error(
   "protect-sensitive-files: no working Python 3 launcher found (tried python3, py -3, python)",
 );
-process.exit(1);
+process.exit(2);

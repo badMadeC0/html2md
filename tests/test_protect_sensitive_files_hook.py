@@ -103,6 +103,33 @@ def test_node_launcher_blocks_sensitive_file_without_pyenv_version() -> None:
     assert "BLOCKED" in result.stderr
 
 
+def test_node_launcher_fails_closed_when_no_python_launcher_works(tmp_path: Path) -> None:
+    """Launcher failure must block PreToolUse instead of failing open."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is required to exercise the Claude Code hook launcher")
+
+    launcher_path = (
+        Path(__file__).resolve().parents[1]
+        / ".claude"
+        / "hooks"
+        / "run_protect_sensitive_files.js"
+    )
+    env = os.environ.copy()
+    env["PATH"] = str(tmp_path)
+    result = subprocess.run(
+        [node, str(launcher_path)],
+        input=json.dumps(tool_payload("Write", ".env")),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+    )
+
+    assert result.returncode == 2
+    assert "no working Python 3 launcher found" in result.stderr
+
+
 def test_hook_settings_uses_node_launcher_and_project_dir() -> None:
     """Claude Code should use the Node launcher from the project root."""
     settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
