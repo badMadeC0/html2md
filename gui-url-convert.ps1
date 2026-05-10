@@ -273,28 +273,40 @@ $ConvertBtn.Add_Click({
     $LogBox.Text = "--- Starting Conversion ---`r`n"
     $ProgressBar.IsIndeterminate = $true
 
+    # Reset status text color at start of conversion
+    $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
+
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
 
     # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+    $validatedUrls = @()
+    foreach ($u in $urlList) {
+        try {
+            $uriObj = [System.Uri]$u
+            if ($uriObj.Scheme -notmatch '^https?$') {
+                throw "Invalid scheme"
+            }
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+            $validatedUrls += $uriObj.AbsoluteUri
+        } catch {
+            $StatusText.Text = "Please enter a valid HTTP/HTTPS URL. Invalid URL: $u"
+            $StatusText.Foreground = "Red"
+            $ProgressBar.IsIndeterminate = $false
+            return
         }
-        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-        $url = $uriObj.AbsoluteUri
-    } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
-        return
     }
+    $urlList = $validatedUrls
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
-        [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $StatusText.Text = "Invalid characters detected in output directory."
+        $StatusText.Foreground = "Red"
+        $ProgressBar.IsIndeterminate = $false
         return
     }
     # ---------------------------
