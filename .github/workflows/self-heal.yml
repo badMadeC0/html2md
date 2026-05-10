@@ -90,3 +90,4 @@ jobs:
             Please review the attached logs for details.
           labels: self-heal
           branch: auto-heal/fixes
+          branch-suffix: timestamp
