@@ -92,7 +92,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" IsEnabled="False" ToolTip="URL list is already empty"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" IsEnabled="False" ToolTip="URL list is already empty" ToolTipService.ShowOnDisabled="True"/>
             </StackPanel>
         </Grid>
 
@@ -120,6 +120,7 @@ $xaml = @"
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
+                ToolTipService.ShowOnDisabled="True"
                 ToolTip="Please enter at least one URL to enable conversion"
                 />
 
