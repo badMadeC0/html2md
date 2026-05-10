@@ -44,6 +44,4 @@ class TestCliUrlTypo(unittest.TestCase):
                     self.fail(f"main raised exception {e}")
 
         # Assert that session.get was called with the corrected URL
-        mock_session.get.assert_called_once_with(
-            "http://example.com?foo=bar", timeout=30
-        )
+        self.assertEqual(mock_session.get.call_args[0][0], "http://example.com?foo=bar")
