@@ -2,8 +2,14 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import socket
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
+
+
+def _public_addrinfo(ip="93.184.216.34", port=80):
+    """Build a deterministic public DNS response for CLI tests."""
+    return [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (ip, port))]
 
 
 class TestCliExceptions(unittest.TestCase):
@@ -16,10 +22,11 @@ class TestCliExceptions(unittest.TestCase):
             with patch('requests.Session.get') as mock_get:
                 mock_get.side_effect = requests.RequestException("Network unreachable")
 
-                try:
-                    main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
+                    try:
+                        main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
                 output = captured_stderr.getvalue()
                 self.assertIn("Network error", output)
@@ -33,15 +40,17 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.is_redirect = False
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
                         with patch('builtins.open', side_effect=OSError("Permission denied")):
-                            try:
-                                main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                            except (SystemExit, RuntimeError, ValueError) as e:
-                                self.fail(f"main raised exception {e}")
+                            with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
+                                try:
+                                    main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                                except (SystemExit, RuntimeError, ValueError) as e:
+                                    self.fail(f"main raised exception {e}")
 
                             output = captured_stderr.getvalue()
                             self.assertIn("File error", output)
@@ -55,6 +64,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.is_redirect = False
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
@@ -66,7 +76,8 @@ class TestCliExceptions(unittest.TestCase):
                                 return '/tmp/out'
 
                             with patch('os.path.realpath', side_effect=fake_realpath):
-                                main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
+                                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
+                                    main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
