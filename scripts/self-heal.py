@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Targeted, ordered repairs. Each step is idempotent and re-runs healthcheck.
-Exit 0 if repairs were applied and healthcheck passes; exit 1 otherwise.
+Exit 0 if healthcheck passes after repair attempt; exit 1 if healthcheck still fails.
 """
 from __future__ import annotations
 
@@ -22,11 +22,6 @@ def try_sh(argv: list) -> bool:
         return False
 
 
-def changed() -> bool:
-    out = subprocess.check_output(["git", "status", "--porcelain"], encoding="utf-8")
-    return len(out.strip()) > 0
-
-
 def pass_health() -> bool:
     try:
         subprocess.run(
@@ -44,11 +39,11 @@ def main() -> None:
     # 1) Lint/format auto-fix
     try_sh([sys.executable, "-m", "black", "src", "tests"])
 
-    if pass_health() and changed():
-        print("\nRepairs applied and healthcheck passes.")
+    if pass_health():
+        print("\nHealthcheck passes after repair attempt.")
         sys.exit(0)
 
-    print("\nNo repairs were successfully applied or healthcheck still fails.")
+    print("\nHealthcheck still fails after repair attempt.")
     sys.exit(1)
 
 

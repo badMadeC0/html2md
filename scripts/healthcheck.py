@@ -23,7 +23,9 @@ def main() -> None:
     # Append src to PYTHONPATH so the package is importable without pip install -e .
     src = os.path.join(os.getcwd(), "src")
     existing = os.environ.get("PYTHONPATH", "")
-    os.environ["PYTHONPATH"] = src if not existing else f"{existing}{os.pathsep}{src}"
+    existing_parts = existing.split(os.pathsep) if existing else []
+    if src not in existing_parts:
+        os.environ["PYTHONPATH"] = src if not existing else f"{existing}{os.pathsep}{src}"
 
     # Black check — use sys.executable so the same Python env is used
     run_cmd("Formatting (Black)", [sys.executable, "-m", "black", "--check", "src", "tests"])

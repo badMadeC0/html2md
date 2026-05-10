@@ -25,7 +25,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          repository: ${{ github.event.workflow_run.head_repository.full_name || github.repository }}
 
       - name: Use Python 3.x
         uses: actions/setup-python@v5
