@@ -14,7 +14,16 @@ permissions:
   issues: write
 
 concurrency:
-  group: gemini-code-assist-${{ github.event.pull_request.number || github.event.issue.number }}
+  # Group by PR number for any PR-related event (pull_request,
+  # pull_request_review_comment, or an issue_comment posted on a PR).
+  # Fall back to run_id for non-PR issue_comment events so a comment on
+  # issue #N never collides with — and cancels — a running PR #N workflow.
+  group: >-
+    gemini-code-assist-${{
+      github.event.pull_request.number
+      || (github.event.issue.pull_request && github.event.issue.number)
+      || github.run_id
+    }}
   cancel-in-progress: true
 
 jobs:
