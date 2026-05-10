@@ -57,29 +57,29 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          mkdir -p "$RUNNER_TEMP/selfheal-logs"
+          node scripts/healthcheck.mjs | tee "$RUNNER_TEMP/selfheal-logs/selfheal-pre.txt"
 
       - name: Attempt self-heal repairs
         run: |
           set -o pipefail
-          node scripts/self-heal.mjs | tee selfheal-repair.txt
+          mkdir -p "$RUNNER_TEMP/selfheal-logs"
+          node scripts/self-heal.mjs | tee "$RUNNER_TEMP/selfheal-logs/selfheal-repair.txt"
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          mkdir -p "$RUNNER_TEMP/selfheal-logs"
+          node scripts/healthcheck.mjs | tee "$RUNNER_TEMP/selfheal-logs/selfheal-post.txt"
 
       - name: Collect logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: selfheal-logs
-          path: |
-            selfheal-pre.txt
-            selfheal-repair.txt
-            selfheal-post.txt
+          path: ${{ runner.temp }}/selfheal-logs/*.txt
 
       - name: Create PR with fixes
         if: steps.post.outcome == 'success'
