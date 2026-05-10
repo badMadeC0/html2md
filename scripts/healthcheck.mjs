@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-/* Minimal healthcheck aligned with this Python package CI.
-   Runs the root test script when present, otherwise falls back to pytest.
+/* Minimal, opinionated healthcheck for a pnpm monorepo:
+   - root: typecheck? test? lint? build?
+   - workspaces: smoke build where available
 */
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 const hasScript = (name) => {
   try {
-    const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-    return !!pkg.scripts?.[name];
+    const out = execSync("pnpm run -r", { stdio: "pipe" }).toString();
+    return out.includes(name);
   } catch { return false; }
 };
 
@@ -21,10 +22,12 @@ const tryRun = (name, cmd) => {
 };
 
 try {
-  // Match the repository CI by validating the Python test suite, not Vitest.
-  tryRun("Python tests", hasScript("test") ? "pnpm run test" : "pytest -q");
+  // Root-level checks (best-effort if scripts exist)
+  tryRun("Typecheck", hasScript("typecheck") ? "pnpm run typecheck" : null);
+  tryRun("Lint", hasScript("lint") ? "pnpm run lint" : null);
+  tryRun("Unit tests", "python -m pytest -q");
 
-  // Optional workspace smoke builds (apps/* and packages/* if build exists)
+  // Workspace smoke builds (apps/* and packages/* if build exists)
   const roots = ["apps", "packages"];
   for (const base of roots) {
     if (!existsSync(base)) continue;
@@ -32,7 +35,7 @@ try {
       const dir = join(base, name);
       if (!statSync(dir).isDirectory()) continue;
       try {
-        execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
+        execSync("pnpm run --if-present build", { cwd: dir, stdio: "inherit" });
       } catch (e) {
         console.error(`[healthcheck] build failed in ${dir}`);
         process.exitCode = 1;

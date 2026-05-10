@@ -22,39 +22,36 @@ const passHealth = () => {
 
 let fixed = false;
 
-// 1) Lint/format
-trySh("pnpm -w run lint --fix");
-trySh("pnpm -w run format");
-if (passHealth()) fixed = fixed || changed();
-
-// 2) Type acquisition
+// Only attempt repairs if healthcheck fails
 if (!passHealth()) {
-  trySh("pnpm dlx typesync --save-dev");
-  // In case typesync suggests @types/node et al.
-  trySh("pnpm -w install");
-  if (passHealth()) fixed = fixed || changed();
-}
+  // 1) Lint/format (Python specific: black)
+  trySh("python -m black .");
+  if (changed() && passHealth()) {
+    fixed = true;
+  }
 
-// 3) Lockfile repair (only if integrity complaints)
-if (!passHealth()) {
-  // Try a clean install + re-resolve
-  trySh("pnpm install");
-  if (!passHealth()) {
-    // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
-  }
-  if (passHealth()) fixed = fixed || changed();
-}
+  // 2) Update test snapshots or similar test generation (if any Python script handles it)
+  // For this repo, tests just use standard asserts. We can skip a dedicated snapshot updater
+  // or implement one if the repo gets python-snapshottest.
 
-// 4) Known generators (icons/docs), if present
-if (!passHealth()) {
-  if (existsSync("scripts/update-icon-docs.mjs")) {
-    trySh("node scripts/update-icon-docs.mjs");
+  // 3) Lockfile/Dependency repair (Python specific: pip requirements)
+  if (!fixed && !passHealth()) {
+    // If there are pip lockfiles or similar, we might refresh them.
+    // In this repo, tests are run with plain pip installs or `pip install -e .`
+    trySh("pip install -e .");
+    if (changed() && passHealth()) fixed = true;
   }
-  if (existsSync("scripts/verify-static.mjs")) {
-    trySh("node scripts/verify-static.mjs");
+
+  // 5) Known generators (icons/docs), if present
+  if (!fixed && !passHealth()) {
+    if (existsSync("scripts/update-icon-docs.mjs")) {
+      trySh("node scripts/update-icon-docs.mjs");
+    }
+    if (existsSync("scripts/verify-static.mjs")) {
+      trySh("node scripts/verify-static.mjs");
+    }
+    if (changed() && passHealth()) fixed = true;
   }
-  if (passHealth()) fixed = fixed || changed();
 }
 
 if (fixed) {
