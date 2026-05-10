@@ -41,7 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
-          use_gemini_code_assist: ${{ env.GOOGLE_GENAI_USE_GCA }}
+          use_gemini_code_assist: ${{ env.GEMINI_API_KEY == '' && env.GOOGLE_GENAI_USE_GCA == 'true' }}
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           extensions: |
             [
