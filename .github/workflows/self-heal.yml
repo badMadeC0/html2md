@@ -36,6 +36,18 @@ jobs:
         with:
           version: 9
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python deps
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install -e .
+          python -m pip install pytest
+
       - name: Install deps (best-effort frozen)
         id: install_try_frozen
         run: |
