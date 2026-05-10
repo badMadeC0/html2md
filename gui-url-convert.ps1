@@ -63,6 +63,11 @@ if ($BatchFile) {
 #     exit
 # }
 
+function ConvertTo-PowerShellSingleQuotedLiteral {
+    param([string]$Value)
+    return "'" + ($Value -replace "'", "''") + "'"
+}
+
 if ($null -ne $IsWindows -and -not $IsWindows) {
     Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
     exit 1
@@ -350,7 +355,7 @@ $ConvertBtn.Add_Click({
     # Use a robust way to launch the process:
     # 1. Revert to ProcessStartInfo for precise control over the command line.
     # 2. Use powershell.exe to keep the window open with -NoExit.
-    # 3. Use -File for batch mode and -Command with proper quoting for single URL mode.
+    # 3. Use -File for batch mode and -EncodedCommand for single URL mode.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
@@ -363,7 +368,7 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
 
         # Sanitize for -File arguments by using double quotes to handle spaces
-        # Windows command line splitting treates " as the primary quote character.
+        # Windows command line splitting treats " as the primary quote character.
         $safeCommandPath = "`"$PSCommandPath`""
         $safeTempFile = "`"$tempFile`""
         $safeOutDir = "`"$outdir`""
@@ -380,21 +385,26 @@ $ConvertBtn.Add_Click({
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
-        # Sanitize inputs for PowerShell -Command interpolation.
-        # We use double quotes around arguments and escape internal double quotes, dollar signs,
-        # and backticks with the PowerShell escape character (backtick) to prevent subexpression execution.
-        $safeUrl = $url -replace '["$`]', '`$0'
-        $safeOutDir = $outdir -replace '["$`]', '`$0'
-        $safeVenvExe = $venvExe -replace '["$`]', '`$0'
-        $safePyScript = $pyScript -replace '["$`]', '`$0'
+        # Build the PowerShell command from single-quoted literals, then pass it via
+        # -EncodedCommand so the native Windows command-line parser cannot strip nested
+        # quotes or re-split paths/URLs that contain spaces or metacharacters.
+        $safeUrl = ConvertTo-PowerShellSingleQuotedLiteral $url
+        $safeOutDir = ConvertTo-PowerShellSingleQuotedLiteral $outdir
+        $safeVenvExe = ConvertTo-PowerShellSingleQuotedLiteral $venvExe
+        $safePyCmd = ConvertTo-PowerShellSingleQuotedLiteral $pyCmd
+        $safePyScript = ConvertTo-PowerShellSingleQuotedLiteral $pyScript
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
+            $command = "& $safeVenvExe --url $safeUrl --outdir $safeOutDir --all-formats$optArg"
+            $encodedCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
+            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
+            $command = "& $safePyCmd $safePyScript --url $safeUrl --outdir $safeOutDir --all-formats$optArg"
+            $encodedCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
+            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
