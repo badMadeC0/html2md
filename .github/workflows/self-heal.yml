@@ -2,10 +2,6 @@ name: Self-heal (auto-fix & PR)
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["ci"]
-    types:
-      - completed
 
 permissions:
   contents: write
@@ -14,9 +10,7 @@ permissions:
 
 jobs:
   self-heal:
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'failure')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
