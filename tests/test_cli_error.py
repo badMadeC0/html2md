@@ -73,5 +73,77 @@ class TestCliError(unittest.TestCase):
         self.assertIn("Conversion failed", output)
         self.assertIn("Parse error", output)
 
+
+class StreamingResponse(requests.Response):
+    """Response test double that fails if .text is used before streaming."""
+
+    def __init__(self, chunks, status_code=200):
+        super().__init__()
+        self._chunks = chunks
+        self.status_code = status_code
+        self.encoding = "utf-8"
+        self.closed = False
+        self.text_accessed = False
+
+    @property
+    def text(self):  # pylint: disable=missing-docstring
+        self.text_accessed = True
+        raise AssertionError("response.text should not be read for real responses")
+
+    def iter_content(
+        self, chunk_size=1, decode_unicode=False
+    ):  # pylint: disable=unused-argument
+        yield from self._chunks
+
+    def close(self):
+        self.closed = True
+
+
+class TestCliStreamingResponses(unittest.TestCase):
+    """Unit tests for streamed response cleanup and size limits."""
+
+    def test_real_response_streams_without_reading_text(self):
+        """Real requests.Response objects should stream instead of using .text."""
+        response = StreamingResponse([b"<h1>Hello</h1>"])
+
+        with patch('requests.Session.get', return_value=response):
+            with patch('markdownify.markdownify', return_value="# Hello") as mock_md:
+                html2md.cli.main(['--url', 'http://example.com'])
+
+        self.assertFalse(response.text_accessed)
+        self.assertTrue(response.closed)
+        mock_md.assert_called_once_with("<h1>Hello</h1>", heading_style="ATX")
+
+    def test_oversized_real_response_is_closed_before_conversion(self):
+        """Oversized real streamed responses should be closed and not converted."""
+        response = StreamingResponse([b"x" * (10 * 1024 * 1024 + 1)])
+        captured_stderr = io.StringIO()
+
+        with patch('sys.stderr', captured_stderr):
+            with patch('requests.Session.get', return_value=response):
+                with patch('markdownify.markdownify') as mock_md:
+                    html2md.cli.main(['--url', 'http://example.com'])
+
+        self.assertIn(
+            "Downloaded content exceeds maximum allowed size",
+            captured_stderr.getvalue(),
+        )
+        self.assertFalse(response.text_accessed)
+        self.assertTrue(response.closed)
+        mock_md.assert_not_called()
+
+    def test_error_response_is_closed_when_status_check_raises(self):
+        """HTTP error responses should close even if raise_for_status() raises."""
+        response = StreamingResponse([], status_code=500)
+        captured_stderr = io.StringIO()
+
+        with patch('sys.stderr', captured_stderr):
+            with patch('requests.Session.get', return_value=response):
+                html2md.cli.main(['--url', 'http://example.com'])
+
+        self.assertIn("Network error", captured_stderr.getvalue())
+        self.assertTrue(response.closed)
+
+
 if __name__ == '__main__':
     unittest.main()
