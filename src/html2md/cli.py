@@ -6,6 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
+from contextlib import contextmanager, nullcontext
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -56,6 +57,22 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        @contextmanager
+        def pin_hostname_resolution(hostname: str, resolved_addrinfo):
+            """Pin DNS lookups for a hostname to a pre-validated addrinfo list."""
+            original_getaddrinfo = socket.getaddrinfo
+
+            def _pinned_getaddrinfo(host, port, family=0, socktype=0, proto=0, flags=0):
+                if host == hostname:
+                    return resolved_addrinfo
+                return original_getaddrinfo(host, port, family, socktype, proto, flags)
+
+            socket.getaddrinfo = _pinned_getaddrinfo
+            try:
+                yield
+            finally:
+                socket.getaddrinfo = original_getaddrinfo
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -69,14 +86,21 @@ def main(argv=None):
                 return
 
             hostname = parsed.hostname
+            resolved_addrinfo = []
             if hostname:
                 try:
-                    ip = socket.gethostbyname(hostname)
-                    ip_obj = ipaddress.ip_address(ip)
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved):
-                        print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
-                        return
+                    default_port = 443 if parsed.scheme == "https" else 80
+                    resolved_addrinfo = socket.getaddrinfo(
+                        hostname,
+                        parsed.port or default_port,
+                        type=socket.SOCK_STREAM,
+                    )
+                    for addrinfo in resolved_addrinfo:
+                        ip_text = addrinfo[4][0]
+                        ip_obj = ipaddress.ip_address(ip_text)
+                        if (not ip_obj.is_global or ip_obj.is_unspecified):
+                            print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
+                            return
                 except (socket.gaierror, ValueError):
                     print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
                     return
@@ -85,7 +109,16 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                request_context = (
+                    pin_hostname_resolution(hostname, resolved_addrinfo)
+                    if hostname else nullcontext()
+                )
+                with request_context:
+                    response = session.get(target_url, timeout=30, allow_redirects=False)
+                status_code = getattr(response, "status_code", None)
+                if isinstance(status_code, int) and 300 <= status_code < 400:
+                    print("Error: Redirect responses are not allowed.", file=sys.stderr)
+                    return
                 response.raise_for_status()
 
                 print("Converting to Markdown...")

@@ -2,6 +2,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import socket
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
@@ -17,7 +18,10 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.side_effect = requests.RequestException("Network unreachable")
 
                 try:
-                    with patch('html2md.cli.socket.gethostbyname', return_value='93.184.216.34'):
+                    with patch(
+                        'html2md.cli.socket.getaddrinfo',
+                        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))],
+                    ):
                         main(['--url', 'http://example.com'])
                 except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
@@ -40,7 +44,10 @@ class TestCliExceptions(unittest.TestCase):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
                         with patch('builtins.open', side_effect=OSError("Permission denied")):
                             try:
-                                with patch('html2md.cli.socket.gethostbyname', return_value='93.184.216.34'):
+                                with patch(
+                                    'html2md.cli.socket.getaddrinfo',
+                                    return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))],
+                                ):
                                     main(['--url', 'http://example.com', '--outdir', 'dummy'])
                             except (SystemExit, RuntimeError, ValueError) as e:
                                 self.fail(f"main raised exception {e}")
@@ -68,7 +75,10 @@ class TestCliExceptions(unittest.TestCase):
                                 return '/tmp/out'
 
                             with patch('os.path.realpath', side_effect=fake_realpath):
-                                with patch('html2md.cli.socket.gethostbyname', return_value='93.184.216.34'):
+                                with patch(
+                                    'html2md.cli.socket.getaddrinfo',
+                                    return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))],
+                                ):
                                     main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()

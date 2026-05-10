@@ -1,6 +1,7 @@
 """Security-focused tests for CLI URL and output path handling."""
 
 from unittest.mock import MagicMock, patch
+import socket
 import pytest
 
 from html2md import cli
@@ -35,7 +36,10 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
 @patch("requests.Session.get")
 def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
     """Ensure that local, private, and loopback IPs are blocked to prevent SSRF."""
-    with patch("html2md.cli.socket.gethostbyname", return_value="127.0.0.1"):
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))],
+    ):
         cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
     assert "Error: URL resolves to a restricted/private network address." in outerr.err
@@ -62,7 +66,10 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     ]
 
     for url in urls:
-        with patch("html2md.cli.socket.gethostbyname", return_value="93.184.216.34"):
+        with patch(
+            "html2md.cli.socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))],
+        ):
             cli.main(["--url", url, "--outdir", str(outdir)])
         outerr = capsys.readouterr()
         assert "Success!" in outerr.out
@@ -71,3 +78,60 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_process_url_allows_public_ipv6(mock_get, capsys, tmp_path):
+    """Public IPv6 targets remain allowed."""
+    response = MagicMock()
+    response.text = "<h1>ok</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=[(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2001:4860:4860::8888", 443, 0, 0))],
+    ):
+        cli.main(["--url", "https://ipv6.example.test", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    assert "Error:" not in outerr.err
+    mock_get.assert_called_once()
+
+
+@patch("requests.Session.get")
+def test_process_url_blocks_when_any_resolved_ip_is_private(mock_get, capsys, tmp_path):
+    """A hostname is blocked if any resolved address is restricted."""
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=[
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80)),
+        ],
+    ):
+        cli.main(["--url", "http://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: URL resolves to a restricted/private network address." in outerr.err
+    mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_process_url_blocks_redirect_responses(mock_get, capsys, tmp_path):
+    """Redirect responses are rejected to prevent redirect SSRF bypasses."""
+    response = MagicMock()
+    response.status_code = 302
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))],
+    ):
+        cli.main(["--url", "http://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: Redirect responses are not allowed." in outerr.err
+    mock_get.assert_called_once()
+    assert mock_get.call_args.kwargs.get("allow_redirects") is False

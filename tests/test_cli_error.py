@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
+import socket
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
@@ -35,7 +36,10 @@ class TestCliError(unittest.TestCase):
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
                 try:
-                    with patch('html2md.cli.socket.gethostbyname', return_value='93.184.216.34'):
+                    with patch(
+                        'html2md.cli.socket.getaddrinfo',
+                        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))],
+                    ):
                         html2md.cli.main(['--url', 'http://example.com'])
                 except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
@@ -65,7 +69,10 @@ class TestCliError(unittest.TestCase):
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
                 try:
-                    with patch('html2md.cli.socket.gethostbyname', return_value='93.184.216.34'):
+                    with patch(
+                        'html2md.cli.socket.getaddrinfo',
+                        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))],
+                    ):
                         html2md.cli.main(['--url', 'http://example.com'])
                 except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
