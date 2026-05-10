@@ -4,12 +4,18 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
+import socket
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
+
+
+def _public_addrinfo():
+    """Return deterministic public DNS results for request-mocked tests."""
+    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80))]
 
 
 class TestCliError(unittest.TestCase):
@@ -34,10 +40,11 @@ class TestCliError(unittest.TestCase):
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         self.assertIn("Network error", output)
@@ -63,10 +70,11 @@ class TestCliError(unittest.TestCase):
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         # The code catches Exception and prints "Conversion failed: {e}"
