@@ -8,6 +8,16 @@ import pytest
 from html2md import cli
 
 
+def _addrinfo_for(*ips):
+    """Build getaddrinfo-style results for resolved IPv4/IPv6 addresses."""
+    results = []
+    for ip in ips:
+        family = socket.AF_INET6 if ":" in ip else socket.AF_INET
+        sockaddr = (ip, 0, 0, 0) if family == socket.AF_INET6 else (ip, 0)
+        results.append((family, socket.SOCK_STREAM, 6, "", sockaddr))
+    return results
+
+
 @pytest.mark.parametrize(
     "url, scheme",
     [
@@ -33,19 +43,58 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
         ("http://192.168.1.1/config", "192.168.1.1"),
         ("http://10.0.0.5/", "10.0.0.5"),
         ("http://100.64.0.1/", "100.64.0.1"),
+        ("http://example.com/", "224.0.0.1"),
+        ("http://example.com/", "ff02::1"),
+        ("http://example.com/", "64:ff9b::7f00:1"),
+        ("http://example.com/", "::ffff:100.64.0.1"),
+        ("http://example.com/", "::ffff:224.0.0.1"),
     ],
 )
 @patch("requests.Session.get")
 def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url, resolved_ip):
-    """Ensure that non-global IPs are blocked to prevent SSRF."""
+    """Ensure that restricted IPs are blocked to prevent SSRF."""
     with patch(
         "html2md.cli.socket.getaddrinfo",
-        return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", (resolved_ip, 0))],
+        return_value=_addrinfo_for(resolved_ip),
     ):
         cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
     assert "Error: URL resolves to a restricted/private network address." in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_process_url_rejects_mixed_dns_results(mock_get, capsys, tmp_path):
+    """Reject a hostname if any resolved address is restricted."""
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=_addrinfo_for("93.184.216.34", "10.0.0.5"),
+    ):
+        cli.main(["--url", "http://example.com/", "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert "Error: URL resolves to a restricted/private network address." in outerr.err
+    mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_process_url_accepts_all_global_dns_results(mock_get, capsys, tmp_path):
+    """Accept a hostname only when every resolved address is globally routable."""
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=_addrinfo_for(
+            "93.184.216.34",
+            "2606:2800:220:1:248:1893:25c8:1946",
+        ),
+    ):
+        cli.main(["--url", "http://example.com/", "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    mock_get.assert_called_once()
 
 
 @patch("requests.Session.get")
@@ -70,7 +119,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     for url in urls:
         with patch(
             "html2md.cli.socket.getaddrinfo",
-            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))],
+            return_value=_addrinfo_for("93.184.216.34"),
         ):
             cli.main(["--url", url, "--outdir", str(outdir)])
         outerr = capsys.readouterr()
