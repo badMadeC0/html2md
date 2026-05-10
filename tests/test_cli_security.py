@@ -35,7 +35,8 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
 @patch("requests.Session.get")
 def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
     """Ensure that local, private, and loopback IPs are blocked to prevent SSRF."""
-    cli.main(["--url", url, "--outdir", str(tmp_path)])
+    with patch("html2md.cli.socket.gethostbyname", return_value="127.0.0.1"):
+        cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
     assert "Error: URL resolves to a restricted/private network address." in outerr.err
     mock_get.assert_not_called()
@@ -61,7 +62,8 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     ]
 
     for url in urls:
-        cli.main(["--url", url, "--outdir", str(outdir)])
+        with patch("html2md.cli.socket.gethostbyname", return_value="93.184.216.34"):
+            cli.main(["--url", url, "--outdir", str(outdir)])
         outerr = capsys.readouterr()
         assert "Success!" in outerr.out
 
