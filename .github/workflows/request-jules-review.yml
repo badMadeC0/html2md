@@ -33,6 +33,7 @@ jobs:
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
           marker = "@google-labs-jules please review this pull request."
+          non_actionable_list_errors = {403, 404}
 
           headers = {
               "Accept": "application/vnd.github+json",
@@ -49,10 +50,11 @@ jobs:
                       link_header = list_response.headers.get("Link", "")
               except urllib.error.HTTPError as error:
                   body = error.read().decode("utf-8")
-                  # 403/404 are non-actionable (permissions, missing PR); log and skip
-                  # like the fork guard above. Surface every other failure so a transient
-                  # API error shows up as a red check the maintainer can retry.
-                  if error.code in (403, 404):
+                  # 403/404 are known non-actionable list failures (permission denied,
+                  # inaccessible/missing PR); log and skip like the fork guard above.
+                  # Surface every other failure so a transient API error shows up as a
+                  # red check the maintainer can retry.
+                  if error.code in non_actionable_list_errors:
                       print(
                           f"Could not list existing comments ({error.code}): {body}"
                       )
@@ -65,11 +67,14 @@ jobs:
                   )
                   raise
 
+              if not isinstance(comments, list):
+                  raise ValueError("Expected the comments API to return a list")
+
               for comment in comments:
                   user = comment.get("user") or {}
                   if user.get("login") != "github-actions[bot]":
                       continue
-                  if marker in (comment.get("body") or ""):
+                  if (comment.get("body") or "").strip() == marker:
                       print(
                           f"Review request already present on PR #{pr_number}; skipping."
                       )
