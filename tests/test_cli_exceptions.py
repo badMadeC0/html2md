@@ -56,6 +56,8 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.headers = {}
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_get.return_value = mock_resp
 
                 with patch("os.makedirs"), patch("os.path.exists", return_value=False):
@@ -90,6 +92,8 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.headers = {}
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_get.return_value = mock_resp
 
                 with patch("os.path.exists", return_value=True):
@@ -121,4 +125,6 @@ class TestCliExceptions(unittest.TestCase):
 
                         output = captured_stderr.getvalue()
                         self.assertIn("Output path escapes output directory", output)
-                        # The open was patched via side_effect, we know it's fine if the error message is there.
+                        self.assertFalse(
+                            any("out" in str(call.args[0]) for call in mock_open.call_args_list)
+                        )
