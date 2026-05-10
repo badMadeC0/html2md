@@ -7,7 +7,7 @@
 
 set -u
 
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 HOOK_SCRIPT=$SCRIPT_DIR/protect_sensitive_files.py
 PAYLOAD=$(mktemp "${TMPDIR:-/tmp}/protect-sensitive-files.XXXXXX") || exit 2
 cleanup() {

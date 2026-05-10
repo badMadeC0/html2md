@@ -131,6 +131,21 @@ def test_shell_launcher_prefers_python3_before_bare_python() -> None:
     assert python3_index < py_index < python_index
 
 
+def test_shell_launcher_uses_portable_dirname_invocation() -> None:
+    """The launcher should not require GNU-only dirname options."""
+    launcher_path = (
+        Path(__file__).resolve().parents[1]
+        / ".claude"
+        / "hooks"
+        / "run_protect_sensitive_files.sh"
+    )
+    launcher = launcher_path.read_text(encoding="utf-8")
+
+    assert 'dirname "$0"' in launcher
+    assert "dirname --" not in launcher
+    assert "cd --" not in launcher
+
+
 def test_shell_launcher_fails_closed_when_no_python_launcher_runs(tmp_path: Path) -> None:
     """Launcher failure should block PreToolUse rather than fail open."""
     launcher_path = (
