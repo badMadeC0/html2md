@@ -30,7 +30,8 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'pull_request_review_comment' &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
@@ -65,6 +66,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Explicitly check out the PR's merge commit. For pull_request
+          # events this is already the default, but issue_comment and
+          # pull_request_review_comment runs default to the workflow ref
+          # (the base branch's tip), which would make local read tools
+          # like read_file/glob inspect base-branch code instead of the
+          # PR under review.
+          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/merge
           fetch-depth: 0
           persist-credentials: false
       - name: Strip PR-supplied Gemini config
@@ -127,7 +135,8 @@ jobs:
                   "read_many_files",
                   "list_directory",
                   "glob",
-                  "grep_search"
+                  "grep_search",
+                  "activate_skill"
                 ]
               }
             }
