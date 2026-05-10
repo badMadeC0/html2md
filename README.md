@@ -21,6 +21,18 @@ The full runtime conversion workflow described in earlier packaging notes is **n
 - **CI:** GitHub Actions (Windows-latest)
 - **Platform extras:** PowerShell setup scripts + WPF GUI for Windows
 
+
+## Development setup
+
+Install the editable package with the test extra when running the full pytest suite locally:
+
+```bash
+pip install -e ".[test]"
+pytest -q
+```
+
+The base install path (`pip install -e .`) remains supported for non-Flask package usage. Flask-specific endpoint tests are exercised by the `test` extra and the dedicated CI job.
+
 ## Entry Points
 
 | Entry Point | Target | Description |

@@ -2,23 +2,17 @@
 
 import pytest
 
+pytest.importorskip("flask")
+
 from html2md import __version__
 from html2md.app import app
 
 
 @pytest.fixture
-def client():
-    missing = object()
-    old_testing = app.config.get('TESTING', missing)
-    app.config['TESTING'] = True
-    try:
-        with app.test_client() as client:
-            yield client
-    finally:
-        if old_testing is missing:
-            app.config.pop('TESTING', None)
-        else:
-            app.config['TESTING'] = old_testing
+def client(monkeypatch):
+    monkeypatch.setitem(app.config, "TESTING", True)
+    with app.test_client() as client:
+        yield client
 
 
 def test_health_endpoint(client):

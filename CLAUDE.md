@@ -50,8 +50,8 @@ html2md/
 ### Install (editable/dev mode)
 
 ```bash
-pip install -e .
-pip install pytest build
+pip install -e ".[test]"
+pip install build
 ```
 
 ### Dependencies
@@ -67,7 +67,8 @@ pip install pytest build
 
 **Dev:**
 
-- `pytest` — Test framework
+- `pytest` — Test framework, installed by the `test` extra
+- `flask` — Required by Flask endpoint tests, installed by the `test` and `deploy` extras
 - `setuptools>=61`, `wheel` — Build tools
 
 ## Build System
@@ -90,7 +91,8 @@ pytest -q
 - Framework: **pytest**
 - Config: `pyproject.toml` → `[tool.pytest.ini_options]` with `addopts = "-q"`
 - Tests live in `tests/`
-- Current suite: smoke test verifying `html2md --help` command executes successfully
+- Current suite: CLI, log export, security, and Flask `/health` endpoint coverage
+- Install `.[test]` before running the full suite so Flask endpoint tests run instead of being skipped
 
 ## CI/CD
 
@@ -100,10 +102,8 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - **Runner:** `windows-latest`
 - **Python:** `3.x` (latest stable)
 - **Steps:**
-  1. Upgrade pip, wheel, setuptools
-  2. `pip install -e .` (install package in editable mode)
-  3. `pip install pytest` (install test framework)
-  4. `pytest -q` (run tests in quiet mode)
+  1. Run a base-install job with `pip install -e .`, `pip install pytest`, and `pytest -q` to keep the documented base package path covered.
+  2. Run a Flask-enabled job with `pip install -e ".[test]"` and `pytest -q` so endpoint tests execute with Flask installed.
 
 ## Code Conventions
 
@@ -119,7 +119,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 | Task | Command |
 | ------ | --------- |
-| Install for development | `pip install -e .` then `pip install pytest build` |
+| Install for development | `pip install -e ".[test]"` then `pip install build` |
 | Run tests | `pytest -q` |
 | Run the CLI | `html2md --help` |
 | Export logs | `html2md-log-export --in logs.jsonl --out logs.csv` |
