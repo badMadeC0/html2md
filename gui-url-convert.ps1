@@ -23,6 +23,16 @@ if ($BatchFile) {
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
+            # Security Validation
+            try {
+                $uriObj = [System.Uri]$url
+                if ($uriObj.Scheme -notmatch '^https?$') { throw "Invalid scheme" }
+                $url = $uriObj.AbsoluteUri
+            } catch {
+                Write-Error "Invalid URL skipped: $url"
+                return
+            }
+
             Write-Host "Processing: $url"
             # Default to main content unless BatchWholePage is set
             $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
@@ -279,22 +289,26 @@ $ConvertBtn.Add_Click({
         return
     }
 
-    # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+    # --- Security Validation & Sanitization ---
+    $validatedUrls = New-Object System.Collections.Generic.List[string]
+    foreach ($u in $urlList) {
+        try {
+            $uriObj = [System.Uri]$u
+            if ($uriObj.Scheme -notmatch '^https?$') { throw "Invalid scheme" }
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+            $validatedUrls.Add($uriObj.AbsoluteUri)
+        } catch {
+            [System.Windows.MessageBox]::Show("Invalid URL detected: $u`n`nPlease enter valid HTTP/HTTPS URLs.","Invalid URL","OK","Error") | Out-Null
+            $ProgressBar.IsIndeterminate = $false
+            return
         }
-        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-        $url = $uriObj.AbsoluteUri
-    } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
-        return
     }
+    $urlList = $validatedUrls.ToArray()
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
         [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
+        $ProgressBar.IsIndeterminate = $false
         return
     }
     # ---------------------------
@@ -308,6 +322,9 @@ $ConvertBtn.Add_Click({
     if (-not $scriptDir) {
         $scriptDir = (Get-Location).Path
     }
+
+    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $scriptDir "html2md.py"
 
     # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
     try {
@@ -331,12 +348,10 @@ $ConvertBtn.Add_Click({
 
     # Use a robust way to launch the process:
     # 1. Revert to ProcessStartInfo for precise control over the command line.
-    # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
-    #    to ensure all internal quotes are preserved and arguments are correctly delimited.
-    # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
+    # 2. Use powershell.exe to keep the window open with -NoExit.
+    # 3. Use -File for batch mode and -Command with proper quoting for single URL mode.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
+    $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
