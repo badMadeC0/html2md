@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 import argparse
-import os
 import sys
+from pathlib import Path
 from urllib.parse import urlparse, unquote
 
 
@@ -14,10 +14,7 @@ def process_url(  # pylint: disable=too-many-locals
     target_url: str, session: Any, outdir: Optional[str], md_func: Any
 ) -> None:
     """Process a single URL."""
-    try:
-        import requests  # pylint: disable=import-outside-toplevel
-    except ImportError:
-        return
+    import requests  # pylint: disable=import-outside-toplevel
 
     # Fix common URL typo: trailing slash before query parameters
     if "/?" in target_url:
@@ -43,28 +40,30 @@ def process_url(  # pylint: disable=too-many-locals
         md_content = md_func(response.text, heading_style="ATX")
 
         if outdir:
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
+            outdir_path = Path(outdir)
+            outdir_path.mkdir(parents=True, exist_ok=True)
 
             # Create a safe filename based on the URL
             filename = "conversion_result.md"
-            url_path = target_url.split("?")[0].rstrip("/")
+            url_path = unquote(parsed.path).rstrip("/")
             if url_path:
-                base = os.path.basename(unquote(url_path))
+                base = Path(url_path).name
                 # Sanitize to prevent path traversal
                 base = base.replace("/", "_").replace("\\", "_")
                 base = base.strip(". ")
                 if base:
                     filename = f"{base}.md"
 
-            out_path = os.path.join(outdir, filename)
+            out_path = outdir_path / filename
             # Final safety check: ensure output stays within outdir
-            real_outdir = os.path.realpath(outdir)
-            real_out_path = os.path.realpath(out_path)
-            if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+            real_outdir = outdir_path.resolve(strict=False)
+            real_out_path = out_path.resolve(strict=False)
+            try:
+                real_out_path.relative_to(real_outdir)
+            except ValueError:
                 print("Error: Output path escapes output directory.", file=sys.stderr)
                 return
-            with open(out_path, "w", encoding="utf-8") as f:
+            with out_path.open("w", encoding="utf-8") as f:
                 f.write(md_content)
             print(f"Success! Saved to: {out_path}")
         else:
@@ -136,10 +135,11 @@ def main(argv=None):
             process_url(args.url, session, args.outdir, md)
 
         if args.batch:
-            if not os.path.exists(args.batch):
+            batch_path = Path(args.batch)
+            if not batch_path.exists():
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
-            with open(args.batch, "r", encoding="utf-8") as f:
+            with batch_path.open("r", encoding="utf-8") as f:
                 for line in f:
                     u = line.strip()
                     if u:
