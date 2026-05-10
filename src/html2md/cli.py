@@ -6,16 +6,16 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
-        prog='html2md',
-        description='Convert HTML URL to Markdown.'
+        prog="html2md", description="Convert HTML URL to Markdown."
     )
-    ap.add_argument('--help-only', action='store_true', help=argparse.SUPPRESS)
-    ap.add_argument('--url', help='Input URL to convert')
-    ap.add_argument('--batch', help='File containing URLs to process (one per line)')
-    ap.add_argument('--outdir', help='Output directory to save the file')
+    ap.add_argument("--help-only", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--url", help="Input URL to convert")
+    ap.add_argument("--batch", help="File containing URLs to process (one per line)")
+    ap.add_argument("--outdir", help="Output directory to save the file")
 
     args = ap.parse_args(argv)
 
@@ -26,44 +26,54 @@ def main(argv=None):
     if args.url or args.batch:
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
-            from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
+            from markdownify import (
+                markdownify as md,
+            )  # pylint: disable=import-outside-toplevel
         except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+            print(
+                f"Error: Missing dependency {e.name}."
+                "Please run: pip install requests markdownify",
+                file=sys.stderr,
+            )
             return 1
 
         session = requests.Session()
-        session.headers.update({
-            'User-Agent': (
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 (KHTML, like Gecko) '
-                'Chrome/120.0.0.0 Safari/537.36'
-            ),
-            'Accept': (
-                'text/html,application/xhtml+xml,application/xml;q=0.9,'
-                'image/avif,image/webp,image/apng,*/*;q=0.8'
-            ),
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.google.com/',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'cross-site',
-            'Sec-Fetch-User': '?1',
-        })
+        session.headers.update(
+            {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Accept": (
+                    "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                    "image/avif,image/webp,image/apng,*/*;q=0.8"
+                ),
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Referer": "https://www.google.com/",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-Fetch-User": "?1",
+            }
+        )
 
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
-            if '/?' in target_url:
-                target_url = target_url.replace('/?', '?')
+            if "/?" in target_url:
+                target_url = target_url.replace("/?", "?")
 
             parsed = urlparse(target_url)
-            if parsed.scheme not in ('http', 'https'):
-                print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
-                      "Only http and https are allowed.", file=sys.stderr)
+            if parsed.scheme not in ("http", "https"):
+                print(
+                    f"Error: Unsupported URL scheme '{parsed.scheme}'. "
+                    "Only http and https are allowed.",
+                    file=sys.stderr,
+                )
                 return
 
             print(f"Processing URL: {target_url}")
@@ -103,12 +113,12 @@ def main(argv=None):
 
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
+                    url_path = target_url.split("?")[0].rstrip("/")
                     if url_path:
                         base = os.path.basename(unquote(url_path))
                         # Sanitize to prevent path traversal
-                        base = base.replace('/', '_').replace('\\', '_')
-                        base = base.strip('. ')
+                        base = base.replace("/", "_").replace("\\", "_")
+                        base = base.strip(". ")
                         if base:
                             filename = f"{base}.md"
 
@@ -117,10 +127,12 @@ def main(argv=None):
                     real_outdir = os.path.realpath(args.outdir)
                     real_out_path = os.path.realpath(out_path)
                     if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
-                        print("Error: Output path escapes output directory.",
-                              file=sys.stderr)
+                        print(
+                            "Error: Output path escapes output directory.",
+                            file=sys.stderr,
+                        )
                         return
-                    with open(out_path, 'w', encoding='utf-8') as f:
+                    with open(out_path, "w", encoding="utf-8") as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
@@ -140,7 +152,7 @@ def main(argv=None):
             if not os.path.exists(args.batch):
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
-            with open(args.batch, 'r', encoding='utf-8') as f:
+            with open(args.batch, "r", encoding="utf-8") as f:
                 for line in f:
                     u = line.strip()
                     if u:
