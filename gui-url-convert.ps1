@@ -24,11 +24,10 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             # Security Validation
-            try {
-                $uriObj = [System.Uri]$url
-                if ($uriObj.Scheme -notmatch '^https?$') { throw "Invalid scheme" }
-                $url = $uriObj.AbsoluteUri
-            } catch {
+            $uriOut = $null
+            if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
+                $url = $uriOut.AbsoluteUri
+            } else {
                 Write-Error "Invalid URL skipped: $url"
                 return
             }
