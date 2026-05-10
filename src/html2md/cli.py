@@ -83,8 +83,29 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
+                response = session.get(target_url, timeout=30, stream=True)
                 response.raise_for_status()
+
+                max_size = 10 * 1024 * 1024
+                try:
+                    if int(response.headers.get('Content-Length', 0)) > max_size:
+                        print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                        response.close()
+                        return
+                except ValueError:
+                    # Invalid or non-numeric Content-Length: treat as unknown size.
+                    # The streaming loop below still enforces max_size.
+                    pass
+
+                content_bytes = b""
+                for chunk in response.iter_content(chunk_size=8192):
+                    content_bytes += chunk
+                    if len(content_bytes) > max_size:
+                        print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                        response.close()
+                        return
+                response._content = content_bytes
 
                 print("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")
