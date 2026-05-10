@@ -33,11 +33,6 @@ jobs:
           body="${PR_BODY:-}"
           accepted_url_pattern='https?://(claude\.ai|cursor\.com|jules\.google\.com)([/:?#]|$)|https?://chatgpt\.com/codex([/?#]|$)'
 
-          if printf '%s' "$body" | grep -Eqi "$accepted_url_pattern"; then
-            echo "OK: PR body contains an agent chat URL."
-            exit 0
-          fi
-
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then
             if [[ "$PR_DRAFT" == "true" ]]; then
               echo "::warning::Draft PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before marking ready for review."
@@ -46,6 +41,11 @@ jobs:
 
             echo "::error::PR body still contains the <CLAUDE_CHAT_URL> placeholder. Replace it with the real chat URL before merging."
             exit 1
+          fi
+
+          if printf '%s' "$body" | grep -Eqi "$accepted_url_pattern"; then
+            echo "OK: PR body contains an agent chat URL."
+            exit 0
           fi
 
           echo "::error::PR title is tagged [AI-Assisted] but the body does not include a Claude chat URL (or accepted alternative). Add the URL or remove the tag."
