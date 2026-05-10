@@ -6,7 +6,8 @@ import os
 import sys
 import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+from contextlib import contextmanager
+from urllib.parse import urljoin, urlparse, unquote
 
 
 def _is_restricted_address(ip_obj) -> bool:
@@ -19,9 +20,9 @@ def _is_restricted_address(ip_obj) -> bool:
     )
 
 
-def _hostname_resolves_to_global_addresses(hostname: str) -> bool:
-    """Return True only when all IPv4/IPv6 answers are unrestricted globals."""
-    addrinfo = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+def _resolve_global_addrinfo(hostname: str, port: int):
+    """Resolve a host and return addrinfo only when every answer is global."""
+    addrinfo = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
 
     if not addrinfo:
         raise socket.gaierror("No addresses found")
@@ -33,9 +34,81 @@ def _hostname_resolves_to_global_addresses(hostname: str) -> bool:
             raise ValueError("Invalid address info") from exc
 
         if _is_restricted_address(ip_obj):
-            return False
+            return None
 
-    return True
+    return addrinfo
+
+
+@contextmanager
+def _bound_getaddrinfo(hostname: str, addrinfo):
+    """Pin requests' DNS lookup for hostname to previously vetted answers."""
+    original_getaddrinfo = socket.getaddrinfo
+    normalized_hostname = hostname.rstrip('.').lower()
+
+    def getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        if (
+            isinstance(host, str)
+            and host.rstrip('.').lower() == normalized_hostname
+        ):
+            return addrinfo
+        return original_getaddrinfo(host, port, family, type, proto, flags)
+
+    socket.getaddrinfo = getaddrinfo
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
+
+
+def _validate_url_for_fetch(target_url: str):
+    """Validate a URL and return parsed details plus vetted DNS answers."""
+    parsed = urlparse(target_url)
+    if parsed.scheme not in ('http', 'https'):
+        return parsed, None, (
+            f"Error: Unsupported URL scheme '{parsed.scheme}'. "
+            "Only http and https are allowed."
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        return parsed, None, "Error: URL is missing a hostname."
+
+    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+    try:
+        addrinfo = _resolve_global_addrinfo(hostname, port)
+    except (socket.gaierror, ValueError):
+        return parsed, None, "Error: Could not resolve hostname to a valid IP."
+
+    if addrinfo is None:
+        return parsed, None, (
+            "Error: URL resolves to a restricted/private network address."
+        )
+
+    return parsed, addrinfo, None
+
+
+def _get_with_vetted_redirects(session, target_url: str, timeout: int, requests_module):
+    """Fetch a URL after validating each redirect and pinning vetted DNS answers."""
+    current_url = target_url
+
+    for _ in range(10):
+        parsed, addrinfo, error = _validate_url_for_fetch(current_url)
+        if error:
+            print(error, file=sys.stderr)
+            return None
+
+        with _bound_getaddrinfo(parsed.hostname, addrinfo):
+            response = session.get(current_url, timeout=timeout, allow_redirects=False)
+
+        if response.is_redirect is not True:
+            return response
+
+        redirect_url = response.headers.get('Location')
+        if not redirect_url:
+            return response
+        current_url = urljoin(current_url, redirect_url)
+
+    raise requests_module.TooManyRedirects("Exceeded 10 redirects.")
 
 
 def main(argv=None):
@@ -92,37 +165,20 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            parsed = urlparse(target_url)
-            if parsed.scheme not in ('http', 'https'):
-                print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
-                      "Only http and https are allowed.", file=sys.stderr)
+            _, _, error = _validate_url_for_fetch(target_url)
+            if error:
+                print(error, file=sys.stderr)
                 return
-
-            hostname = parsed.hostname
-            if hostname:
-                try:
-                    resolves_to_global = (
-                        _hostname_resolves_to_global_addresses(hostname)
-                    )
-                except (socket.gaierror, ValueError):
-                    print(
-                        "Error: Could not resolve hostname to a valid IP.",
-                        file=sys.stderr,
-                    )
-                    return
-
-                if not resolves_to_global:
-                    print(
-                        "Error: URL resolves to a restricted/private network address.",
-                        file=sys.stderr,
-                    )
-                    return
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = _get_with_vetted_redirects(
+                    session, target_url, timeout=30, requests_module=requests
+                )
+                if response is None:
+                    return
                 response.raise_for_status()
 
                 print("Converting to Markdown...")

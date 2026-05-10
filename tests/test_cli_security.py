@@ -182,3 +182,45 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     )
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+@patch("requests.Session.get")
+def test_process_url_blocks_redirect_to_restricted_address(mock_get, capsys, tmp_path):
+    """Redirect targets are revalidated before the next fetch."""
+    redirect = MagicMock()
+    redirect.is_redirect = True
+    redirect.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    mock_get.return_value = redirect
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        side_effect=[
+            addrinfo("93.184.216.34"),
+            addrinfo("93.184.216.34"),
+            addrinfo("169.254.169.254"),
+        ],
+    ):
+        cli.main(["--url", "https://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert (
+        "Error: URL resolves to a restricted/private network address."
+        in outerr.err
+    )
+    mock_get.assert_called_once_with(
+        "https://example.com", timeout=30, allow_redirects=False
+    )
+
+
+def test_bound_getaddrinfo_pins_vetted_answer_during_fetch():
+    """Pinned DNS answers prevent a later rebind during the requests lookup."""
+    vetted = addrinfo("93.184.216.34")
+    rebinding_answer = addrinfo("127.0.0.1")
+
+    def rebinding_getaddrinfo(host, port, *args, **kwargs):
+        return rebinding_answer
+
+    with patch("html2md.cli.socket.getaddrinfo", side_effect=rebinding_getaddrinfo):
+        with cli._bound_getaddrinfo("example.com", vetted):
+            assert socket.getaddrinfo("example.com", 443) == vetted
+            assert socket.getaddrinfo("other.example", 443) == rebinding_answer
