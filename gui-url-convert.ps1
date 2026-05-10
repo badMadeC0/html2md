@@ -6,7 +6,7 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
+param([string]$BatchFile, [string]$BatchOutDir)
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
@@ -24,9 +24,7 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            # Default to main content unless BatchWholePage is set
-            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-            if (-not $BatchWholePage) { $argsList += "--main-content" }
+            $argsList = @("--url", "$url", "--outdir", "$outDir")
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -113,11 +111,7 @@ $xaml = @"
             <Button Grid.Column="3" Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </Grid>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
-
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert to Markdown"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
@@ -152,7 +146,7 @@ $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
 $PasteBtn = $window.FindName("PasteBtn")
 $ClearBtn = $window.FindName("ClearBtn")
-$WholePageChk = $window.FindName("WholePageChk")
+$WholePageChk = $null  # Removed: whole-page mode not supported by current CLI
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
@@ -280,17 +274,22 @@ $ConvertBtn.Add_Click({
     }
 
     # --- Security Validation ---
-    try {
-        $uriObj = [System.Uri]$url
-        if ($uriObj.Scheme -notmatch '^https?$') {
-            throw "Invalid scheme"
+    $validatedUrls = @()
+    foreach ($u in $urlList) {
+        try {
+            $uriObj = [System.Uri]$u
+            if ($uriObj.Scheme -notmatch '^https?$') {
+                throw "Invalid scheme"
+            }
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+            $validatedUrls += $uriObj.AbsoluteUri
+        } catch {
+            [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL. Invalid URL: $u", "Invalid URL", "OK", "Error") | Out-Null
+            $ProgressBar.IsIndeterminate = $false
+            return
         }
-        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-        $url = $uriObj.AbsoluteUri
-    } catch {
-        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
-        return
     }
+    $urlList = $validatedUrls
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
@@ -316,6 +315,9 @@ $ConvertBtn.Add_Click({
         if ($short) { $scriptDir = $short }
     } catch {}
 
+    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $scriptDir "html2md.py"
+
     # Check for Python executable
     $pyCmd = "python"
     if (-not (Get-Command $pyCmd -ErrorAction SilentlyContinue)) {
@@ -329,14 +331,8 @@ $ConvertBtn.Add_Click({
         }
     }
 
-    # Use a robust way to launch the process:
-    # 1. Revert to ProcessStartInfo for precise control over the command line.
-    # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
-    #    to ensure all internal quotes are preserved and arguments are correctly delimited.
-    # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "cmd.exe"
-    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
+    $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
@@ -354,14 +350,9 @@ $ConvertBtn.Add_Click({
         # Relaunch this script in batch mode
         # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
-        if ($WholePageChk.IsChecked) {
-            $psi.Arguments += " -BatchWholePage"
-        }
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         # Sanitize inputs for single-quoted string interpolation in PowerShell
         $safeUrl = $url -replace "'", "''"
@@ -371,11 +362,11 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
