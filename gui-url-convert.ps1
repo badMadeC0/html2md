@@ -24,7 +24,9 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
+            # Default to main content unless BatchWholePage is set
+            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
+            if (-not $BatchWholePage) { $argsList += "--main-content" }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -50,6 +52,11 @@ if ($BatchFile) {
 #     [Diagnostics.Process]::Start($psi) | Out-Null
 #     exit
 # }
+
+if ($null -ne $IsWindows -and -not $IsWindows) {
+    Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
+    exit 1
+}
 
 # --- Load WPF assemblies ---
 Add-Type -AssemblyName PresentationCore
@@ -93,14 +100,18 @@ $xaml = @"
                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Height="80"
                  ToolTip="Enter one or more URLs (one per line)"/>
 
-        <StackPanel Grid.Row="2" Orientation="Vertical">
-            <Label Content="Output _Directory:" Target="{Binding ElementName=OutBox}" FontSize="14" Padding="0,0,0,2"/>
-            <StackPanel Orientation="Horizontal">
-                <TextBox Name="OutBox" Width="340" FontSize="14" ToolTip="Directory where files will be saved"/>
-                <Button Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder (Alt+B)">_Browse...</Button>
-                <Button Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder (Alt+O)">_Open Folder</Button>
-            </StackPanel>
-        </StackPanel>
+        <Grid Grid.Row="2" VerticalAlignment="Center">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Label Name="OutBoxLabel" Grid.Column="0" Content="_Save To:" Target="{Binding ElementName=OutBox}" FontSize="14" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox Grid.Column="1" Name="OutBox" FontSize="14" AutomationProperties.LabeledBy="{Binding ElementName=OutBoxLabel}" ToolTip="Directory where files will be saved" VerticalContentAlignment="Center"/>
+            <Button Grid.Column="2" Name="BrowseBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Select output folder (Alt+B)">_Browse...</Button>
+            <Button Grid.Column="3" Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder (Alt+O)">_Open Folder</Button>
+        </Grid>
 
         <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
                   VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
@@ -109,7 +120,7 @@ $xaml = @"
         <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
-                ToolTip="Please enter at least one URL to enable conversion"
+                ToolTip="Please enter at least one URL to enable conversion (Alt+C)"
                 ToolTipService.ShowOnDisabled="True"
                 />
 
@@ -119,13 +130,7 @@ $xaml = @"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
-            <TextBlock Name="StatusText" Text="Ready" AutomationProperties.LiveSetting="Polite">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Foreground" Value="#555555" />
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
+            <TextBlock Name="StatusText" Text="Ready" Foreground="#555555"/>
         </StatusBar>
     </Grid>
 </Window>
@@ -253,7 +258,7 @@ $ClearBtn.Add_Click({
 $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
-        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion (Alt+C)"
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process (Alt+C)"
@@ -276,22 +281,17 @@ $ConvertBtn.Add_Click({
     }
 
     # --- Security Validation ---
-    $validatedUrls = @()
-    foreach ($u in $urlList) {
-        try {
-            $uriObj = [System.Uri]$u
-            if ($uriObj.Scheme -notmatch '^https?$') {
-                throw "Invalid scheme"
-            }
-            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-            $validatedUrls += $uriObj.AbsoluteUri
-        } catch {
-            [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL. Invalid URL: $u", "Invalid URL", "OK", "Error") | Out-Null
-            $ProgressBar.IsIndeterminate = $false
-            return
+    try {
+        $uriObj = [System.Uri]$url
+        if ($uriObj.Scheme -notmatch '^https?$') {
+            throw "Invalid scheme"
         }
+        # AbsoluteUri is properly percent-encoded, preventing quote-based injection
+        $url = $uriObj.AbsoluteUri
+    } catch {
+        [System.Windows.MessageBox]::Show("Please enter a valid HTTP/HTTPS URL.","Invalid URL","OK","Error") | Out-Null
+        return
     }
-    $urlList = $validatedUrls
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
     if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
@@ -317,9 +317,6 @@ $ConvertBtn.Add_Click({
         if ($short) { $scriptDir = $short }
     } catch {}
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
-
     # Check for Python executable
     $pyCmd = "python"
     if (-not (Get-Command $pyCmd -ErrorAction SilentlyContinue)) {
@@ -333,8 +330,14 @@ $ConvertBtn.Add_Click({
         }
     }
 
+    # Use a robust way to launch the process:
+    # 1. Revert to ProcessStartInfo for precise control over the command line.
+    # 2. Use the "double-quote wrapper" for cmd /c (i.e., /c ""command" args")
+    #    to ensure all internal quotes are preserved and arguments are correctly delimited.
+    # 3. Explicitly quote each argument to prevent metacharacters like & from being interpreted.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
+    $psi.FileName = "cmd.exe"
+    $psi.Arguments = "/c `"`"$bat`" --url `"$url`" --outdir `"$outdir`" --all-formats`""
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
@@ -358,6 +361,8 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
+        # If Whole Page is unchecked, we add the flag to ignore headers/footers
+        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
         # Sanitize inputs for single-quoted string interpolation in PowerShell
         $safeUrl = $url -replace "'", "''"
@@ -367,11 +372,11 @@ $ConvertBtn.Add_Click({
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'`""
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir'`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
