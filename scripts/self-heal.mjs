@@ -46,8 +46,9 @@ if (!passHealth()) {
   // Try a clean install + re-resolve
   trySh("pnpm install");
   if (!passHealth()) {
-    // Last resort: repair the lockfile without upgrading manifest ranges.
-    trySh("pnpm install --lockfile-only --fix-lockfile");
+    // Last resort: repair the lockfile without upgrading manifest ranges,
+    // while also applying the repaired lockfile to node_modules.
+    trySh("pnpm install --fix-lockfile");
   }
   if (passHealth()) fixed = fixed || changed();
 }
