@@ -167,16 +167,19 @@ def registered_hook_command(settings):
     return settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
 
+def strip_claude_project_dir_prefix(command_path):
+    project_dir_prefix = "$CLAUDE_PROJECT_DIR/"
+    assert command_path.startswith(project_dir_prefix)
+    return command_path[len(project_dir_prefix) :]
+
+
 def hook_path_from_registered_command(settings, project_dir):
     command = registered_hook_command(settings)
     expected_command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py"'
     assert command == expected_command
 
     command_path = expected_command.strip('"')
-    project_dir_prefix = "$CLAUDE_PROJECT_DIR/"
-    assert command_path.startswith(project_dir_prefix)
-
-    relative_hook_path = command_path[len(project_dir_prefix) :]
+    relative_hook_path = strip_claude_project_dir_prefix(command_path)
     return project_dir / Path(relative_hook_path)
 
 
