@@ -69,7 +69,7 @@ jobs:
                   user = comment.get("user") or {}
                   if user.get("login") != "github-actions[bot]":
                       continue
-                  if marker in (comment.get("body") or ""):
+                  if (comment.get("body") or "") == marker:
                       print(
                           f"Review request already present on PR #{pr_number}; skipping."
                       )
