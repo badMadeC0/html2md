@@ -2,6 +2,8 @@ name: Request Jules Review
 
 on:
   pull_request:
+    # Keep reopened as a recovery trigger for older PRs or failed initial runs;
+    # the existing-comment guard below prevents duplicate Jules requests.
     types: [opened, reopened]
 
 permissions:
