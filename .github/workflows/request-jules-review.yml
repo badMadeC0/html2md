@@ -2,7 +2,7 @@ name: Request Jules Review
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened]
 
 permissions:
   issues: write
