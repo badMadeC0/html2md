@@ -32,6 +32,40 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # Comment-triggered events fire from the base repo regardless of where
+      # the PR's head lives. The job-level author_association check rejects
+      # untrusted commenters, but a trusted collaborator commenting on a
+      # fork PR would still feed the fork's diff to a --yolo run with
+      # write-capable MCP tools and GEMINI_API_KEY in scope. Verify the PR
+      # head repo before any secret-using step runs.
+      - name: Verify PR head is not a fork (comment-triggered runs)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          head_repo=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.head.repo.full_name')
+          if [ "${head_repo}" != "${REPO}" ]; then
+            echo "Refusing to run secret-backed Gemini review on fork PR (head=${head_repo})" >&2
+            exit 1
+          fi
+      # Install the code-review extension from a pinned commit by cloning
+      # locally and passing the path to the action's `extensions:` input.
+      # The action's installer treats non-https sources as local paths, so
+      # this avoids the floating default-branch install while still letting
+      # `gemini extensions install` set up the manifest.
+      - name: Clone gemini code-review extension at pinned commit
+        if: env.GEMINI_API_KEY != ''
+        env:
+          EXTENSION_REF: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+        run: |
+          set -euo pipefail
+          rm -rf "${RUNNER_TEMP}/gemini-code-review-ext"
+          git clone --no-tags https://github.com/gemini-cli-extensions/code-review.git \
+            "${RUNNER_TEMP}/gemini-code-review-ext"
+          git -C "${RUNNER_TEMP}/gemini-code-review-ext" checkout "${EXTENSION_REF}"
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != ''
         continue-on-error: true
@@ -44,14 +78,8 @@ jobs:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           prompt: '/pr-code-review'
-          # The run-gemini-cli `extensions` input passes each entry as the
-          # single <source> argument to `gemini extensions install`, which
-          # accepts a git ref only via a separate `--ref` flag we cannot
-          # inject through this input. The extension below tracks the
-          # default branch; last verified at commit
-          # dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04.
           extensions: |
-            ["https://github.com/gemini-cli-extensions/code-review"]
+            ["${{ runner.temp }}/gemini-code-review-ext"]
           settings: |-
             {
               "mcpServers": {

@@ -55,8 +55,17 @@ jobs:
           except urllib.error.HTTPError as error:
               body = error.read().decode("utf-8")
               print(f"Could not request review: HTTP {error.code}: {body}")
-              if 400 <= error.code < 500 and error.code not in (403, 429):
-                  print("Ensure the workflow token has permission to comment.")
+              if error.code == 403:
+                  # Tolerated: token lacks write permission on this PR
+                  # (e.g. base-repo policy on PRs from a fork). The job's
+                  # fork guard already filters most of these, so log and
+                  # exit clean rather than block the required check.
+                  print("Treating 403 as expected permission limit; not failing.")
+              else:
+                  # 429 (rate-limit) and 5xx are transient; bubble them up
+                  # so the workflow surfaces the dropped request and
+                  # GitHub Actions retry/visibility can act on it instead
+                  # of silently going green.
+                  print("Failing so the missing review request is visible.")
                   sys.exit(1)
-              print("Treating as transient or expected; not failing the workflow.")
           PY
