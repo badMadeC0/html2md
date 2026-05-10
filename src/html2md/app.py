@@ -1,6 +1,7 @@
 """Flask application for html2md."""
 
 import os
+import sys
 
 try:
     from flask import Flask, jsonify
@@ -25,14 +26,14 @@ if app:
 
 def get_host_port():
     """Get host and port from environment variables."""
-    default_port = 10000
     port_str = os.environ.get('PORT')
     try:
         port_value = int(port_str) if port_str is not None else DEFAULT_PORT
     except ValueError:
         print(
             f'Warning: Invalid PORT environment variable value '
-            f'{port_str!r}; falling back to default {default_port}.'
+            f'{port_str!r}; falling back to default {DEFAULT_PORT}.',
+            file=sys.stderr,
         )
         port_value = DEFAULT_PORT
 
@@ -40,19 +41,21 @@ def get_host_port():
     if hostname == '0.0.0.0':
         print(
             'Security Warning: Host is set to 0.0.0.0, making the server '
-            'accessible from any network interface. Use with caution.'
+            'accessible from any network interface. Use with caution.',
+            file=sys.stderr,
         )
     return hostname, port_value
 
 
 if __name__ == '__main__':
     if app is None:
-        print('Error: Flask is not installed. Cannot start the development server.')
-        exit(1)
+        print('Error: Flask is not installed. Cannot start the development server.', file=sys.stderr)
+        raise SystemExit(1)
 
     host, port = get_host_port()
     print(
         'WARNING: This is a development server. Do not use it in a production '
-        'deployment. Use a production WSGI server instead.'
+        'deployment. Use a production WSGI server instead.',
+        file=sys.stderr,
     )
     app.run(host=host, port=port)
