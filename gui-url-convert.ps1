@@ -6,7 +6,7 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
+param([string]$BatchFile, [string]$BatchOutDir)
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
@@ -111,11 +111,7 @@ $xaml = @"
             <Button Grid.Column="3" Name="OpenFolderBtn" Width="90" Height="28" Margin="10,0,0,0" ToolTip="Open output folder">_Open Folder</Button>
         </Grid>
 
-        <CheckBox Name="WholePageChk" Grid.Row="3" Content="Convert _Whole Page"
-                  VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,15,0,0"
-                  ToolTip="If checked, includes headers and footers. Default is main content only."/>
-
-        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert (All Formats)"
+        <Button Name="ConvertBtn" Grid.Row="3" Content="_Convert to Markdown"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
@@ -150,7 +146,7 @@ $OpenFolderBtn = $window.FindName("OpenFolderBtn")
 $ConvertBtn = $window.FindName("ConvertBtn")
 $PasteBtn = $window.FindName("PasteBtn")
 $ClearBtn = $window.FindName("ClearBtn")
-$WholePageChk = $window.FindName("WholePageChk")
+$WholePageChk = $null  # Removed: whole-page mode not supported by current CLI
 $StatusText = $window.FindName("StatusText")
 $ProgressBar = $window.FindName("ProgressBar")
 $LogBox = $window.FindName("LogBox")
@@ -354,9 +350,6 @@ $ConvertBtn.Add_Click({
         # Relaunch this script in batch mode
         # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
-        if ($WholePageChk.IsChecked) {
-            $psi.Arguments += " -BatchWholePage"
-        }
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
