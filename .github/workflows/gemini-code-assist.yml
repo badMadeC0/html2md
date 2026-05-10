@@ -62,7 +62,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || steps.pr_head.outputs.head_sha }}
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
-        uses: google-github-actions/run-gemini-cli@v0
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
