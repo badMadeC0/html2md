@@ -99,6 +99,34 @@ def test_process_url_blocks_any_non_global_address(mock_get, capsys, tmp_path):
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "url, resolved_ip",
+    [
+        ("http://[64:ff9b::8.8.8.8]/", "64:ff9b::8.8.8.8"),
+        ("http://224.0.0.1/", "224.0.0.1"),
+        ("http://[ff02::1]/", "ff02::1"),
+        ("http://[fec0::1]/", "fec0::1"),
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_blocks_global_restricted_addresses(
+    mock_get, capsys, tmp_path, url, resolved_ip,
+):
+    """Restricted IP predicates are enforced even when is_global is True."""
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=addrinfo(resolved_ip),
+    ):
+        cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert (
+        "Error: URL resolves to a restricted/private network address."
+        in outerr.err
+    )
+    mock_get.assert_not_called()
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
