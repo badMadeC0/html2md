@@ -28,9 +28,6 @@ if ($BatchFile) {
             if ($BatchWholePage) {
                 $argsList += "--whole-page"
             }
-            if ($BatchWholePage) {
-                $argsList += "--whole-page"
-            }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
@@ -96,7 +93,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="URL list is already empty" IsEnabled="False"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="URL list is already empty" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
             </StackPanel>
         </Grid>
 
@@ -125,6 +122,7 @@ $xaml = @"
                 Height="35" HorizontalAlignment="Right" Width="180" Margin="0,15,0,0"
                 IsEnabled="False"
                 ToolTip="Please enter at least one URL to enable conversion"
+                ToolTipService.ShowOnDisabled="True"
                 />
 
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>

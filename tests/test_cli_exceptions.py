@@ -1,6 +1,6 @@
 """Tests for html2md CLI exception-handling paths."""
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 import io
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
