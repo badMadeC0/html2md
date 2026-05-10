@@ -81,6 +81,8 @@ def main(argv=None):
                         response.close()
                         return
                 except ValueError:
+                    # Invalid or non-numeric Content-Length: treat as unknown size.
+                    # The streaming loop below still enforces max_size.
                     pass
 
                 content_bytes = b""
