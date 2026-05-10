@@ -1,5 +1,7 @@
 """Export html2md JSONL logs to CSV."""
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -46,8 +48,8 @@ def _sanitize_value(value: object) -> object:
     return value
 
 
-def main(argv=None):
-    """Run the log export CLI."""  # pylint: disable=too-many-locals
+def main(argv=None):  # pylint: disable=too-many-locals
+    """Run the log export CLI."""
     ap = argparse.ArgumentParser(
         prog="html2md-log-export", description="Export html2md JSONL logs to CSV"
     )
