@@ -83,7 +83,7 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            # Strict/fast dict check
+            # Accept dicts and dict subclasses
             if not isinstance(rec, dict):
                 continue
 
