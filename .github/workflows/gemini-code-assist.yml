@@ -8,10 +8,7 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+permissions: {}
 
 concurrency:
   # Group by PR number for any PR-related event (pull_request,
@@ -29,6 +26,10 @@ concurrency:
 jobs:
   preflight:
     runs-on: ubuntu-latest
+    permissions:
+      # Read-only: needed for `gh api repos/.../pulls/N` on issue_comment
+      # triggers to look up the PR's head repo for fork detection.
+      pull-requests: read
     if: >
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
@@ -83,6 +84,12 @@ jobs:
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      # Write scope is needed so the github-mcp-server can create
+      # pending reviews and post inline review comments on the PR.
+      pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
         with:
