@@ -30,8 +30,7 @@ jobs:
   preflight:
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
        (github.event.comment.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
@@ -46,12 +45,18 @@ jobs:
     outputs:
       enabled: ${{ steps.gate.outputs.enabled }}
     steps:
-      - name: Check for Gemini API key
+      - name: Gate on fork status and Gemini API key
         id: gate
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Only meaningful for pull_request triggers; comment triggers
+          # are already gated on author_association above.
+          IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
-          if [ -n "$GEMINI_API_KEY" ]; then
+          if [ "$IS_FORK_PR" = "true" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Gemini Code Assist: PR is from a fork; not running secret-backed review against untrusted code."
+          elif [ -n "$GEMINI_API_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
