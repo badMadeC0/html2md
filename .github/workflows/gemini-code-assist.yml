@@ -26,7 +26,7 @@ jobs:
          contains(github.event.comment.body, '@gemini-code-assist')))
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_CLI_TRUST_WORKSPACE: true
+      GEMINI_CLI_TRUST_WORKSPACE: 'true'
     steps:
       - name: Resolve PR head SHA
         id: pr_head
@@ -64,10 +64,35 @@ jobs:
         if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
         uses: google-github-actions/run-gemini-cli@v0
         env:
+          # Expose the workflow token to Gemini CLI and any GitHub tooling it invokes.
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
+          settings: |
+            {
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server:v0.27.0"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "pull_request_read",
+                    "pull_request_review_write"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              }
+            }
           gemini_model: gemini-2.0-flash
           prompt: |
             You are Gemini Code Assist running in a GitHub Actions workflow for ${{ github.repository }}.
