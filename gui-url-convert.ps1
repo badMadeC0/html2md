@@ -291,12 +291,10 @@ $ConvertBtn.Add_Click({
     # --- Security Validation & Sanitization ---
     $validatedUrls = New-Object System.Collections.Generic.List[string]
     foreach ($u in $urlList) {
-        try {
-            $uriObj = [System.Uri]$u
-            if ($uriObj.Scheme -notmatch '^https?$') { throw "Invalid scheme" }
-            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
-            $validatedUrls.Add($uriObj.AbsoluteUri)
-        } catch {
+        $uriOut = $null
+        if ([System.Uri]::TryCreate($u, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
+            $validatedUrls.Add($uriOut.AbsoluteUri)
+        } else {
             [System.Windows.MessageBox]::Show("Invalid URL detected: $u`n`nPlease enter valid HTTP/HTTPS URLs.","Invalid URL","OK","Error") | Out-Null
             $ProgressBar.IsIndeterminate = $false
             return
