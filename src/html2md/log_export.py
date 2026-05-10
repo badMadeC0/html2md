@@ -1,6 +1,6 @@
-"""Export html2md JSONL logs to CSV."""
-
 from __future__ import annotations
+
+"""Export html2md JSONL logs to CSV."""
 
 import argparse
 import csv
