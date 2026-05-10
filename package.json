@@ -7,6 +7,6 @@
     "lint": "eslint .",
     "format": "prettier -w .",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "pytest -q"
   }
 }
