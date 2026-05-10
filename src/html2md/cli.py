@@ -55,14 +55,18 @@ def main(argv=None):
         })
 
         def decode_response_content(response, content_bytes: bytearray) -> str:
-            """Decode streamed bytes using Requests' response.text fallback order."""
-            encoding = response.encoding
-            if not encoding:
-                encoding = response.apparent_encoding
+            """Decode streamed bytes without reading consumed response content."""
+            # response.apparent_encoding inspects response.content, which raises
+            # RuntimeError after a streamed response has been consumed. Only use
+            # the header-provided encoding and fall back to utf-8 for the bytes
+            # already collected from iter_content().
+            encoding = (
+                response.encoding if isinstance(response.encoding, str) else 'utf-8'
+            )
             try:
                 return bytes(content_bytes).decode(encoding, errors='replace')
-            except (LookupError, TypeError):
-                return bytes(content_bytes).decode(errors='replace')
+            except LookupError:
+                return bytes(content_bytes).decode('utf-8', errors='replace')
 
         def process_url(target_url: str) -> bool:
             """Process a single URL. Return True when conversion succeeds."""
