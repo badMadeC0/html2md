@@ -307,7 +307,7 @@ $ConvertBtn.Add_Click({
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth.
     # We allow () and [] as they are common in Windows paths and safe within quoted arguments.
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
+    if ($outdir -match '[&|;<>^"%]') {
         [System.Windows.MessageBox]::Show("Invalid characters detected in output directory (e.g. quotes or redirects).","Security Warning","OK","Warning") | Out-Null
         $ProgressBar.IsIndeterminate = $false
         return
