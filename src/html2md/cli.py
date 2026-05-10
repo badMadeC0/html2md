@@ -20,6 +20,25 @@ def _port_for_url(parsed) -> int:
     return 443 if parsed.scheme == 'https' else 80
 
 
+def _hostname_variants(hostname: str):
+    """Return hostname forms that requests/urllib3 may resolve."""
+    variants = {hostname}
+    try:
+        variants.add(hostname.encode('idna').decode('ascii'))
+    except UnicodeError:
+        pass
+    return {variant.lower() for variant in variants}
+
+
+def _is_restricted_ip(ip_obj) -> bool:
+    """Return True for network ranges that must not be fetched."""
+    return (
+        not ip_obj.is_global
+        or ip_obj.is_multicast
+        or getattr(ip_obj, 'is_site_local', False)
+    )
+
+
 def _validated_addrinfo_for_url(target_url: str):
     """Return validated address info for an allowed URL, or None if blocked."""
     parsed = urlparse(target_url)
@@ -37,7 +56,7 @@ def _validated_addrinfo_for_url(target_url: str):
         addrinfo = socket.getaddrinfo(
             hostname, _port_for_url(parsed), type=socket.SOCK_STREAM
         )
-    except socket.gaierror:
+    except (socket.gaierror, ValueError):
         print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
         return None
 
@@ -54,7 +73,7 @@ def _validated_addrinfo_for_url(target_url: str):
         except ValueError:
             print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
             return None
-        if not ip_obj.is_global:
+        if _is_restricted_ip(ip_obj):
             print(
                 "Error: URL resolves to a restricted/private network address.",
                 file=sys.stderr,
@@ -87,9 +106,14 @@ def _addrinfo_with_port(addrinfo, port):
 def _pin_dns_resolution(hostname: str, port: int, addrinfo):
     """Force socket lookups for hostname:port to reuse prevalidated addresses."""
     original_getaddrinfo = socket.getaddrinfo
+    pinned_hostnames = _hostname_variants(hostname)
 
     def pinned_getaddrinfo(host, service, *args, **kwargs):
-        if host == hostname and service in (port, str(port)):
+        if (
+            isinstance(host, str)
+            and host.lower() in pinned_hostnames
+            and service in (port, str(port))
+        ):
             return _addrinfo_with_port(addrinfo, port)
         return original_getaddrinfo(host, service, *args, **kwargs)
 
@@ -161,6 +185,7 @@ def main(argv=None):
             return 1
 
         session = requests.Session()
+        session.trust_env = False
         session.headers.update({
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '

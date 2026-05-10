@@ -39,6 +39,9 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
         ("http://10.0.0.5/", "10.0.0.5"),
         ("http://[::1]/", "::1"),
         ("http://100.64.0.1/", "100.64.0.1"),
+        ("http://224.0.0.1/", "224.0.0.1"),
+        ("http://[ff02::1]/", "ff02::1"),
+        ("http://[fec0::1]/", "fec0::1"),
     ],
 )
 @patch("requests.Session.get")
@@ -148,6 +151,85 @@ def test_redirect_fetch_pins_validated_dns_result(capsys, tmp_path):
     assert "Success!" in outerr.out
     assert fetched_ips == ["93.184.216.34", "93.184.216.35"]
     assert resolve_counts == {"example.com": 1, "redirect.example": 1}
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://example.com:bad/",
+        "http://example.com:99999/",
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_rejects_malformed_ports(mock_get, capsys, tmp_path, url):
+    """Malformed URL ports should fail validation without crashing."""
+    cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: Could not resolve hostname to a valid IP." in outerr.err
+    mock_get.assert_not_called()
+
+
+def test_redirect_fetch_pins_idna_normalized_hostname(capsys, tmp_path):
+    """Pinned DNS covers the IDNA hostname form requests may resolve."""
+    fetched_ips = []
+
+    def resolve(hostname, port, type):  # pylint: disable=redefined-builtin
+        if hostname == "bücher.example":
+            return _addrinfo_for("93.184.216.34")
+        raise AssertionError(f"Unexpected live DNS lookup: {hostname}")
+
+    class IdnaSession:
+        headers = {}
+
+        def get(self, url, timeout, allow_redirects):
+            addrinfo = cli.socket.getaddrinfo(
+                "xn--bcher-kva.example", 443, type=socket.SOCK_STREAM
+            )
+            fetched_ips.append(addrinfo[0][4][0])
+
+            response = MagicMock()
+            response.status_code = 200
+            response.headers = {}
+            response.text = "<h1>ok</h1>"
+            response.raise_for_status.return_value = None
+            return response
+
+    with patch("requests.Session", return_value=IdnaSession()), patch(
+        "html2md.cli.socket.getaddrinfo", side_effect=resolve
+    ):
+        cli.main(["--url", "https://bücher.example/", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    assert fetched_ips == ["93.184.216.34"]
+
+
+def test_url_fetch_disables_environment_proxies(capsys, tmp_path):
+    """Proxy resolution is disabled so requests uses locally pinned DNS."""
+
+    class NoProxySession:
+        def __init__(self):
+            self.headers = {}
+            self.trust_env = True
+
+        def get(self, url, timeout, allow_redirects):
+            response = MagicMock()
+            response.status_code = 200
+            response.headers = {}
+            response.text = "<h1>ok</h1>"
+            response.raise_for_status.return_value = None
+            return response
+
+    session = NoProxySession()
+    with patch("requests.Session", return_value=session), patch(
+        "html2md.cli.socket.getaddrinfo", return_value=_addrinfo_for("93.184.216.34")
+    ):
+        cli.main(["--url", "https://example.com/", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    assert session.trust_env is False
 
 
 @patch("requests.Session.get")

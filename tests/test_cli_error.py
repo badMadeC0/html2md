@@ -12,6 +12,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
 
 
+PUBLIC_ADDRINFO = [(2, 1, 0, "", ("93.184.216.34", 80))]
+
+
 class TestCliError(unittest.TestCase):
     """Unit tests for CLI network and conversion error handling."""
 
@@ -34,10 +37,11 @@ class TestCliError(unittest.TestCase):
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+                with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         self.assertIn("Network error", output)
@@ -63,10 +67,11 @@ class TestCliError(unittest.TestCase):
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+                with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         # The code catches Exception and prints "Conversion failed: {e}"
