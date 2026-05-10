@@ -71,12 +71,17 @@ def main(argv=None):
             hostname = parsed.hostname
             if hostname:
                 try:
-                    ip = socket.gethostbyname(hostname)
-                    ip_obj = ipaddress.ip_address(ip)
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved):
-                        print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
+                    addrinfo = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+                    resolved_ips = {result[4][0] for result in addrinfo}
+                    if not resolved_ips:
+                        print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
                         return
+
+                    for ip in resolved_ips:
+                        ip_obj = ipaddress.ip_address(ip)
+                        if not ip_obj.is_global:
+                            print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
+                            return
                 except (socket.gaierror, ValueError):
                     print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
                     return
