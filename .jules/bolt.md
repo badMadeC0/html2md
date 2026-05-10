@@ -9,8 +9,8 @@
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
 
-## $(date +%Y-%m-%d) - [Optimize String Strip Operations]
+## 2026-05-10 - [Optimize String Strip Operations]
 **Learning:** Calling `.lstrip()` and `.startswith()` in hot-loop string parsing can cause significant overhead due to memory allocation and iteration, especially when applied defensively against thousands of strings that don't need it.
-4. **Fast type checks**: Use `isinstance(x, T)` as the default for type checking to support polymorphism. In extreme hot loops where performance is critical and subclassing is not expected, `type(x) is T` can be used as a micro-optimization.
+4. **Fast type checks**: In performance-critical hot loops, prefer `type(x) is T` for exact type checks when subclassing is not expected, because it avoids the overhead of polymorphic subclass checks. Use `isinstance(x, T)` when polymorphism or subclass support is required.
 
-**Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`) and pre-compute list comprehension iterables. Use `type() is X` for exact type checking only when necessary for performance and where polymorphism is not required.
+**Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`) and pre-compute list comprehension iterables. Prefer `type() is X` only for exact type checks in proven hot paths, and use `isinstance()` when polymorphism is required.
