@@ -79,7 +79,7 @@ def main(argv=None):
 
                     for ip in resolved_ips:
                         ip_obj = ipaddress.ip_address(ip)
-                        if not ip_obj.is_global:
+                        if not ip_obj.is_global or ip_obj.is_reserved:
                             print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
                             return
                 except (socket.gaierror, ValueError):
