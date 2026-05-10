@@ -26,7 +26,6 @@ jobs:
 
           import json
           import os
-          import sys
           import urllib.error
           import urllib.request
 
@@ -57,8 +56,13 @@ jobs:
           except urllib.error.HTTPError as error:
               if error.code == 403:
                   print("Skipping: token cannot comment in this PR context (HTTP 403).")
-                  sys.exit(0)
-              body = error.read().decode("utf-8")
-              print(f"Could not request review: {body}")
-              raise
+              else:
+                  print(f"Could not request review: {error.read().decode('utf-8')}")
+              print(
+                  "Continuing without failing the job. "
+                  "This commonly happens for fork/Dependabot PRs with read-only tokens."
+              )
+          except urllib.error.URLError as error:
+              print(f"Could not request review due to network error: {error}")
+              print("Continuing without failing the job.")
           PY
