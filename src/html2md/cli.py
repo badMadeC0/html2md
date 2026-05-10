@@ -6,6 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
+from functools import partial
 from urllib.parse import urljoin, urlparse, unquote
 
 _RESTRICTED_ADDRESS_ERROR = "Error: URL resolves to a restricted/private network address."
@@ -71,34 +72,110 @@ def _validate_url_target(target_url: str):
     return parsed, _resolve_vetted_addresses(hostname, port)
 
 
+def _build_pinned_dns_adapter(vetted_addrinfos):
+    """Build a requests adapter whose connections use pre-vetted DNS answers."""
+    from requests.adapters import HTTPAdapter  # pylint: disable=import-outside-toplevel
+
+    from urllib3 import PoolManager  # pylint: disable=import-outside-toplevel
+    from urllib3.connection import (  # pylint: disable=import-outside-toplevel
+        HTTPConnection,
+        HTTPSConnection,
+    )
+    from urllib3.connectionpool import (  # pylint: disable=import-outside-toplevel
+        HTTPConnectionPool,
+        HTTPSConnectionPool,
+    )
+    from urllib3.poolmanager import (  # pylint: disable=import-outside-toplevel
+        PoolKey,
+        _default_key_normalizer,
+    )
+    from urllib3.exceptions import NewConnectionError  # pylint: disable=import-outside-toplevel
+    from urllib3.util.connection import _set_socket_options  # pylint: disable=import-outside-toplevel
+
+    pinned_addrinfos = tuple(vetted_addrinfos)
+
+    class _PinnedConnectionMixin:
+        """Open sockets against vetted addresses without changing global DNS."""
+
+        def __init__(self, *args, pinned_addrinfos=None, **kwargs):
+            self._pinned_addrinfos = tuple(pinned_addrinfos or ())
+            super().__init__(*args, **kwargs)
+
+        def _new_conn(self):
+            err = None
+            for family, socktype, proto, _canonname, sockaddr in self._pinned_addrinfos:
+                sock = None
+                try:
+                    sock = socket.socket(family, socktype, proto)
+                    _set_socket_options(sock, self.socket_options)
+                    sock.settimeout(self.timeout)
+                    if self.source_address:
+                        sock.bind(self.source_address)
+                    sock.connect(sockaddr)
+                    return sock
+                except OSError as exc:
+                    err = exc
+                    if sock is not None:
+                        sock.close()
+
+            message = "getaddrinfo returned an empty list" if err is None else str(err)
+            raise NewConnectionError(
+                self,
+                f"Failed to establish a new connection to a vetted address: {message}",
+            ) from err
+
+    class _PinnedHTTPConnection(_PinnedConnectionMixin, HTTPConnection):
+        pass
+
+    class _PinnedHTTPSConnection(_PinnedConnectionMixin, HTTPSConnection):
+        pass
+
+    class _PinnedHTTPConnectionPool(HTTPConnectionPool):
+        ConnectionCls = _PinnedHTTPConnection
+
+    class _PinnedHTTPSConnectionPool(HTTPSConnectionPool):
+        ConnectionCls = _PinnedHTTPSConnection
+
+    def _pinned_key_normalizer(key_class, request_context):
+        context = request_context.copy()
+        context.pop("pinned_addrinfos", None)
+        return _default_key_normalizer(key_class, context)
+
+    class _PinnedPoolManager(PoolManager):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.pool_classes_by_scheme = {
+                "http": _PinnedHTTPConnectionPool,
+                "https": _PinnedHTTPSConnectionPool,
+            }
+            self.key_fn_by_scheme = {
+                "http": partial(_pinned_key_normalizer, PoolKey),
+                "https": partial(_pinned_key_normalizer, PoolKey),
+            }
+
+    class _PinnedDNSAdapter(HTTPAdapter):
+        def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+            pool_kwargs["pinned_addrinfos"] = pinned_addrinfos
+            self.poolmanager = _PinnedPoolManager(
+                num_pools=connections,
+                maxsize=maxsize,
+                block=block,
+                **pool_kwargs,
+            )
+
+    return _PinnedDNSAdapter()
+
+
 def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, timeout: int):
-    """Fetch a URL while forcing socket resolution to reuse vetted DNS answers."""
-    original_getaddrinfo = socket.getaddrinfo
-    hostname = parsed.hostname
-    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+    """Fetch a URL through per-connection sockets bound to vetted DNS answers."""
+    import requests  # type: ignore  # pylint: disable=import-outside-toplevel
 
-    def pinned_getaddrinfo(host, request_port, family=0, type=0, proto=0, flags=0):
-        try:
-            request_port_matches = request_port is None or int(request_port) == port
-        except (TypeError, ValueError):
-            request_port_matches = False
-
-        if (
-            str(host).rstrip('.').lower() == hostname.rstrip('.').lower()
-            and request_port_matches
-        ):
-            return [
-                addrinfo for addrinfo in vetted_addrinfos
-                if (family in (0, addrinfo[0]) and type in (0, addrinfo[1]) and
-                    proto in (0, addrinfo[2]))
-            ]
-        return original_getaddrinfo(host, request_port, family, type, proto, flags)
-
-    socket.getaddrinfo = pinned_getaddrinfo
-    try:
-        return session.get(target_url, timeout=timeout, allow_redirects=False)
-    finally:
-        socket.getaddrinfo = original_getaddrinfo
+    pinned_session = requests.Session()
+    pinned_session.trust_env = False
+    pinned_session.headers.update(session.headers)
+    pinned_session.cookies.update(session.cookies)
+    pinned_session.mount(f"{parsed.scheme}://", _build_pinned_dns_adapter(vetted_addrinfos))
+    return pinned_session.get(target_url, timeout=timeout, allow_redirects=False)
 
 
 def _safe_get(session, target_url: str, timeout: int = 30):
@@ -112,7 +189,12 @@ def _safe_get(session, target_url: str, timeout: int = 30):
         except _UrlValidationError:
             raise
         except ValueError as exc:
-            raise _UrlValidationError(_RESTRICTED_ADDRESS_ERROR) from exc
+            error = (
+                _RESOLUTION_ERROR
+                if "No addresses found" in str(exc)
+                else _RESTRICTED_ADDRESS_ERROR
+            )
+            raise _UrlValidationError(error) from exc
 
         response = _get_with_pinned_dns(session, current_url, parsed, vetted_addrinfos, timeout)
         if getattr(response, 'is_redirect', False) is not True:
@@ -121,6 +203,7 @@ def _safe_get(session, target_url: str, timeout: int = 30):
         location = response.headers.get('Location')
         if not location:
             return response
+        response.close()
         current_url = urljoin(current_url, location)
 
     raise _UrlValidationError("Error: Too many redirects.")

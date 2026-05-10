@@ -78,8 +78,8 @@ def test_process_url_allows_public_ipv6(mock_get, capsys, tmp_path):
 
 
 @patch("requests.Session.get")
-def test_process_url_pins_request_to_vetted_dns_answer(mock_get, capsys, tmp_path):
-    """The request uses vetted addresses instead of re-resolving a rebound hostname."""
+def test_process_url_does_not_swap_global_resolver(mock_get, capsys, tmp_path):
+    """Fetching with pinned DNS must not monkey-patch socket.getaddrinfo globally."""
     public_addrinfo = _addrinfo("93.184.216.34")
     rebound_addrinfo = _addrinfo("127.0.0.1")
     real_getaddrinfo = cli.socket.getaddrinfo
@@ -96,9 +96,8 @@ def test_process_url_pins_request_to_vetted_dns_answer(mock_get, capsys, tmp_pat
         assert url == "http://rebind.example/"
         assert timeout == 30
         assert allow_redirects is False
-        # If DNS pinning is not active here, the resolver would now return the
-        # private rebound address. The active request must still see the vetted IP.
-        assert cli.socket.getaddrinfo("rebind.example", 80) == [public_addrinfo]
+        # The global resolver remains untouched; pinning is scoped to the adapter.
+        assert cli.socket.getaddrinfo("rebind.example", 80) == [rebound_addrinfo]
         response = MagicMock()
         response.text = "<h1>safe</h1>"
         response.is_redirect = False
@@ -112,6 +111,54 @@ def test_process_url_pins_request_to_vetted_dns_answer(mock_get, capsys, tmp_pat
 
     outerr = capsys.readouterr()
     assert "Success!" in outerr.out
+
+
+def test_pinned_adapter_connects_to_vetted_address_without_dns_lookup():
+    """The adapter opens sockets to vetted addresses without resolving the host again."""
+    public_addrinfo = _addrinfo("93.184.216.34")
+    created_sockets = []
+
+    class FakeSocket:
+        def __init__(self, family, socktype, proto):
+            self.family = family
+            self.socktype = socktype
+            self.proto = proto
+            self.connected_to = None
+            self.closed = False
+
+        def setsockopt(self, *args):
+            pass
+
+        def settimeout(self, timeout):
+            self.timeout = timeout
+
+        def bind(self, source_address):
+            self.source_address = source_address
+
+        def connect(self, sockaddr):
+            self.connected_to = sockaddr
+
+        def close(self):
+            self.closed = True
+
+    def fake_socket(family, socktype, proto):
+        sock = FakeSocket(family, socktype, proto)
+        created_sockets.append(sock)
+        return sock
+
+    adapter = cli._build_pinned_dns_adapter([public_addrinfo])
+    pool = adapter.poolmanager.connection_from_url("http://rebind.example/")
+    connection = pool._new_conn()
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        side_effect=AssertionError("unexpected DNS lookup"),
+    ):
+        with patch("html2md.cli.socket.socket", side_effect=fake_socket):
+            sock = connection._new_conn()
+
+    assert sock is created_sockets[0]
+    assert sock.connected_to == public_addrinfo[4]
 
 
 @patch("requests.Session.get")
@@ -135,6 +182,41 @@ def test_process_url_validates_redirect_targets(mock_get, capsys, tmp_path):
     outerr = capsys.readouterr()
     assert "Error: URL resolves to a restricted/private network address." in outerr.err
     mock_get.assert_called_once_with("http://public.example/", timeout=30, allow_redirects=False)
+
+
+@patch("requests.Session.get")
+def test_redirect_response_is_closed_before_next_hop(mock_get):
+    """Redirect responses that are not returned are closed before following."""
+    redirect_response = MagicMock()
+    redirect_response.is_redirect = True
+    redirect_response.headers = {"Location": "http://next.example/"}
+
+    final_response = MagicMock()
+    final_response.is_redirect = False
+    final_response.headers = {}
+    mock_get.side_effect = [redirect_response, final_response]
+
+    def resolver(host, port, *args, **kwargs):
+        if host in {"public.example", "next.example"}:
+            return [_addrinfo("93.184.216.34", port=port)]
+        raise socket.gaierror(host)
+
+    with patch("html2md.cli.socket.getaddrinfo", side_effect=resolver):
+        assert cli._safe_get(MagicMock(), "http://public.example/") is final_response
+
+    redirect_response.close.assert_called_once_with()
+
+
+@patch("requests.Session.get")
+def test_empty_dns_answer_reports_resolution_error(mock_get, capsys, tmp_path):
+    """An empty DNS response is reported as a resolution failure, not SSRF."""
+    with patch("html2md.cli.socket.getaddrinfo", return_value=[]):
+        cli.main(["--url", "http://empty.example/", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: Could not resolve hostname to a valid IP." in outerr.err
+    assert "restricted/private" not in outerr.err
+    mock_get.assert_not_called()
 
 
 @patch("requests.Session.get")
