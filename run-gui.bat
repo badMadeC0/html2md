@@ -9,8 +9,7 @@ if not exist "%SCRIPT_DIR%gui-url-convert.ps1" (
     exit /b 1
 )
 
-REM Launch PowerShell with -File so batch file paths are passed as arguments,
-REM not interpolated into a PowerShell command string.
+REM Launch PowerShell with -File so script and argument paths are data, not code.
 if "%~1"=="" (
     powershell -NoProfile -ExecutionPolicy Bypass -STA -File "%SCRIPT_DIR%gui-url-convert.ps1"
 ) else (
