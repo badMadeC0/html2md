@@ -25,7 +25,12 @@ def _hostname_resolves_to_global_addresses(hostname: str) -> bool:
         except (IndexError, ValueError):
             return False
 
-        if not ip_obj.is_global:
+        if (
+            not ip_obj.is_global
+            or ip_obj.is_multicast
+            or ip_obj.is_reserved
+            or getattr(ip_obj, "is_site_local", False)
+        ):
             return False
 
     return True
