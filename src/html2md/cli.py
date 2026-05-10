@@ -70,9 +70,7 @@ def _process_url(
     print(f"Processing URL: {target_url}")
 
     request_exception = getattr(requests_mod, "RequestException", Exception)
-    if not isinstance(request_exception, type) or not issubclass(
-        request_exception, BaseException
-    ):
+    if not isinstance(request_exception, type):
         request_exception = Exception
 
     try:

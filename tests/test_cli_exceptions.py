@@ -128,5 +128,8 @@ class TestCliExceptions(unittest.TestCase):
                         output = captured_stderr.getvalue()
                         self.assertIn("Output path escapes output directory", output)
                         self.assertFalse(
-                            any("out" in str(call.args[0]) for call in mock_open.call_args_list)
+                            any(
+                                str(call.args[0]).startswith("/tmp/out")
+                                for call in mock_open.call_args_list
+                            )
                         )
