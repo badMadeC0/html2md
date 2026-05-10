@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Minimal healthcheck for a Python repository.
-Runs formatting checks and unit tests.
+Runs the same unit test gate as the ci workflow.
 """
 import subprocess
 import sys
@@ -18,9 +18,6 @@ def run_cmd(name, cmd):
 def main():
     # Setup PYTHONPATH
     os.environ['PYTHONPATH'] = os.path.join(os.getcwd(), 'src')
-
-    # Black check
-    run_cmd("Formatting (Black)", "black --check src tests")
 
     # Pytest check
     run_cmd("Unit tests", "pytest -q")
