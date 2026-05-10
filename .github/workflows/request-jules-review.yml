@@ -11,6 +11,8 @@ permissions:
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         env:
@@ -20,6 +22,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python - <<'PY'
+          from __future__ import annotations
+
           import json
           import os
           import urllib.error
@@ -50,7 +54,10 @@ jobs:
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
-              print(f"Could not request review: {error.read().decode('utf-8')}")
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context (HTTP 403).")
+              else:
+                  print(f"Could not request review: {error.read().decode('utf-8')}")
               print(
                   "Continuing without failing the job. "
                   "This commonly happens for fork/Dependabot PRs with read-only tokens."
