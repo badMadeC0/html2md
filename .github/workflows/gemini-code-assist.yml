@@ -103,19 +103,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Strip PR-supplied Gemini config
-        # Two distinct attack vectors via PR-authored content:
+        # Three distinct attack vectors via PR-authored content:
         #   1. .gemini/commands/*.toml shadow extension commands in
         #      Gemini CLI's loader (project commands win over extension
         #      commands), so a PR could plant pr-code-review.toml that
         #      hijacks /pr-code-review.
         #   2. GEMINI.md is loaded as project instructional context on
         #      every prompt and could steer the reviewer to suppress,
-        #      soften, or forge feedback.
-        # Neither file is shipped by this repo, so unconditional removal
-        # is safe and eliminates both attack surfaces.
+        #      soften, or forge feedback. Match symlinks too — a
+        #      symlinked GEMINI.md is still followed by the loader.
+        #   3. Gemini CLI auto-loads .env from the working directory.
+        #      PR-authored .env can set GEMINI_SYSTEM_MD or similar to
+        #      override the system prompt from a PR-supplied file.
+        # None of these files are shipped by this repo, so unconditional
+        # removal is safe and eliminates all three attack surfaces.
         run: |
           rm -rf .gemini
-          find . -type f -name 'GEMINI.md' -delete
+          find . \( -type f -o -type l \) -name 'GEMINI.md' -delete
+          find . \( -type f -o -type l \) -name '.env' -delete
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
