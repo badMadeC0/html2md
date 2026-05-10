@@ -6,7 +6,78 @@ import os
 import sys
 import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+from urllib.parse import urljoin, urlparse, unquote
+
+REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+MAX_REDIRECTS = 10
+
+
+def _validate_url_target(target_url: str) -> bool:
+    """Return True when a URL has an allowed scheme and resolves globally."""
+    parsed = urlparse(target_url)
+    if parsed.scheme not in ('http', 'https'):
+        print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
+              "Only http and https are allowed.", file=sys.stderr)
+        return False
+
+    hostname = parsed.hostname
+    if not hostname:
+        print("Error: URL must include a hostname.", file=sys.stderr)
+        return False
+
+    try:
+        addrinfo = socket.getaddrinfo(hostname, parsed.port, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
+        return False
+
+    if not addrinfo:
+        print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
+        return False
+
+    for result in addrinfo:
+        ip = result[4][0]
+        if '%' in ip:
+            ip = ip.split('%', 1)[0]
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+        except ValueError:
+            print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
+            return False
+        if not ip_obj.is_global:
+            print(
+                "Error: URL resolves to a restricted/private network address.",
+                file=sys.stderr,
+            )
+            return False
+
+    return True
+
+
+def _get_with_validated_redirects(
+    session, target_url: str, timeout: int, first_url_validated=False
+):
+    """Fetch a URL while validating every redirect target before following it."""
+    current_url = target_url
+    for redirect_count in range(MAX_REDIRECTS + 1):
+        if not (first_url_validated and redirect_count == 0):
+            if not _validate_url_target(current_url):
+                return None
+
+        response = session.get(current_url, timeout=timeout, allow_redirects=False)
+        status_code = getattr(response, 'status_code', None)
+        if status_code not in REDIRECT_STATUSES:
+            return response
+
+        location = response.headers.get('Location')
+        if not location:
+            return response
+
+        current_url = urljoin(current_url, location)
+
+    print("Error: Too many redirects.", file=sys.stderr)
+    return None
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -62,30 +133,18 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            parsed = urlparse(target_url)
-            if parsed.scheme not in ('http', 'https'):
-                print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
-                      "Only http and https are allowed.", file=sys.stderr)
+            if not _validate_url_target(target_url):
                 return
-
-            hostname = parsed.hostname
-            if hostname:
-                try:
-                    ip = socket.gethostbyname(hostname)
-                    ip_obj = ipaddress.ip_address(ip)
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved):
-                        print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
-                        return
-                except (socket.gaierror, ValueError):
-                    print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
-                    return
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = _get_with_validated_redirects(
+                    session, target_url, timeout=30, first_url_validated=True
+                )
+                if response is None:
+                    return
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
