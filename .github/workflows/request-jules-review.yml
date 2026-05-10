@@ -6,10 +6,13 @@ on:
 
 permissions:
   issues: write
+  pull-requests: write
 
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
         env:
@@ -19,6 +22,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           python - <<'PY'
+          from __future__ import annotations
+
           import json
           import os
           import sys
@@ -50,7 +55,10 @@ jobs:
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
-              print(f"Could not request review: {error.read().decode('utf-8')}")
-              print("Ensure the workflow token has permission to comment.")
-              sys.exit(1)
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context (HTTP 403).")
+                  sys.exit(0)
+              body = error.read().decode("utf-8")
+              print(f"Could not request review: {body}")
+              raise
           PY
