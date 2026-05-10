@@ -60,10 +60,13 @@ def process_url(  # pylint: disable=too-many-locals
                 )
                 response.close()
                 return
-        response._content = bytes(content_bytes)
+        response_encoding = response.encoding
+        if not isinstance(response_encoding, str) or not response_encoding:
+            response_encoding = "utf-8"
+        html_text = bytes(content_bytes).decode(response_encoding, errors="replace")
 
         print("Converting to Markdown...")
-        md_content = md_func(response.text, heading_style="ATX")
+        md_content = md_func(html_text, heading_style="ATX")
 
         if outdir:
             outdir_path = Path(outdir)
