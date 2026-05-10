@@ -303,7 +303,7 @@ $ConvertBtn.Add_Click({
     $urlList = $validatedUrls.ToArray()
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
+    if ($outdir -match '[&|;<>^"()\]' -or $outdir -match '%') {
         [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
         $ProgressBar.IsIndeterminate = $false
         return
