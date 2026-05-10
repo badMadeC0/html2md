@@ -8,7 +8,7 @@ on:
     types: [created]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
 
@@ -28,7 +28,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_CLI_TRUST_WORKSPACE: true
     steps:
-      - name: Resolve PR head SHA
+      - name: Resolve PR branch
         id: pr_head
         if: github.event_name != 'workflow_dispatch'
         uses: actions/github-script@v7
@@ -53,13 +53,15 @@ jobs:
 
             const sameRepo = pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("head_ref", pr.head.ref);
             core.setOutput("is_same_repo", String(sameRepo));
 
       - uses: actions/checkout@v6
         if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || steps.pr_head.outputs.head_sha }}
+          persist-credentials: true
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || steps.pr_head.outputs.head_ref }}
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
         uses: google-github-actions/run-gemini-cli@v0
