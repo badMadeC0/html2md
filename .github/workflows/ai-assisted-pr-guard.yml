@@ -31,7 +31,8 @@ jobs:
           # Accept claude.ai links, cursor.com, codex, jules.google, or the
           # literal placeholder <CLAUDE_CHAT_URL> for drafts (warn only).
           body="${PR_BODY:-}"
-          accepted_url_pattern='https?://(claude\.ai|cursor\.com|jules\.google\.com)([/:?#]|$)|https?://chatgpt\.com/codex([/?#]|$)'
+          url_token_boundary='(^|[^[:alnum:]._~:/?#@!$&*+,;=%-])'
+          accepted_url_pattern="${url_token_boundary}https?://(claude\.ai|cursor\.com|jules\.google\.com)([/?#]|$)|${url_token_boundary}https?://chatgpt\.com/codex([/?#]|$)"
 
           if printf '%s' "$body" | grep -Eqi "$accepted_url_pattern"; then
             echo "OK: PR body contains an agent chat URL."
