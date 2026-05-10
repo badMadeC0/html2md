@@ -69,6 +69,12 @@ def _process_url(
 
     print(f"Processing URL: {target_url}")
 
+    request_exception = getattr(requests_mod, "RequestException", Exception)
+    if not isinstance(request_exception, type) or not issubclass(
+        request_exception, BaseException
+    ):
+        request_exception = Exception
+
     try:
         print("Fetching content...")
         # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
@@ -89,9 +95,11 @@ def _process_url(
             # The streaming loop below still enforces max_size.
             pass
 
-        content_bytes = b""
+        content_bytes = bytearray()
         for chunk in response.iter_content(chunk_size=8192):
-            content_bytes += chunk
+            if not chunk:
+                continue
+            content_bytes.extend(chunk)
             if len(content_bytes) > max_size:
                 print(
                     f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).",
@@ -99,10 +107,13 @@ def _process_url(
                 )
                 response.close()
                 return
-        response._content = content_bytes
+        encoding = response.encoding
+        if not isinstance(encoding, str) or not encoding:
+            encoding = "utf-8"
+        content_text = bytes(content_bytes).decode(encoding, errors="replace")
 
         print("Converting to Markdown...")
-        md_content = md(response.text, heading_style="ATX")
+        md_content = md(content_text, heading_style="ATX")
 
         if outdir:
             if not os.path.exists(outdir):
@@ -132,7 +143,7 @@ def _process_url(
         else:
             print(md_content)
 
-    except requests_mod.RequestException as e:
+    except request_exception as e:
         print(f"Network error: {e}", file=sys.stderr)
     except OSError as e:
         print(f"File error: {e}", file=sys.stderr)

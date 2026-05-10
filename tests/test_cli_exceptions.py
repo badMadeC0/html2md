@@ -56,6 +56,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.encoding = "utf-8"
                 mock_resp.headers = {}
                 mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_get.return_value = mock_resp
@@ -92,6 +93,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.encoding = "utf-8"
                 mock_resp.headers = {}
                 mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_get.return_value = mock_resp
