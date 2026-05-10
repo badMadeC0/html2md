@@ -43,7 +43,14 @@ jobs:
           settings: |-
             {
               "tools": {
-                "core": []
+                "core": [
+                  "activate_skill",
+                  "glob",
+                  "list_directory",
+                  "read_file",
+                  "read_many_files",
+                  "search_file_content"
+                ]
               },
               "mcpServers": {
                 "github": {
