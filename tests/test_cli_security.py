@@ -53,9 +53,43 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert not (tmp_path / "secret.txt.md").exists()
 
 
-def test_whole_page_option_is_accepted_for_gui_batch_mode(capsys):
-    """GUI batch mode may pass --whole-page through to the CLI."""
-    rc = cli.main(["--whole-page", "--help-only"])
+@patch("requests.Session.get")
+def test_whole_page_option_includes_header_and_footer(mock_get, capsys):
+    """--whole-page includes document chrome that defaults omit."""
+    response = MagicMock()
+    response.text = (
+        "<header><h1>Site Header</h1></header>"
+        "<main><p>Main body</p></main>"
+        "<footer>Site Footer</footer>"
+    )
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    rc = cli.main(["--url", "https://example.com", "--whole-page"])
     outerr = capsys.readouterr()
+
     assert rc == 0
-    assert "--whole-page" in outerr.out
+    assert "Site Header" in outerr.out
+    assert "Main body" in outerr.out
+    assert "Site Footer" in outerr.out
+
+
+@patch("requests.Session.get")
+def test_default_url_conversion_omits_header_and_footer(mock_get, capsys):
+    """The default GUI/CLI URL conversion excludes page chrome."""
+    response = MagicMock()
+    response.text = (
+        "<header><h1>Site Header</h1></header>"
+        "<main><p>Main body</p></main>"
+        "<footer>Site Footer</footer>"
+    )
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    rc = cli.main(["--url", "https://example.com"])
+    outerr = capsys.readouterr()
+
+    assert rc == 0
+    assert "Site Header" not in outerr.out
+    assert "Main body" in outerr.out
+    assert "Site Footer" not in outerr.out

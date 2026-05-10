@@ -6,6 +6,17 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+from bs4 import BeautifulSoup
+
+
+def _remove_page_chrome(html: str) -> str:
+    """Remove document chrome omitted by default URL conversions."""
+    soup = BeautifulSoup(html, 'html.parser')
+    for tag in soup.find_all(('header', 'footer')):
+        tag.decompose()
+    return str(soup)
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -78,7 +89,12 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                html = (
+                    response.text
+                    if args.whole_page
+                    else _remove_page_chrome(response.text)
+                )
+                md_content = md(html, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
