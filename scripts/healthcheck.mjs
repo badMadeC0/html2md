@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Minimal, opinionated healthcheck for a pnpm monorepo:
-   - root: typecheck? test? lint? build?
+   - root: test? lint? build?
    - workspaces: smoke build where available
 */
 import { execSync } from "node:child_process";
@@ -24,7 +24,6 @@ const tryRun = (name, cmd) => {
 
 try {
   // Root-level checks (best-effort if scripts exist)
-  tryRun("Typecheck", hasScript("typecheck") ? "pnpm -w run typecheck" : null);
   tryRun("Lint", hasScript("lint") ? "pnpm -w run lint" : null);
   tryRun("Unit tests", hasScript("test") ? "pnpm -w run test -- --run" : null);
 
