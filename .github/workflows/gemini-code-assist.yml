@@ -49,13 +49,28 @@ jobs:
         id: gate
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Only meaningful for pull_request triggers; comment triggers
-          # are already gated on author_association above.
-          IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          # Populated by pull_request and pull_request_review_comment;
+          # empty for issue_comment (we look it up below).
+          PR_HEAD_REPO_FROM_EVENT: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
-          if [ "$IS_FORK_PR" = "true" ]; then
+          set -euo pipefail
+          head_repo=""
+          case "$EVENT_NAME" in
+            pull_request|pull_request_review_comment)
+              head_repo="$PR_HEAD_REPO_FROM_EVENT"
+              ;;
+            issue_comment)
+              head_repo=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .head.repo.full_name)
+              ;;
+          esac
+
+          if [ -n "$head_repo" ] && [ "$head_repo" != "$REPO" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Skipping Gemini Code Assist: PR is from a fork; not running secret-backed review against untrusted code."
+            echo "::notice::Skipping Gemini Code Assist: PR is from a fork ($head_repo); not running secret-backed review against untrusted code."
           elif [ -n "$GEMINI_API_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
@@ -81,11 +96,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Strip PR-supplied Gemini config
-        # Project-local .gemini/commands/*.toml shadow extension commands
-        # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
-        # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
-        # so wiping it is safe and removes the attack surface.
-        run: rm -rf .gemini
+        # Two distinct attack vectors via PR-authored content:
+        #   1. .gemini/commands/*.toml shadow extension commands in
+        #      Gemini CLI's loader (project commands win over extension
+        #      commands), so a PR could plant pr-code-review.toml that
+        #      hijacks /pr-code-review.
+        #   2. GEMINI.md is loaded as project instructional context on
+        #      every prompt and could steer the reviewer to suppress,
+        #      soften, or forge feedback.
+        # Neither file is shipped by this repo, so unconditional removal
+        # is safe and eliminates both attack surfaces.
+        run: |
+          rm -rf .gemini
+          find . -type f -name 'GEMINI.md' -delete
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
