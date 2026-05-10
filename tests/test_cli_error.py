@@ -1,15 +1,29 @@
 """Tests for html2md CLI error-handling paths."""
-import unittest
-from unittest.mock import patch, MagicMock
-import sys
 import io
 import os
+import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
+
+
+def public_addrinfo():
+    """Build a deterministic public getaddrinfo response for tests."""
+    return [
+        (
+            html2md.cli.socket.AF_INET,
+            html2md.cli.socket.SOCK_STREAM,
+            6,
+            '',
+            ('93.184.216.34', 80),
+        )
+    ]
 
 
 class TestCliError(unittest.TestCase):
@@ -33,11 +47,12 @@ class TestCliError(unittest.TestCase):
         captured_stderr = io.StringIO()
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+            with patch('html2md.cli.socket.getaddrinfo', return_value=public_addrinfo()):
+                with patch('sys.stderr', captured_stderr):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         self.assertIn("Network error", output)
@@ -62,16 +77,18 @@ class TestCliError(unittest.TestCase):
         captured_stderr = io.StringIO()
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+            with patch('html2md.cli.socket.getaddrinfo', return_value=public_addrinfo()):
+                with patch('sys.stderr', captured_stderr):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         # The code catches Exception and prints "Conversion failed: {e}"
         self.assertIn("Conversion failed", output)
         self.assertIn("Parse error", output)
+
 
 if __name__ == '__main__':
     unittest.main()

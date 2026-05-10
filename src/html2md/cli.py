@@ -6,7 +6,123 @@ import os
 import sys
 import socket
 import ipaddress
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
+
+MAX_REDIRECTS = 30
+RESTRICTED_NETWORK_ERROR = "Error: URL resolves to a restricted/private network address."
+REDIRECT_STATUSES = {301, 302, 303, 307, 308}
+
+
+def _is_restricted_ip(ip: str) -> bool:
+    """Return whether an IP address is unsafe for user-requested fetches."""
+    ip_obj = ipaddress.ip_address(ip)
+    return (
+        not ip_obj.is_global
+        or ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    )
+
+
+def _validate_fetch_url(target_url: str) -> None:
+    """Validate that a URL is safe to fetch over the network.
+
+    Raises:
+        ValueError: If the URL scheme or resolved addresses are unsafe.
+        socket.gaierror: If the hostname cannot be resolved.
+    """
+    parsed = urlparse(target_url)
+    if parsed.scheme not in ('http', 'https'):
+        raise ValueError(
+            f"Unsupported URL scheme '{parsed.scheme}'. Only http and https are allowed."
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("URL is missing a hostname.")
+
+    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+    resolved_addresses = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+    if not resolved_addresses:
+        raise socket.gaierror("No addresses found")
+
+    checked_ips = set()
+    for result in resolved_addresses:
+        ip = result[4][0]
+        if ip in checked_ips:
+            continue
+        checked_ips.add(ip)
+        if _is_restricted_ip(ip):
+            raise PermissionError(RESTRICTED_NETWORK_ERROR)
+
+
+def _validated_create_connection(
+    address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None, socket_options=None
+):
+    """Create a socket using only freshly validated public address candidates."""
+    host, port = address
+    resolved_addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    if not resolved_addresses:
+        raise socket.gaierror("No addresses found")
+
+    for result in resolved_addresses:
+        ip = result[4][0]
+        if _is_restricted_ip(ip):
+            raise PermissionError(RESTRICTED_NETWORK_ERROR)
+
+    err = None
+    for result in resolved_addresses:
+        family, socktype, proto, _canonname, sockaddr = result
+        sock = None
+        try:
+            sock = socket.socket(family, socktype, proto)
+            if socket_options:
+                for opt in socket_options:
+                    sock.setsockopt(*opt)
+            if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                sock.settimeout(timeout)
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(sockaddr)
+            return sock
+        except OSError as exc:
+            err = exc
+            if sock is not None:
+                sock.close()
+
+    if err is not None:
+        raise err
+    raise socket.gaierror("No addresses found")
+
+
+def _fetch_with_validated_redirects(
+    session, target_url: str, connection_module, timeout: int = 30
+):
+    """Fetch a URL, validating every redirect target before following it."""
+    current_url = target_url
+    for _ in range(MAX_REDIRECTS + 1):
+        _validate_fetch_url(current_url)
+        original_create_connection = connection_module.create_connection
+        connection_module.create_connection = _validated_create_connection
+        try:
+            response = session.get(current_url, timeout=timeout, allow_redirects=False)
+        finally:
+            connection_module.create_connection = original_create_connection
+
+        if response.status_code not in REDIRECT_STATUSES:
+            return response
+
+        location = response.headers.get('Location')
+        response.close()
+        if not location:
+            return response
+        current_url = urljoin(current_url, location)
+
+    raise RuntimeError("Too many redirects while fetching URL.")
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -33,6 +149,8 @@ def main(argv=None):
             print(f"Error: Missing dependency {e.name}."
                   "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
+
+        import urllib3.util.connection as urllib3_connection  # type: ignore
 
         session = requests.Session()
         session.headers.update({
@@ -62,30 +180,25 @@ def main(argv=None):
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
 
-            parsed = urlparse(target_url)
-            if parsed.scheme not in ('http', 'https'):
-                print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
-                      "Only http and https are allowed.", file=sys.stderr)
+            try:
+                _validate_fetch_url(target_url)
+            except PermissionError as e:
+                print(str(e), file=sys.stderr)
                 return
-
-            hostname = parsed.hostname
-            if hostname:
-                try:
-                    ip = socket.gethostbyname(hostname)
-                    ip_obj = ipaddress.ip_address(ip)
-                    if (ip_obj.is_private or ip_obj.is_loopback or
-                        ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved):
-                        print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
-                        return
-                except (socket.gaierror, ValueError):
-                    print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
-                    return
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                return
+            except socket.gaierror:
+                print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
+                return
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
+                response = _fetch_with_validated_redirects(
+                    session, target_url, urllib3_connection, timeout=30
+                )
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
@@ -120,6 +233,12 @@ def main(argv=None):
                 else:
                     print(md_content)
 
+            except PermissionError as e:
+                print(str(e), file=sys.stderr)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+            except socket.gaierror:
+                print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
             except OSError as e:
