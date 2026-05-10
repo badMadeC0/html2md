@@ -15,6 +15,19 @@ HOOK_MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(HOOK_MODULE)
 
+EXPECTED_SENSITIVE_SSH_KEY_BASENAMES = (
+    "id_ed25519",
+    "id_ed25519.pub",
+    "id_ed25519_sk",
+    "id_ed25519_sk.pub",
+    "id_ecdsa",
+    "id_ecdsa.pub",
+    "id_ecdsa_sk",
+    "id_ecdsa_sk.pub",
+    "id_dsa",
+    "id_dsa.pub",
+)
+
 
 def run_hook(payload: Dict[str, Any]) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -64,15 +77,11 @@ def test_ignores_unprotected_tool() -> None:
 
 
 def test_blocks_common_ssh_private_key_basenames() -> None:
-    private_key_basenames = [
-        pattern
-        for pattern in HOOK_MODULE.SENSITIVE_BASENAME_PATTERNS
-        if pattern in {"id_ed25519", "id_ecdsa", "id_dsa"}
-    ]
+    assert set(EXPECTED_SENSITIVE_SSH_KEY_BASENAMES).issubset(
+        HOOK_MODULE.SENSITIVE_BASENAME_PATTERNS
+    )
 
-    assert private_key_basenames == ["id_ed25519", "id_ecdsa", "id_dsa"]
-
-    for basename in private_key_basenames:
+    for basename in EXPECTED_SENSITIVE_SSH_KEY_BASENAMES:
         target = f".ssh/{basename}"
         result = run_hook(
             {
