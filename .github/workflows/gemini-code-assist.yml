@@ -58,12 +58,17 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Strip PR-supplied Gemini config
-        # Project-local .gemini/commands/*.toml shadow extension commands
+      - name: Remove PR-local Gemini command overrides
+        # Project-local .gemini/commands/*.toml can shadow extension commands
         # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
-        # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
-        # so wiping it is safe and removes the attack surface.
-        run: rm -rf .gemini
+        # that hijacks /pr-code-review. Remove checkout-provided commands
+        # before installing the pinned code-review extension.
+        run: |
+          rm -rf .gemini/commands
+          if find .gemini -path '*/commands/pr-code-review.toml' -print -quit 2>/dev/null | grep -q .; then
+            echo "::error::PR-local Gemini pr-code-review command override is still present."
+            exit 1
+          fi
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
