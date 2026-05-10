@@ -8,6 +8,18 @@ WPF GUI for html2md
 
 param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
 
+
+function ConvertTo-WindowsCommandLineArgument {
+    param([string]$Argument)
+
+    if ($null -eq $Argument) { return '""' }
+
+    # Windows native command-line parsing treats backslashes before quotes specially.
+    # Escape embedded quotes and double terminal backslashes so they cannot escape
+    # the closing quote (for example, C:\ remains a single quoted argument).
+    return '"' + ($Argument -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1') + '"'
+}
+
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
         Write-Error "Batch file not found: $BatchFile"
@@ -362,11 +374,11 @@ $ConvertBtn.Add_Click({
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
 
-        # Sanitize for -File arguments by using double quotes to handle spaces
-        # Windows command line splitting treates " as the primary quote character.
-        $safeCommandPath = "`"$PSCommandPath`""
-        $safeTempFile = "`"$tempFile`""
-        $safeOutDir = "`"$outdir`""
+        # Quote -File arguments for Windows native command-line parsing. This preserves
+        # spaces and trailing backslashes (for example, C:\) as literal argument text.
+        $safeCommandPath = ConvertTo-WindowsCommandLineArgument $PSCommandPath
+        $safeTempFile = ConvertTo-WindowsCommandLineArgument $tempFile
+        $safeOutDir = ConvertTo-WindowsCommandLineArgument $outdir
 
         # Relaunch this script in batch mode
         # Use -File with double-quoted paths for robust Windows command-line handling
