@@ -1,0 +1,49 @@
+--- src/html2md/cli.py
++++ src/html2md/cli.py
+@@ -3,7 +3,7 @@
+ from __future__ import annotations
+ import argparse
+ import os
+ import sys
+-from urllib.parse import urlparse, unquote
++from urllib.parse import urlparse, unquote, urljoin
+
+ def main(argv=None):
+@@ -53,8 +53,30 @@
+
+             try:
+                 print("Fetching content...")
+-                response = session.get(target_url, timeout=30)
+-                response.raise_for_status()
++                import socket
++                import ipaddress
++
++                current_url = target_url
++                for _ in range(5):
++                    parsed_host = urlparse(current_url).hostname
++                    if not parsed_host:
++                        print("Error: Invalid URL host.", file=sys.stderr)
++                        return
++                    try:
++                        ip = socket.gethostbyname(parsed_host)
++                        ip_obj = ipaddress.ip_address(ip)
++                        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast:
++                            print(f"Error: SSRF blocked. URL resolves to non-public IP: {ip}", file=sys.stderr)
++                            return
++                    except OSError:
++                        print(f"Error: Could not resolve hostname {parsed_host}", file=sys.stderr)
++                        return
++
++                    response = session.get(current_url, timeout=30, allow_redirects=False)
++                    if response.is_redirect:
++                        current_url = urljoin(response.url, response.headers.get('Location', ''))
++                        continue
++                    break
++                else:
++                    print("Error: Too many redirects.", file=sys.stderr)
++                    return
++
++                response.raise_for_status()
+
+                 print("Converting to Markdown...")
+                 md_content = md(response.text, heading_style="ATX")
