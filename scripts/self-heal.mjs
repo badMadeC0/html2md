@@ -3,7 +3,7 @@
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
@@ -12,9 +12,16 @@ const sh = (cmd, opts={}) => {
 const trySh = (cmd, opts={}) => {
   try { sh(cmd, opts); return true; } catch { return false; }
 };
-const changed = () => {
-  const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
-  return (out.stdout || "").trim().length > 0;
+const getStatus = () => spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" }).stdout || "";
+const initialStatus = getStatus();
+const changed = () => getStatus() !== initialStatus;
+const hasRootScript = (name) => {
+  try {
+    const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+    return !!pkg.scripts?.[name];
+  } catch {
+    return false;
+  }
 };
 const passHealth = () => {
   try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
@@ -23,13 +30,13 @@ const passHealth = () => {
 let fixed = false;
 
 // 1) Lint/format
-trySh("pnpm -w run lint --fix");
-trySh("pnpm -w run format");
+if (hasRootScript("lint")) trySh("pnpm run lint -- --fix");
+if (hasRootScript("format")) trySh("pnpm run format");
 if (passHealth()) fixed = fixed || changed();
 
 // 2) Snapshot updates (only if tests fail with snapshots)
 if (!passHealth()) {
-  trySh("pnpm -w exec vitest -u");
+  trySh("pnpm exec vitest -u");
   if (passHealth()) fixed = fixed || changed();
 }
 
@@ -37,7 +44,7 @@ if (!passHealth()) {
 if (!passHealth()) {
   trySh("pnpm dlx typesync --save-dev");
   // In case typesync suggests @types/node et al.
-  trySh("pnpm -w install");
+  trySh("pnpm install");
   if (passHealth()) fixed = fixed || changed();
 }
 
@@ -47,7 +54,7 @@ if (!passHealth()) {
   trySh("pnpm install");
   if (!passHealth()) {
     // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
+    trySh("pnpm install --lockfile-only");
   }
   if (passHealth()) fixed = fixed || changed();
 }

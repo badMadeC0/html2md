@@ -1,50 +1,67 @@
 #!/usr/bin/env node
-/* Minimal, opinionated healthcheck for a pnpm monorepo:
-   - root: typecheck? test? lint? build?
-   - workspaces: smoke build where available
+/* Repository healthcheck for self-heal automation.
+   Mirrors the existing CI signal first (Python pytest), then runs any
+   explicitly configured root/package Node checks without assuming a pnpm
+   workspace or using workspace-only pnpm flags.
 */
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const run = (cmd) => execSync(cmd, { stdio: "inherit" });
-const hasScript = (name) => {
+const run = (cmd, opts = {}) => execSync(cmd, { stdio: "inherit", ...opts });
+
+const readPackage = (pkgPath) => {
   try {
-    const out = execSync("pnpm run -r", { stdio: "pipe" }).toString();
-    return out.includes(name);
-  } catch { return false; }
+    return JSON.parse(readFileSync(pkgPath, "utf8"));
+  } catch {
+    return null;
+  }
 };
 
-const tryRun = (name, cmd) => {
+const rootPackage = readPackage("package.json") ?? {};
+const hasRootScript = (name) => !!rootPackage.scripts?.[name];
+const hasPackageScript = (dir, name) => {
+  const pkg = readPackage(join(dir, "package.json"));
+  return !!pkg?.scripts?.[name];
+};
+const python = process.env.PYTHON ?? (process.platform === "win32" ? "python" : "python3");
+const pythonEnv = {
+  ...process.env,
+  LANG: "C",
+  LANGUAGE: "C",
+  LC_ALL: "C",
+  LC_MESSAGES: "C",
+};
+
+const tryRun = (name, cmd, opts = {}) => {
   if (!cmd) return;
   console.log(`\n==> ${name}`);
-  run(cmd);
+  try {
+    run(cmd, opts);
+  } catch {
+    process.exitCode = 1;
+  }
 };
 
-try {
-  // Root-level checks (best-effort if scripts exist)
-  tryRun("Typecheck", hasScript("typecheck") ? "pnpm -w run typecheck" : null);
-  tryRun("Lint", hasScript("lint") ? "pnpm -w run lint" : null);
-  tryRun("Unit tests", hasScript("test") ? "pnpm -w run test -- --run" : null);
+// Match the repository's existing CI workflow.
+tryRun("Python tests", existsSync("tests") ? `${python} -m pytest -q` : null, { env: pythonEnv });
 
-  // Workspace smoke builds (apps/* and packages/* if build exists)
-  const roots = ["apps", "packages"];
-  for (const base of roots) {
+// Root-level JavaScript checks, if this repository later opts into them.
+tryRun("Typecheck", hasRootScript("typecheck") ? "pnpm run typecheck" : null);
+tryRun("Lint", hasRootScript("lint") ? "pnpm run lint" : null);
+tryRun("Unit tests", hasRootScript("test") ? "pnpm run test" : null);
+tryRun("Build", hasRootScript("build") ? "pnpm run build" : null);
+
+// Workspace smoke builds are only meaningful in an actual pnpm workspace.
+if (existsSync("pnpm-workspace.yaml")) {
+  for (const base of ["apps", "packages"]) {
     if (!existsSync(base)) continue;
     for (const name of readdirSync(base)) {
       const dir = join(base, name);
-      if (!statSync(dir).isDirectory()) continue;
-      try {
-        execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
-      } catch (e) {
-        console.error(`[healthcheck] build failed in ${dir}`);
-        process.exitCode = 1;
-      }
+      if (!statSync(dir).isDirectory() || !hasPackageScript(dir, "build")) continue;
+      tryRun(`Build ${dir}`, "pnpm run -s build", { cwd: dir });
     }
   }
-  process.exit(process.exitCode ?? 0);
-} catch (e) {
-  console.error(e);
-  process.exit(1);
 }
+
+process.exit(process.exitCode ?? 0);
