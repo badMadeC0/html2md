@@ -6,7 +6,59 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage)
+param(
+    [string]$BatchFile,
+    [string]$BatchOutDir,
+    [switch]$BatchWholePage,
+    [string]$SingleUrl,
+    [string]$SingleOutDir,
+    [switch]$SingleWholePage
+)
+
+function Invoke-Html2MdConversion {
+    param(
+        [Parameter(Mandatory=$true)][string]$Url,
+        [Parameter(Mandatory=$true)][string]$OutDir,
+        [Parameter(Mandatory=$true)][string]$ScriptDir,
+        [switch]$WholePage
+    )
+
+    $venvExe = Join-Path $ScriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $ScriptDir "html2md.py"
+
+    $argsList = @("--url", $Url, "--outdir", $OutDir, "--all-formats")
+    if (-not $WholePage) { $argsList += "--main-content" }
+
+    if (Test-Path -LiteralPath $venvExe) {
+        & $venvExe @argsList
+    } elseif (Test-Path -LiteralPath $pyScript) {
+        if (Get-Command python -ErrorAction SilentlyContinue) { $pyCmd = "python" }
+        elseif (Get-Command python3 -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
+        else { throw "Python not found in PATH." }
+
+        $pythonArgs = @($pyScript) + $argsList
+        & $pyCmd @pythonArgs
+    } else {
+        throw "Could not find html2md executable or script."
+    }
+}
+
+if ($SingleUrl) {
+    $scriptDir = Split-Path -Parent $PSCommandPath
+    if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
+
+    $uriOut = $null
+    if ([System.Uri]::TryCreate($SingleUrl, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
+        $safeUrl = $uriOut.AbsoluteUri
+    } else {
+        Write-Error "Invalid URL: $SingleUrl"
+        exit 1
+    }
+
+    $outDir = if (-not [string]::IsNullOrWhiteSpace($SingleOutDir)) { $SingleOutDir } else { "$env:USERPROFILE\Downloads" }
+    Invoke-Html2MdConversion -Url $safeUrl -OutDir $outDir -ScriptDir $scriptDir -WholePage:$SingleWholePage
+    exit
+}
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
@@ -16,8 +68,6 @@ if ($BatchFile) {
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
     $urls = Get-Content -LiteralPath $BatchFile
@@ -36,18 +86,7 @@ if ($BatchFile) {
 
         Write-Host "Processing: $url"
         # Default to main content unless BatchWholePage is set
-        $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-        if (-not $BatchWholePage) { $argsList += "--main-content" }
-
-        if (Test-Path -LiteralPath $venvExe) {
-            & $venvExe $argsList
-        } elseif (Test-Path -LiteralPath $pyScript) {
-            $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-            $argsList = @("$pyScript") + $argsList
-            & $pyCmd $argsList
-        } else {
-            Write-Error "Could not find html2md executable or script."
-        }
+        Invoke-Html2MdConversion -Url $url -OutDir $outDir -ScriptDir $scriptDir -WholePage:$BatchWholePage
     }
     exit
 }
@@ -324,9 +363,6 @@ $ConvertBtn.Add_Click({
         $scriptDir = (Get-Location).Path
     }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
-
     # Attempt to use Short Path (8.3) to avoid path-escaping issues in PowerShell/CMD
     try {
         $fso = New-Object -ComObject Scripting.FileSystemObject
@@ -334,23 +370,10 @@ $ConvertBtn.Add_Click({
         if ($short) { $scriptDir = $short }
     } catch {}
 
-    # Check for Python executable
-    $pyCmd = "python"
-    if (-not (Get-Command $pyCmd -ErrorAction SilentlyContinue)) {
-        if (Get-Command "python3" -ErrorAction SilentlyContinue) { $pyCmd = "python3" }
-        else {
-            $StatusText.Text = "Error: Python not found in PATH."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: 'python' command not found. Please install Python.`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
-    }
-
     # Use a robust way to launch the process:
     # 1. Revert to ProcessStartInfo for precise control over the command line.
     # 2. Use powershell.exe to keep the window open with -NoExit.
-    # 3. Use -File for batch mode and -Command with proper quoting for single URL mode.
+    # 3. Use -File for both batch and single URL mode to avoid PowerShell re-parsing URLs as code.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
@@ -377,32 +400,16 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+        # Relaunch this script with -File for single URL conversion so the URL is
+        # passed as data instead of being re-parsed by PowerShell -Command. This
+        # prevents subexpressions such as $() in a URL from executing.
+        $safeCommandPath = "`"$PSCommandPath`""
+        $safeUrl = "`"$url`""
+        $safeOutDir = "`"$outdir`""
 
-        # Sanitize inputs for PowerShell -Command interpolation.
-        # We use double quotes around arguments and escape internal double quotes, dollar signs,
-        # and backticks with the PowerShell escape character (backtick) to prevent subexpression execution.
-        $safeUrl = $url -replace '["$`]', '`$0'
-        $safeOutDir = $outdir -replace '["$`]', '`$0'
-        $safeVenvExe = $venvExe -replace '["$`]', '`$0'
-        $safePyScript = $pyScript -replace '["$`]', '`$0'
-
-        if (Test-Path -LiteralPath $venvExe) {
-            $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
-        }
-        else {
-            $StatusText.Text = "Error: html2md executable not found."
-            $StatusText.Foreground = "Red"
-            $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
-            $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
-            $ProgressBar.IsIndeterminate = $false
-            return
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File $safeCommandPath -SingleUrl $safeUrl -SingleOutDir $safeOutDir"
+        if ($WholePageChk.IsChecked) {
+            $psi.Arguments += " -SingleWholePage"
         }
     }
     
