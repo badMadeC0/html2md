@@ -14,7 +14,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: gemini-code-assist-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: gemini-code-assist-${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -75,15 +75,15 @@ jobs:
           # Consumed by the code-review extension's /pr-code-review prompt
           # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
           REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PULL_REQUEST_NUMBER: ${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
-          # Resolves the PR number across all three supported triggers:
-          # pull_request, pull_request_review_comment, and issue_comment.
-          # The first two populate github.event.pull_request.number; the
-          # last populates github.event.issue.number.
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          # Pass the target PR number explicitly for every trigger.
+          # pull_request and pull_request_review_comment expose it as
+          # github.event.pull_request.number, while issue_comment exposes
+          # the PR number as github.event.issue.number.
+          github_pr_number: ${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
           settings: |-
             {
               "model": {
