@@ -3,7 +3,7 @@ name: Self-heal (auto-fix & PR)
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["build-and-test"]
+    workflows: ["ci"]
     types:
       - completed
 
