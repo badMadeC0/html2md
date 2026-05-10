@@ -36,6 +36,20 @@ fi
 import sys
 sys.exit(0 if sys.version_info >= (3, 8) else 1)
 PY
+PYTHON_BIN_PATH="$($PYTHON_BIN - <<'PY'
+import sys
+print(sys.executable)
+PY
+)" || fail "could not resolve python interpreter: $PYTHON_BIN"
+
+SETTINGS_HOOK_COMMAND="$($PYTHON_BIN - <<'PY'
+import json
+from pathlib import Path
+
+settings = json.loads(Path(".claude/settings.json").read_text(encoding="utf-8"))
+print(settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"])
+PY
+)" || fail "could not read hook command from .claude/settings.json"
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
@@ -53,6 +67,28 @@ run_hook_payload() {
   local payload="$1"
   printf "%s\n" "$payload" | "$PYTHON_BIN" "$HOOK"
 }
+
+# Ensure the configured Claude hook command skips an unusable `python` shim
+# (for example, pyenv with a missing .python-version) when `python3` works.
+TMP_DIR="$(mktemp -d)" || fail "could not create temporary directory"
+cleanup_tmp_dir() { rm -rf "$TMP_DIR"; }
+trap cleanup_tmp_dir EXIT
+cat >"$TMP_DIR/python" <<'SH'
+#!/usr/bin/env sh
+echo "simulated broken python" >&2
+exit 127
+SH
+cat >"$TMP_DIR/python3" <<SH
+#!/usr/bin/env sh
+exec "$PYTHON_BIN_PATH" "\$@"
+SH
+chmod +x "$TMP_DIR/python" "$TMP_DIR/python3"
+if ! PATH="$TMP_DIR:$PATH" sh -c "$SETTINGS_HOOK_COMMAND" <<'EOF' >/dev/null 2>&1; then
+{"hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/html2md/cli.py"}}
+EOF
+  fail "settings hook command should use working python3 when python is unavailable"
+fi
+pass "settings hook command uses working python3 when python is unavailable"
 
 # --- BLOCK cases (expect non-zero exit) ---
 for path in ".env" ".env.local" ".env.production" "config/.env" \
