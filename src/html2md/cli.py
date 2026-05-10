@@ -1,13 +1,12 @@
 """CLI entry point for html2md."""
 
 from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
-from urllib.parse import urlparse, unquote
-
-
 from typing import Any, Optional
+from urllib.parse import unquote, urlparse
 
 
 def process_url(  # pylint: disable=too-many-locals
@@ -33,8 +32,35 @@ def process_url(  # pylint: disable=too-many-locals
 
     try:
         print("Fetching content...")
-        response = session.get(target_url, timeout=30)
+        # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
+        response = session.get(target_url, timeout=30, stream=True)
         response.raise_for_status()
+
+        max_size = 10 * 1024 * 1024
+        try:
+            if int(response.headers.get("Content-Length", 0)) > max_size:
+                print(
+                    f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).",
+                    file=sys.stderr,
+                )
+                response.close()
+                return
+        except ValueError:
+            # Invalid or non-numeric Content-Length: treat as unknown size.
+            # The streaming loop below still enforces max_size.
+            pass
+
+        content_bytes = bytearray()
+        for chunk in response.iter_content(chunk_size=8192):
+            content_bytes.extend(chunk)
+            if len(content_bytes) > max_size:
+                print(
+                    f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).",
+                    file=sys.stderr,
+                )
+                response.close()
+                return
+        response._content = bytes(content_bytes)
 
         print("Converting to Markdown...")
         md_content = md_func(response.text, heading_style="ATX")
@@ -98,7 +124,7 @@ def main(argv=None):
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import (  # pylint: disable=import-outside-toplevel
                 markdownify as md,
-            )  # pylint: disable=import-outside-toplevel
+            )
         except ImportError as e:
             print(
                 f"Error: Missing dependency {e.name}."
