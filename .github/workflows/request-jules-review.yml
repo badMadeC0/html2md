@@ -55,5 +55,8 @@ jobs:
           except urllib.error.HTTPError as error:
               body = error.read().decode("utf-8")
               print(f"Could not request review: HTTP {error.code}: {body}")
-              sys.exit(1)
+              if 400 <= error.code < 500 and error.code not in (403, 429):
+                  print("Ensure the workflow token has permission to comment.")
+                  sys.exit(1)
+              print("Treating as transient or expected; not failing the workflow.")
           PY
