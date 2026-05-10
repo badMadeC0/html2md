@@ -359,14 +359,14 @@ $ConvertBtn.Add_Click({
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
 
-        # Sanitize for -File arguments (escape single quotes)
-        $safeCommandPath = $PSCommandPath -replace "'", "''"
-        $safeTempFile = $tempFile -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
+        # Sanitize for -File arguments (escape double quotes for Windows command-line parsing)
+        $safeCommandPath = $PSCommandPath -replace '"', '\"'
+        $safeTempFile = $tempFile -replace '"', '\"'
+        $safeOutDir = $outdir -replace '"', '\"'
 
         # Relaunch this script in batch mode
-        # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
+        # Use double quotes for arguments to properly handle paths with spaces on Windows
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$safeCommandPath`" -BatchFile `"$safeTempFile`" -BatchOutDir `"$safeOutDir`""
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
