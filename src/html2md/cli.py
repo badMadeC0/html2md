@@ -93,12 +93,18 @@ def main(argv=None):
                     resolved_addrinfo = socket.getaddrinfo(
                         hostname,
                         parsed.port or default_port,
+                        family=socket.AF_UNSPEC,
                         type=socket.SOCK_STREAM,
                     )
                     for addrinfo in resolved_addrinfo:
                         ip_text = addrinfo[4][0]
                         ip_obj = ipaddress.ip_address(ip_text)
-                        if (not ip_obj.is_global or ip_obj.is_unspecified):
+                        if (
+                            not ip_obj.is_global or ip_obj.is_unspecified or
+                            ip_obj.is_private or ip_obj.is_loopback or
+                            ip_obj.is_link_local or ip_obj.is_multicast or
+                            ip_obj.is_reserved
+                        ):
                             print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
                             return
                 except (socket.gaierror, ValueError):
