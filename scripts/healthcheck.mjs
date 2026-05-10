@@ -4,7 +4,7 @@
    - workspaces: smoke build where available
 */
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -22,6 +22,14 @@ const tryRun = (name, cmd) => {
   run(cmd);
 };
 
+const hasBuildScript = (dir) => {
+  const packageJson = join(dir, "package.json");
+  if (!existsSync(packageJson)) return false;
+
+  const pkg = JSON.parse(readFileSync(packageJson, "utf8"));
+  return !!pkg.scripts?.build;
+};
+
 try {
   // Root-level checks (best-effort if scripts exist)
   tryRun("Typecheck", hasScript("typecheck") ? "pnpm -w run typecheck" : null);
@@ -36,6 +44,7 @@ try {
       const dir = join(base, name);
       if (!statSync(dir).isDirectory()) continue;
       try {
+        if (!hasBuildScript(dir)) continue;
         execSync("pnpm run -s build", { cwd: dir, stdio: "inherit" });
       } catch (e) {
         console.error(`[healthcheck] build failed in ${dir}`);
