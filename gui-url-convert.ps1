@@ -24,7 +24,9 @@ if ($BatchFile) {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
+            # Match the GUI button promise and checkbox behavior for every batch URL.
+            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
+            if (-not $BatchWholePage) { $argsList += "--main-content" }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
