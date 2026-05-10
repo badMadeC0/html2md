@@ -1,12 +1,6 @@
-"""Tests for the Flask application module."""
+"""Tests for application configuration helpers."""
 
-import os
-import pytest
-
-# Skip all tests in this module if flask is not installed
-pytest.importorskip("flask")
-
-from html2md.app import get_host_port
+from html2md.config import get_host_port
 
 
 def test_get_host_port_defaults(monkeypatch):
