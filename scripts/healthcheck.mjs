@@ -4,11 +4,13 @@
    - optionally run root package scripts, without pnpm workspace flags
    - in real pnpm workspaces only, smoke build packages that declare build
 */
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 const run = (cmd, opts = {}) => execSync(cmd, { stdio: "inherit", ...opts });
+const runFile = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: "inherit", ...opts });
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 const rootPkgPath = join(process.cwd(), "package.json");
 const rootPkg = existsSync(rootPkgPath) ? readJson(rootPkgPath) : {};
@@ -21,13 +23,81 @@ const tryRun = (name, cmd) => {
   run(cmd);
 };
 
+const pyenvPythonCandidates = () => {
+  const pyenvRoot = process.env.PYENV_ROOT ?? join(homedir(), ".pyenv");
+  const versionsDir = join(pyenvRoot, "versions");
+  if (!existsSync(versionsDir)) return [];
+
+  return readdirSync(versionsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({
+      command: join(versionsDir, entry.name, "bin", "python"),
+      args: [],
+    }))
+    .filter((candidate) => existsSync(candidate.command));
+};
+
+const canUsePython = (candidate) => {
+  execFileSync(
+    candidate.command,
+    [
+      ...candidate.args,
+      "-c",
+      "import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)",
+    ],
+    { stdio: "ignore" },
+  );
+  execFileSync(candidate.command, [...candidate.args, "-m", "pip", "--version"], {
+    stdio: "ignore",
+  });
+};
+
+const resolvePython = () => {
+  const candidates = [];
+  if (process.env.PYTHON) candidates.push({ command: process.env.PYTHON, args: [] });
+  candidates.push(
+    ...pyenvPythonCandidates(),
+    { command: "python3", args: [] },
+    { command: "python", args: [] },
+    { command: "py", args: ["-3"] },
+  );
+
+  for (const candidate of candidates) {
+    try {
+      canUsePython(candidate);
+      return candidate;
+    } catch {
+      // Try the next interpreter. This avoids pyenv's bare `python` shim when
+      // .python-version names a patch release that is not installed locally.
+    }
+  }
+
+  throw new Error("No Python >=3.8 interpreter with pip found; set PYTHON to a usable interpreter.");
+};
+
+const runPython = (name, python, args) => {
+  console.log(`\n==> ${name}`);
+  runFile(python.command, [...python.args, ...args]);
+};
+
 const runPythonTests = () => {
   if (!existsSync("tests")) return;
 
+  const python = resolvePython();
+
   // Match CI's Python setup before invoking pytest so clean self-heal runners
   // have pytest and the src-layout package installed.
-  tryRun("Python test dependencies", "python -m pip install -e . pytest");
-  tryRun("Python tests", "python -m pytest -q");
+  runPython("Python packaging tools", python, [
+    "-m",
+    "pip",
+    "install",
+    "--upgrade",
+    "pip",
+    "wheel",
+    "setuptools",
+  ]);
+  runPython("Python test dependencies", python, ["-m", "pip", "install", "-e", ".", "pytest"]);
+  runPython("Python tests", python, ["-m", "pytest", "-q"]);
 };
 
 try {
@@ -50,10 +120,10 @@ try {
         const dir = join(base, name);
         const pkgPath = join(dir, "package.json");
         if (!statSync(dir).isDirectory() || !existsSync(pkgPath)) continue;
-        const pkg = readJson(pkgPath);
-        if (!pkg.scripts?.build) continue;
         try {
-          execSync("pnpm run --if-present build", { cwd: dir, stdio: "inherit" });
+          const pkg = readJson(pkgPath);
+          if (!pkg.scripts?.build) continue;
+          run("pnpm run build", { cwd: dir });
         } catch (e) {
           console.error(`[healthcheck] build failed in ${dir}`);
           process.exitCode = 1;
