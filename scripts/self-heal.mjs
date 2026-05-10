@@ -1,72 +1,58 @@
 #!/usr/bin/env node
-/* Targeted, ordered repairs. Each step is idempotent and re-runs healthcheck.
-   Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
-*/
+/*
+ * Targeted, ordered repairs for this Python repository.
+ * Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
+ */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 
-const sh = (cmd, opts={}) => {
+const sh = (cmd, opts = {}) => {
   console.log(`\n$ ${cmd}`);
   return execSync(cmd, { stdio: "inherit", ...opts });
 };
-const trySh = (cmd, opts={}) => {
-  try { sh(cmd, opts); return true; } catch { return false; }
+
+const trySh = (cmd, opts = {}) => {
+  try {
+    sh(cmd, opts);
+    return true;
+  } catch {
+    return false;
+  }
 };
-const changed = () => {
-  const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
-  return (out.stdout || "").trim().length > 0;
-};
+
+const getStatus = () => spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" }).stdout || "";
+const initialStatus = getStatus();
+const changed = () => getStatus() !== initialStatus;
+
 const passHealth = () => {
-  try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
+  try {
+    sh("node scripts/healthcheck.mjs");
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 let fixed = false;
 
-// 1) Lint/format
-trySh("pnpm -w run lint --fix");
-trySh("pnpm -w run format");
-if (passHealth()) fixed = fixed || changed();
-
-// 2) Snapshot updates (only if tests fail with snapshots)
-if (!passHealth()) {
-  trySh("pnpm -w exec vitest -u");
+// 1) If optional Python formatters are available, let them normalize the tree.
+for (const cmd of ["python -m ruff check --fix .", "python -m ruff format .", "python -m black ."]) {
+  trySh(cmd);
   if (passHealth()) fixed = fixed || changed();
 }
 
-// 3) Type acquisition
-if (!passHealth()) {
-  trySh("pnpm dlx typesync --save-dev");
-  // In case typesync suggests @types/node et al.
-  trySh("pnpm -w install");
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 4) Lockfile repair (only if integrity complaints)
-if (!passHealth()) {
-  // Try a clean install + re-resolve
-  trySh("pnpm install");
-  if (!passHealth()) {
-    // Last resort: refresh lockfile (scoped)
-    trySh("pnpm -w up --latest --interactive=false");
+// 2) Known generators, if present.
+for (const script of ["scripts/update-icon-docs.mjs", "scripts/verify-static.mjs"]) {
+  if (!passHealth() && existsSync(script)) {
+    trySh(`node ${script}`);
+    if (passHealth()) fixed = fixed || changed();
   }
-  if (passHealth()) fixed = fixed || changed();
-}
-
-// 5) Known generators (icons/docs), if present
-if (!passHealth()) {
-  if (existsSync("scripts/update-icon-docs.mjs")) {
-    trySh("node scripts/update-icon-docs.mjs");
-  }
-  if (existsSync("scripts/verify-static.mjs")) {
-    trySh("node scripts/verify-static.mjs");
-  }
-  if (passHealth()) fixed = fixed || changed();
 }
 
 if (fixed) {
   console.log("Self-heal successful and produced a diff.");
   process.exit(0);
-} else {
-  console.log("Self-heal failed or no changes were needed.");
-  process.exit(1);
 }
+
+console.log("Self-heal failed or no changes were needed.");
+process.exit(1);
