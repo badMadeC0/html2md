@@ -360,9 +360,10 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -Path $tempFile
 
         # Sanitize for -File arguments (escape double quotes for Windows command-line parsing)
-        $safeCommandPath = $PSCommandPath -replace '"', '\"'
-        $safeTempFile = $tempFile -replace '"', '\"'
-        $safeOutDir = $outdir -replace '"', '\"'
+        # Use backtick to escape quotes within the PowerShell string
+        $safeCommandPath = $PSCommandPath -replace '"', '`"'
+        $safeTempFile = $tempFile -replace '"', '`"'
+        $safeOutDir = $outdir -replace '"', '`"'
 
         # Relaunch this script in batch mode
         # Use double quotes for arguments to properly handle paths with spaces on Windows
