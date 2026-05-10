@@ -58,15 +58,15 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Remove PR-local Gemini command overrides
-        # Project-local .gemini/commands/*.toml can shadow extension commands
-        # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
-        # that hijacks /pr-code-review. Remove checkout-provided commands
-        # before installing the pinned code-review extension.
+      - name: Remove PR-local Gemini configuration
+        # Gemini CLI loads project-local configuration and .env files from the
+        # checked-out .gemini tree. A PR could use those files to override CLI
+        # behavior or telemetry settings before the pinned review extension runs,
+        # so remove the entire checkout-provided tree before invoking Gemini.
         run: |
-          rm -rf .gemini/commands
-          if find .gemini -path '*/commands/pr-code-review.toml' -print -quit 2>/dev/null | grep -q .; then
-            echo "::error::PR-local Gemini pr-code-review command override is still present."
+          rm -rf .gemini
+          if [ -e .gemini ]; then
+            echo "::error::PR-local Gemini configuration is still present."
             exit 1
           fi
       - name: Gemini Code Assist
