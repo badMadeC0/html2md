@@ -50,20 +50,23 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
+        shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
+        shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
+        shell: bash
         run: |
-          set -o pipefail
+          set -euo pipefail
           node scripts/healthcheck.mjs | tee selfheal-post.txt
 
       - name: Collect logs
