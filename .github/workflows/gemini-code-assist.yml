@@ -44,6 +44,12 @@ jobs:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
           prompt: '/pr-code-review'
+          # The run-gemini-cli `extensions` input passes each entry as the
+          # single <source> argument to `gemini extensions install`, which
+          # accepts a git ref only via a separate `--ref` flag we cannot
+          # inject through this input. The extension below tracks the
+          # default branch; last verified at commit
+          # dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04.
           extensions: |
             ["https://github.com/gemini-cli-extensions/code-review"]
           settings: |-
