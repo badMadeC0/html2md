@@ -28,6 +28,9 @@ if ($BatchFile) {
             if ($BatchWholePage) {
                 $argsList += "--whole-page"
             }
+            if ($BatchWholePage) {
+                $argsList += "--whole-page"
+            }
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
