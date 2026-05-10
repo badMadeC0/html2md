@@ -54,7 +54,9 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> None:
+        exit_code = 0
+
+        def process_url(target_url: str) -> int:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
@@ -64,7 +66,7 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return
+                return 1
 
             print(f"Processing URL: {target_url}")
 
@@ -79,7 +81,7 @@ def main(argv=None):
                     if int(response.headers.get('Content-Length', 0)) > max_size:
                         print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                         response.close()
-                        return
+                        return 1
                 except ValueError:
                     # Invalid or non-numeric Content-Length: treat as unknown size.
                     # The streaming loop below still enforces max_size.
@@ -91,7 +93,7 @@ def main(argv=None):
                     if len(content_bytes) > max_size:
                         print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                         response.close()
-                        return
+                        return 1
                 response._content = content_bytes
 
                 print("Converting to Markdown...")
@@ -119,22 +121,26 @@ def main(argv=None):
                     if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
-                        return
+                        return 1
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
                     print(md_content)
 
+                return 0
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
+                return 1
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
+                return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
+                return 1
 
         if args.url:
-            process_url(args.url)
+            exit_code = max(exit_code, process_url(args.url))
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -144,9 +150,9 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        exit_code = max(exit_code, process_url(u))
 
-        return 0
+        return exit_code
 
     ap.print_help()
     return 0
