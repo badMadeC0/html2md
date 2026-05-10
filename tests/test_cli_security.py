@@ -39,6 +39,9 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
         ("http://10.0.0.5/", "10.0.0.5"),
         ("http://[::1]/", "::1"),
         ("http://100.64.0.1/", "100.64.0.1"),
+        ("http://224.0.0.1/", "224.0.0.1"),
+        ("http://[ff02::1]/", "ff02::1"),
+        ("http://[fec0::1]/", "fec0::1"),
     ],
 )
 @patch("requests.Session.get")

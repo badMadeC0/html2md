@@ -54,7 +54,11 @@ def _validated_addrinfo_for_url(target_url: str):
         except ValueError:
             print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
             return None
-        if not ip_obj.is_global:
+        if (
+            not ip_obj.is_global
+            or ip_obj.is_multicast
+            or getattr(ip_obj, 'is_site_local', False)
+        ):
             print(
                 "Error: URL resolves to a restricted/private network address.",
                 file=sys.stderr,
