@@ -6,6 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
+from urllib3.util.url import _normalize_host as _urllib3_normalize_host
 from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse, unquote
 
@@ -20,9 +21,14 @@ def _port_for_url(parsed) -> int:
     return 443 if parsed.scheme == 'https' else 80
 
 
-def _hostname_variants(hostname: str):
+def _urllib3_hostname(hostname: str, scheme: str) -> str:
+    """Return the hostname form urllib3 passes to socket.getaddrinfo."""
+    return _urllib3_normalize_host(hostname, scheme) or hostname
+
+
+def _hostname_variants(hostname: str, scheme: str = 'https'):
     """Return hostname forms that requests/urllib3 may resolve."""
-    variants = {hostname}
+    variants = {hostname, _urllib3_hostname(hostname, scheme)}
     try:
         variants.add(hostname.encode('idna').decode('ascii'))
     except UnicodeError:
@@ -54,7 +60,9 @@ def _validated_addrinfo_for_url(target_url: str):
 
     try:
         addrinfo = socket.getaddrinfo(
-            hostname, _port_for_url(parsed), type=socket.SOCK_STREAM
+            _urllib3_hostname(hostname, parsed.scheme),
+            _port_for_url(parsed),
+            type=socket.SOCK_STREAM,
         )
     except (socket.gaierror, ValueError):
         print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
@@ -103,10 +111,10 @@ def _addrinfo_with_port(addrinfo, port):
 
 
 @contextmanager
-def _pin_dns_resolution(hostname: str, port: int, addrinfo):
+def _pin_dns_resolution(hostname: str, scheme: str, port: int, addrinfo):
     """Force socket lookups for hostname:port to reuse prevalidated addresses."""
     original_getaddrinfo = socket.getaddrinfo
-    pinned_hostnames = _hostname_variants(hostname)
+    pinned_hostnames = _hostname_variants(hostname, scheme)
 
     def pinned_getaddrinfo(host, service, *args, **kwargs):
         if (
@@ -138,7 +146,7 @@ def _get_with_validated_redirects(
 
         parsed = urlparse(current_url)
         with _pin_dns_resolution(
-            parsed.hostname, _port_for_url(parsed), validated_addrinfo
+            parsed.hostname, parsed.scheme, _port_for_url(parsed), validated_addrinfo
         ):
             response = session.get(
                 current_url, timeout=timeout, allow_redirects=False

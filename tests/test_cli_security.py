@@ -170,12 +170,14 @@ def test_process_url_rejects_malformed_ports(mock_get, capsys, tmp_path, url):
     mock_get.assert_not_called()
 
 
-def test_redirect_fetch_pins_idna_normalized_hostname(capsys, tmp_path):
-    """Pinned DNS covers the IDNA hostname form requests may resolve."""
+def test_redirect_fetch_uses_urllib3_idna_hostname_for_validation(capsys, tmp_path):
+    """Validation and pinning use urllib3's IDNA form, not IDNA2003."""
     fetched_ips = []
+    resolved_hosts = []
 
     def resolve(hostname, port, type):  # pylint: disable=redefined-builtin
-        if hostname == "bücher.example":
+        resolved_hosts.append(hostname)
+        if hostname == "xn--fa-hia.de":
             return _addrinfo_for("93.184.216.34")
         raise AssertionError(f"Unexpected live DNS lookup: {hostname}")
 
@@ -184,7 +186,7 @@ def test_redirect_fetch_pins_idna_normalized_hostname(capsys, tmp_path):
 
         def get(self, url, timeout, allow_redirects):
             addrinfo = cli.socket.getaddrinfo(
-                "xn--bcher-kva.example", 443, type=socket.SOCK_STREAM
+                "xn--fa-hia.de", 443, type=socket.SOCK_STREAM
             )
             fetched_ips.append(addrinfo[0][4][0])
 
@@ -198,11 +200,12 @@ def test_redirect_fetch_pins_idna_normalized_hostname(capsys, tmp_path):
     with patch("requests.Session", return_value=IdnaSession()), patch(
         "html2md.cli.socket.getaddrinfo", side_effect=resolve
     ):
-        cli.main(["--url", "https://bücher.example/", "--outdir", str(tmp_path)])
+        cli.main(["--url", "https://faß.de/", "--outdir", str(tmp_path)])
 
     outerr = capsys.readouterr()
     assert "Success!" in outerr.out
     assert fetched_ips == ["93.184.216.34"]
+    assert resolved_hosts == ["xn--fa-hia.de"]
 
 
 def test_url_fetch_disables_environment_proxies(capsys, tmp_path):
