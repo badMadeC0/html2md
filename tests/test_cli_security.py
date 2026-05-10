@@ -1,5 +1,6 @@
 """Security-focused tests for CLI URL and output path handling."""
 
+import socket
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -96,6 +97,54 @@ def test_process_url_blocks_any_non_global_address(mock_get, capsys, tmp_path):
         "Error: URL resolves to a restricted/private network address."
         in outerr.err
     )
+    mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "url, resolved_ip",
+    [
+        ("http://224.0.0.1/", "224.0.0.1"),
+        ("http://[ff02::1]/", "ff02::1"),
+        ("http://[fec0::1]/", "fec0::1"),
+        ("http://[64:ff9b::808:808]/", "64:ff9b::808:808"),
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_blocks_restricted_global_addresses(
+    mock_get, capsys, tmp_path, url, resolved_ip
+):
+    """Global-flagged multicast, site-local, and reserved ranges are blocked."""
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=addrinfo(resolved_ip),
+    ):
+        cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert (
+        "Error: URL resolves to a restricted/private network address."
+        in outerr.err
+    )
+    mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_process_url_reports_dns_resolution_failure(mock_get, capsys, tmp_path):
+    """Unresolvable hostnames get the dedicated resolution failure message."""
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        side_effect=socket.gaierror("Name or service not known"),
+    ):
+        cli.main([
+            "--url",
+            "https://does-not-resolve.invalid",
+            "--outdir",
+            str(tmp_path),
+        ])
+
+    outerr = capsys.readouterr()
+    assert "Error: Could not resolve hostname to a valid IP." in outerr.err
+    assert "restricted/private" not in outerr.err
     mock_get.assert_not_called()
 
 
