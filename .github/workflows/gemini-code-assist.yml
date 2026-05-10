@@ -64,6 +64,19 @@ jobs:
         # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
         # so wiping it is safe and removes the attack surface.
         run: rm -rf .gemini
+      - name: Prepare Gemini PR context
+        id: pr-context
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ -z "$PR_NUMBER" ]; then
+            echo "::error::Unable to determine pull request number for Gemini Code Assist."
+            exit 1
+          fi
+
+          echo "repository=$REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "pull_request_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -74,8 +87,9 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Consumed by the code-review extension's /pr-code-review prompt
           # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPOSITORY: ${{ steps.pr-context.outputs.repository }}
+          PULL_REQUEST_NUMBER: ${{ steps.pr-context.outputs.pull_request_number }}
+          GH_PR_NUMBER: ${{ steps.pr-context.outputs.pull_request_number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
@@ -83,7 +97,7 @@ jobs:
           # pull_request, pull_request_review_comment, and issue_comment.
           # The first two populate github.event.pull_request.number; the
           # last populates github.event.issue.number.
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          github_pr_number: ${{ steps.pr-context.outputs.pull_request_number }}
           settings: |-
             {
               "model": {
