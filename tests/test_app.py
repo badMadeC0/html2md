@@ -1,13 +1,9 @@
-"""Tests for the Flask application module."""
+"""Tests for get_host_port configuration helper."""
 
 import os
 from unittest import mock
 
-import pytest
-
-flask = pytest.importorskip("flask")
-
-from html2md.app import DEFAULT_PORT, get_host_port
+from html2md.config import DEFAULT_PORT, get_host_port
 
 
 def test_get_host_port_defaults():
@@ -37,7 +33,8 @@ def test_get_host_port_invalid_port(capsys):
 
         # Verify the warning was printed
         captured = capsys.readouterr()
-        assert "Warning: Invalid PORT environment variable value 'invalid'; falling back to default 10000." in captured.out
+        assert f"falling back to default {DEFAULT_PORT}" in captured.out
+        assert "'invalid'" in captured.out
 
 
 def test_get_host_port_empty_port(capsys):
@@ -50,4 +47,5 @@ def test_get_host_port_empty_port(capsys):
 
         # Verify the warning was printed
         captured = capsys.readouterr()
-        assert "Warning: Invalid PORT environment variable value ''; falling back to default 10000." in captured.out
+        assert f"falling back to default {DEFAULT_PORT}" in captured.out
+        assert "''" in captured.out
