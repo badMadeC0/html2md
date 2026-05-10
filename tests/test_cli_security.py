@@ -31,6 +31,25 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "http://example.com:bad/",
+        "http://example.com:99999/",
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_rejects_malformed_ports(mock_get, capsys, tmp_path, url):
+    """Malformed URL ports are rejected before DNS lookup or fetch."""
+    with patch("html2md.cli.socket.getaddrinfo") as mock_resolve:
+        cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: URL contains an invalid port." in outerr.err
+    mock_resolve.assert_not_called()
+    mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
     "url, ip",
     [
         ("http://127.0.0.1:8080/admin", "127.0.0.1"),

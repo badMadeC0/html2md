@@ -37,6 +37,9 @@ def _validated_addrinfo_for_url(target_url: str):
         addrinfo = socket.getaddrinfo(
             hostname, _port_for_url(parsed), type=socket.SOCK_STREAM
         )
+    except ValueError:
+        print("Error: URL contains an invalid port.", file=sys.stderr)
+        return None
     except socket.gaierror:
         print("Error: Could not resolve hostname to a valid IP.", file=sys.stderr)
         return None
