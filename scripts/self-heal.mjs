@@ -12,9 +12,19 @@ const sh = (cmd, opts={}) => {
 const trySh = (cmd, opts={}) => {
   try { sh(cmd, opts); return true; } catch { return false; }
 };
+const selfHealLogFiles = new Set([
+  "selfheal-pre.txt",
+  "selfheal-repair.txt",
+  "selfheal-post.txt",
+]);
 const changed = () => {
   const out = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
-  return (out.stdout || "").trim().length > 0;
+  return (out.stdout || "")
+    .split("\n")
+    .some((line) => {
+      const path = line.slice(3).trim();
+      return path && !selfHealLogFiles.has(path);
+    });
 };
 const passHealth = () => {
   try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
