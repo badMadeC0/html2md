@@ -54,6 +54,23 @@ jobs:
             const sameRepo = pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("is_same_repo", String(sameRepo));
+            core.setOutput("pr_number", String(pr.number));
+
+      - name: Comment when fork PR is skipped
+        if: github.event_name != 'workflow_dispatch' && steps.pr_head.outputs.is_same_repo == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number('${{ steps.pr_head.outputs.pr_number }}'),
+              body: [
+                "Gemini Code Assist skipped this request because the pull request head branch is from a fork.",
+                "",
+                "Running Gemini with repository secrets on fork-provided code is disabled for safety. A maintainer can review the fork manually or rerun Gemini after the changes are available from a trusted branch in this repository."
+              ].join("\n"),
+            });
 
       - uses: actions/checkout@v6
         if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
