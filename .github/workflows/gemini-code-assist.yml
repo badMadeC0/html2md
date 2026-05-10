@@ -85,6 +85,9 @@ jobs:
           gemini_cli_version: '0.41.2'
           extensions: |
             ["${{ runner.temp }}/gemini-code-review-ext"]
+          # The action invokes `gemini --yolo`; disable core shell/file
+          # tools so secret-backed review runs can only use the GitHub MCP
+          # tools listed below.
           settings: |-
             {
               "tools": {
