@@ -285,7 +285,6 @@ $ConvertBtn.Add_Click({
     if ($urlList.Count -eq 0) {
         $StatusText.Text = "Please enter a URL."
         $StatusText.Foreground = "Red"
-        $ProgressBar.IsIndeterminate = $false
         return
     }
 
@@ -294,6 +293,7 @@ $ConvertBtn.Add_Click({
     foreach ($u in $urlList) {
         $uriOut = $null
         if ([System.Uri]::TryCreate($u, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
+            # AbsoluteUri is properly percent-encoded, preventing quote-based injection
             $validatedUrls.Add($uriOut.AbsoluteUri)
         } else {
             [System.Windows.MessageBox]::Show("Invalid URL detected: $u`n`nPlease enter valid HTTP/HTTPS URLs.","Invalid URL","OK","Error") | Out-Null
@@ -304,7 +304,7 @@ $ConvertBtn.Add_Click({
     $urlList = $validatedUrls.ToArray()
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth
-    if ($outdir -match '[&|;<>^"()\]' -or $outdir -match '%') {
+    if ($outdir -match '[&|;<>^"()\[\]]' -or $outdir -match '%') {
         [System.Windows.MessageBox]::Show("Invalid characters detected in output directory.","Security Warning","OK","Warning") | Out-Null
         $ProgressBar.IsIndeterminate = $false
         return
@@ -324,7 +324,7 @@ $ConvertBtn.Add_Click({
     $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
     $pyScript = Join-Path $scriptDir "html2md.py"
 
-    # Attempt to use Short Path (8.3) to bypass cmd.exe issues with '&'
+    # Attempt to use Short Path (8.3) to avoid path-escaping issues in PowerShell/CMD
     try {
         $fso = New-Object -ComObject Scripting.FileSystemObject
         $short = $fso.GetFolder($scriptDir).ShortPath
@@ -359,15 +359,15 @@ $ConvertBtn.Add_Click({
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
 
-        # Sanitize for -File arguments (escape double quotes for Windows command-line parsing)
-        # Use backtick to escape quotes within the PowerShell string
-        $safeCommandPath = $PSCommandPath -replace '"', '`"'
-        $safeTempFile = $tempFile -replace '"', '`"'
-        $safeOutDir = $outdir -replace '"', '`"'
+        # Sanitize for -File arguments by using double quotes to handle spaces
+        # Windows command line splitting treates " as the primary quote character.
+        $safeCommandPath = "`"$PSCommandPath`""
+        $safeTempFile = "`"$tempFile`""
+        $safeOutDir = "`"$outdir`""
 
         # Relaunch this script in batch mode
-        # Use double quotes for arguments to properly handle paths with spaces on Windows
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$safeCommandPath`" -BatchFile `"$safeTempFile`" -BatchOutDir `"$safeOutDir`""
+        # Use -File with double-quoted paths for robust Windows command-line handling
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File $safeCommandPath -BatchFile $safeTempFile -BatchOutDir $safeOutDir"
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
@@ -377,19 +377,20 @@ $ConvertBtn.Add_Click({
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
-        # Sanitize inputs for single-quoted string interpolation in PowerShell
-        $safeUrl = $url -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-        $safeVenvExe = $venvExe -replace "'", "''"
-        $safePyScript = $pyScript -replace "'", "''"
+        # Sanitize inputs for PowerShell -Command interpolation.
+        # We use double quotes around paths and escape internal double quotes with backticks.
+        $safeUrl = $url -replace '"', '`"'
+        $safeOutDir = $outdir -replace '"', '`"'
+        $safeVenvExe = $venvExe -replace '"', '`"'
+        $safePyScript = $pyScript -replace '"', '`"'
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' --url '$safeUrl' --outdir '$safeOutDir' --all-formats$optArg`""
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
