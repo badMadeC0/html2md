@@ -78,6 +78,8 @@ jobs:
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          # Pin the npm @google/gemini-cli package installed by the wrapper
+          # action so review behavior only changes when this workflow changes.
           gemini_cli_version: "0.41.2"
           # Resolves the PR number across all three supported triggers:
           # pull_request, pull_request_review_comment, and issue_comment.
