@@ -80,7 +80,7 @@ def main(argv=None):
 
         def _normalize_hostname(hostname):
             """Return the canonical form used for DNS validation and pinning."""
-            normalized = hostname.rstrip('.').lower()
+            normalized = hostname.lower()
             try:
                 ipaddress.ip_address(normalized)
                 return normalized
@@ -149,8 +149,10 @@ def main(argv=None):
             def pinned_getaddrinfo(host, requested_port, family=0, type=0, proto=0, flags=0):
                 try:
                     requested_hostname = _normalize_hostname(host) if host else None
-                except UnicodeError:
-                    requested_hostname = host.rstrip('.').lower() if host else None
+                except UnicodeError as e:
+                    raise socket.gaierror(
+                        f"Invalid hostname for DNS pinning: {host}"
+                    ) from e
                 if requested_hostname == pinned_hostname:
                     resolved_port = requested_port if requested_port is not None else port
                     pinned = []

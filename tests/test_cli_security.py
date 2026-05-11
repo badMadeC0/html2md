@@ -162,6 +162,44 @@ def test_idna_hostname_is_normalized_for_dns_pinning(mock_get, mock_getaddrinfo,
     )
 
 
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_absolute_fqdn_trailing_dot_is_preserved_for_dns_pinning(
+    mock_get, mock_getaddrinfo, capsys
+):
+    """Absolute FQDNs keep the trailing dot through validation and pinning."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Absolute FQDN Pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_absolute_fqdn_pinned_dns(*_args, **_kwargs):
+        resolved = socket.getaddrinfo(
+            "host.example.", 80, type=socket.SOCK_STREAM
+        )
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_absolute_fqdn_pinned_dns
+
+    cli.main(["--url", "http://Host.Example./"])
+
+    outerr = capsys.readouterr()
+    assert "# Absolute FQDN Pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    mock_getaddrinfo.assert_called_once_with(
+        "host.example.", 80, type=socket.SOCK_STREAM
+    )
+    mock_get.assert_called_once_with(
+        "http://Host.Example./", timeout=30, allow_redirects=False
+    )
+
+
 @patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("8.8.8.8", 0))])
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, _mock_getaddrinfo, capsys, tmp_path):
