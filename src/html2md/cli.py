@@ -82,7 +82,7 @@ def main(argv=None):
             """Return a canonical IDNA DNS hostname for matching pinned lookups."""
             if isinstance(hostname, bytes):
                 hostname = hostname.decode('ascii')
-            return hostname.rstrip('.').encode('idna').decode('ascii').lower()
+            return hostname.encode('idna').decode('ascii').lower()
 
         def validate_url(target_url: str):
             """Validate a URL and return the DNS answers approved for fetching it."""

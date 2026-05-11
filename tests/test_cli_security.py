@@ -160,6 +160,42 @@ def test_idna_hostname_uses_pinned_validated_dns(mock_get, mock_getaddrinfo, cap
     )
 
 
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_trailing_dot_hostname_uses_absolute_dns_name(mock_get, mock_getaddrinfo, capsys):
+    """Trailing-dot hostnames are validated and pinned as absolute DNS names."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Absolute pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_absolute_hostname(*_args, **_kwargs):
+        resolved = socket.getaddrinfo(
+            "service.example.", 80, type=socket.SOCK_STREAM
+        )
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_absolute_hostname
+
+    cli.main(["--url", "http://service.example./"])
+
+    outerr = capsys.readouterr()
+    assert "# Absolute pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    mock_getaddrinfo.assert_called_once_with(
+        "service.example.", 80, type=socket.SOCK_STREAM
+    )
+    mock_get.assert_called_once_with(
+        "http://service.example./", timeout=30, allow_redirects=False
+    )
+
+
 @patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("8.8.8.8", 0))])
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, _mock_getaddrinfo, capsys, tmp_path):
