@@ -6,11 +6,10 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
-from bs4 import BeautifulSoup
-
 
 def _remove_page_chrome(html: str) -> str:
     """Remove document chrome omitted by default URL conversions."""
+    from bs4 import BeautifulSoup  # pylint: disable=import-outside-toplevel
     soup = BeautifulSoup(html, 'html.parser')
     for tag in soup.find_all(('header', 'footer')):
         tag.decompose()
