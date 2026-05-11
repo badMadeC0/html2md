@@ -8,12 +8,11 @@ on:
       - completed
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
 
 jobs:
-  self-heal:
+  repair:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (
@@ -28,17 +27,31 @@ jobs:
       )
     runs-on: windows-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Resolve checkout ref
-        id: checkout-ref
+      - name: Resolve refs
+        id: refs
         env:
           EVENT_NAME: ${{ github.event_name }}
           FALLBACK_REF: ${{ github.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
 
+          automation_ref="${FALLBACK_REF}"
+
           if [[ "$EVENT_NAME" == "workflow_run" ]]; then
             workflow_event="$(jq -r '.workflow_run.event // ""' "$GITHUB_EVENT_PATH")"
+            head_sha="$(jq -r '.workflow_run.head_sha // ""' "$GITHUB_EVENT_PATH")"
+            if [[ -z "$head_sha" ]]; then
+              echo "Unable to resolve head SHA for workflow_run event" >&2
+              exit 1
+            fi
 
             if [[ "$workflow_event" == "pull_request" ]]; then
               pr_number="$(jq -r '.workflow_run.pull_requests[0].number // ""' "$GITHUB_EVENT_PATH")"
@@ -47,32 +60,47 @@ jobs:
                 exit 1
               fi
 
-              echo "ref=refs/pull/${pr_number}/merge" >> "$GITHUB_OUTPUT"
-            else
-              head_sha="$(jq -r '.workflow_run.head_sha // ""' "$GITHUB_EVENT_PATH")"
-              if [[ -z "$head_sha" ]]; then
-                echo "Unable to resolve head SHA for workflow_run event" >&2
-                exit 1
+              base_ref="$(jq -r '.workflow_run.pull_requests[0].base.ref // ""' "$GITHUB_EVENT_PATH")"
+              if [[ -z "$base_ref" ]]; then
+                base_ref="${DEFAULT_BRANCH}"
               fi
 
-              echo "ref=${head_sha}" >> "$GITHUB_OUTPUT"
+              echo "target_ref=refs/pull/${pr_number}/merge" >> "$GITHUB_OUTPUT"
+              echo "target_branch=self-heal-fixes-pr-${pr_number}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+              echo "automation_ref=${base_ref}" >> "$GITHUB_OUTPUT"
+            else
+              echo "target_ref=${head_sha}" >> "$GITHUB_OUTPUT"
+              echo "target_branch=self-heal-fixes-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+              echo "automation_ref=${automation_ref}" >> "$GITHUB_OUTPUT"
             fi
           else
-            echo "ref=${FALLBACK_REF}" >> "$GITHUB_OUTPUT"
+            echo "target_ref=${FALLBACK_REF}" >> "$GITHUB_OUTPUT"
+            echo "target_branch=self-heal-fixes-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "automation_ref=${automation_ref}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Checkout trusted automation
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ steps.refs.outputs.automation_ref }}
+          path: automation
 
       - name: Checkout target ref
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ steps.checkout-ref.outputs.ref }}
+          ref: ${{ steps.refs.outputs.target_ref }}
+          path: target
 
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
+          cache-dependency-path: target/pnpm-lock.yaml
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -81,33 +109,52 @@ jobs:
 
       - name: Install deps (best-effort frozen)
         id: install_try_frozen
+        working-directory: target
         run: |
           set -euxo pipefail
-          pnpm install --frozen-lockfile || echo "FROZEN_FAILED=1" >> $GITHUB_OUTPUT
+          pnpm install --frozen-lockfile --ignore-scripts || echo "FROZEN_FAILED=1" >> "$GITHUB_OUTPUT"
 
       - name: Install deps (fallback non-frozen)
         if: steps.install_try_frozen.outputs.FROZEN_FAILED == '1'
+        working-directory: target
         run: |
           set -euxo pipefail
-          pnpm install
+          pnpm install --ignore-scripts
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
+        working-directory: target
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          node ../automation/scripts/healthcheck.mjs | tee ../selfheal-pre.txt
 
       - name: Attempt self-heal repairs
+        working-directory: target
         run: |
           set -o pipefail
-          node scripts/self-heal.mjs | tee selfheal-repair.txt
+          node ../automation/scripts/self-heal.mjs | tee ../selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
+        working-directory: target
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          node ../automation/scripts/healthcheck.mjs | tee ../selfheal-post.txt
+
+      - name: Export repair patch
+        if: steps.post.outcome == 'success'
+        id: patch
+        working-directory: target
+        run: |
+          set -euo pipefail
+          git add -N .
+          git diff --binary > ../selfheal.patch
+          if [[ -s ../selfheal.patch ]]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Collect logs
         if: always()
@@ -119,21 +166,62 @@ jobs:
             selfheal-repair.txt
             selfheal-post.txt
 
+      - name: Upload repair patch
+        if: steps.patch.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-patch
+          path: selfheal.patch
+
+    outputs:
+      target_ref: ${{ steps.refs.outputs.target_ref }}
+      target_branch: ${{ steps.refs.outputs.target_branch }}
+      has_changes: ${{ steps.patch.outputs.has_changes }}
+
+  create-pr:
+    needs: repair
+    if: needs.repair.result == 'success' && needs.repair.outputs.has_changes == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout target ref
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.repair.outputs.target_ref }}
+
+      - name: Download repair patch
+        uses: actions/download-artifact@v4
+        with:
+          name: selfheal-patch
+          path: .
+
+      - name: Apply repair patch
+        run: |
+          set -euxo pipefail
+          git apply --index --binary selfheal.patch
+
       - name: Create PR with fixes
-        if: steps.post.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ needs.repair.outputs.target_branch }}
         run: |
+          set -euxo pipefail
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          BRANCH_NAME="self-heal-fixes-${{ github.run_id }}"
-          git checkout -b "$BRANCH_NAME"
-          git add .
+          git switch -c "$BRANCH_NAME"
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0
           fi
-          git commit -m "Auto-fix workflow failures"
+          git -c core.hooksPath=/dev/null commit -m "Auto-fix workflow failures"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push origin "$BRANCH_NAME"
           gh pr create --title "Self-heal: Auto-fixes" --body "Automated fixes generated by self-heal workflow. Please review the attached logs." --label "self-heal"
