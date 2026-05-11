@@ -362,7 +362,7 @@ $ConvertBtn.Add_Click({
         # --- BATCH MODE ---
         $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
         $tempFile = [System.IO.Path]::GetTempFileName()
-        $urlList | Set-Content -LiteralPath $tempFile
+        $urlList | Set-Content -LiteralPath $tempFile -Encoding Unicode
 
         # Sanitize for -File arguments by using double quotes to handle spaces
         # Windows command line splitting treats " as the primary quote character.
