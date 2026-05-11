@@ -16,6 +16,9 @@ permissions:
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
+    # Run automatically only for same-repository PRs. Comment-triggered
+    # invocations require a trusted repository relationship before the job
+    # receives issues:write and pull-requests:write permissions.
     if: >
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository) ||
