@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR/.claude/hooks/run_protect_sensitive_files.sh\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\" || py -3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\" || python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\" || exit 2"
           }
         ]
       }
