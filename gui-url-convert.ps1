@@ -25,9 +25,8 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             $argsList = @("--url", "$url", "--outdir", "$outDir")
-            if ($BatchWholePage) {
-                $argsList += "--whole-page"
-            }
+            # The current html2md CLI does not accept --whole-page; keep the
+            # batch switch from adding unsupported arguments to each invocation.
 
             if (Test-Path -LiteralPath $venvExe) {
                 & $venvExe $argsList
