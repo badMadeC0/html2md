@@ -144,6 +144,19 @@ class TestCliStreamingResponses(unittest.TestCase):
         self.assertIn("Network error", captured_stderr.getvalue())
         self.assertTrue(response.closed)
 
+    def test_status_error_closes_mocked_streamed_response(self):
+        """Mocked streamed responses should close when status checks fail."""
+        response = MagicMock()
+        response.raise_for_status.side_effect = requests.HTTPError("bad status")
+        captured_stderr = io.StringIO()
+
+        with patch('sys.stderr', captured_stderr):
+            with patch('requests.Session.get', return_value=response):
+                html2md.cli.main(['--url', 'http://example.com'])
+
+        self.assertIn("Network error: bad status", captured_stderr.getvalue())
+        response.close.assert_called_once_with()
+
 
 if __name__ == '__main__':
     unittest.main()
