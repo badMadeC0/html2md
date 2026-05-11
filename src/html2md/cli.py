@@ -25,15 +25,22 @@ def _hostname_resolves_to_global_addresses(hostname: str) -> bool:
         except (IndexError, ValueError):
             return False
 
-        if (
-            not ip_obj.is_global
-            or ip_obj.is_multicast
-            or ip_obj.is_reserved
-            or getattr(ip_obj, "is_site_local", False)
-        ):
+        if _is_restricted_ip_address(ip_obj):
             return False
 
     return True
+
+
+def _is_restricted_ip_address(
+    ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> bool:
+    """Return True when an IP address is unsafe for URL fetching."""
+    return (
+        not ip_obj.is_global
+        or ip_obj.is_reserved
+        or ip_obj.is_multicast
+        or getattr(ip_obj, "is_site_local", False)
+    )
 
 
 def main(argv=None):
