@@ -361,7 +361,7 @@ $ConvertBtn.Add_Click({
         $urlList | Set-Content -LiteralPath $tempFile
 
         # Sanitize for -File arguments by using double quotes to handle spaces
-        # Windows command line splitting treates " as the primary quote character.
+        # Windows command line splitting treats " as the primary quote character.
         $safeCommandPath = "`"$PSCommandPath`""
         $safeTempFile = "`"$tempFile`""
         $safeOutDir = "`"$outdir`""
