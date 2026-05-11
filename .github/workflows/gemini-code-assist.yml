@@ -64,10 +64,58 @@ jobs:
         # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
         # so wiping it is safe and removes the attack surface.
         run: rm -rf .gemini
+      - name: Configure Gemini CLI settings
+        run: |
+          mkdir -p .gemini
+          cat > .gemini/settings.json <<'JSON'
+          {
+            "model": {
+              "maxSessionTurns": 25
+            },
+            "mcpServers": {
+              "github": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "ghcr.io/github/github-mcp-server@sha256:a1d43076a36638ee24520fd6e83c3905ae41bc9850179081df1de2ba3a7afae0"
+                ],
+                "includeTools": [
+                  "add_comment_to_pending_review",
+                  "pull_request_read",
+                  "pull_request_review_write"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                }
+              }
+            },
+            "tools": {
+              "core": [
+                "read_file",
+                "read_many_files",
+                "list_directory",
+                "glob",
+                "grep_search"
+              ]
+            }
+          }
+          JSON
+      - name: Install Gemini CLI
+        run: npm install --silent --no-audit --prefer-offline --global @google/gemini-cli@0.41.2
+      - name: Install Gemini code-review extension
+        env:
+          GEMINI_CODE_REVIEW_REF: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+        run: |
+          # Install manually so the pinned commit is passed as Gemini CLI's
+          # --ref option rather than appended to the repository URL.
+          echo "Y" | gemini extensions install https://github.com/gemini-cli-extensions/code-review --ref "${GEMINI_CODE_REVIEW_REF}"
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
-        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
           GEMINI_CLI_TRUST_WORKSPACE: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -76,55 +124,91 @@ jobs:
           # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
           REPOSITORY: ${{ github.repository }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-        with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_cli_version: "0.41.2"
-          # Resolves the PR number across all three supported triggers:
-          # pull_request, pull_request_review_comment, and issue_comment.
-          # The first two populate github.event.pull_request.number; the
-          # last populates github.event.issue.number.
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
-          settings: |-
+        run: |
+          set -euo pipefail
+
+          temp_stdout="$(mktemp -p "${RUNNER_TEMP}" gemini-out.XXXXXXXXXX)"
+          temp_stderr="$(mktemp -p "${RUNNER_TEMP}" gemini-err.XXXXXXXXXX)"
+          trap 'rm -f "${temp_stdout}" "${temp_stderr}"' EXIT
+
+          failed=false
+          if ! gemini --yolo --prompt "/pr-code-review" --output-format json >"${temp_stdout}" 2>"${temp_stderr}"; then
+            failed=true
+          fi
+
+          response=""
+          error_json=""
+          if jq -e . "${temp_stdout}" >/dev/null 2>&1; then
+            response="$(jq -r '.response // ""' "${temp_stdout}")"
+          elif [ -s "${temp_stdout}" ]; then
+            echo "::warning::Gemini CLI stdout was not valid JSON"
+          fi
+          if jq -e . "${temp_stderr}" >/dev/null 2>&1; then
+            error_json="$(jq -c '.error // empty' "${temp_stderr}")"
+          elif [ -s "${temp_stderr}" ]; then
+            echo "::warning::Gemini CLI stderr was not valid JSON"
+          fi
+
+          {
+            echo "gemini_response<<EOF"
+            if [ -n "${response}" ]; then
+              echo "${response}"
+            else
+              cat "${temp_stdout}"
+            fi
+            echo "EOF"
+            echo "gemini_errors<<EOF"
+            if [ -n "${error_json}" ]; then
+              echo "${error_json}"
+            else
+              cat "${temp_stderr}"
+            fi
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
             {
-              "model": {
-                "maxSessionTurns": 25
-              },
-              "mcpServers": {
-                "github": {
-                  "command": "docker",
-                  "args": [
-                    "run",
-                    "-i",
-                    "--rm",
-                    "-e",
-                    "GITHUB_PERSONAL_ACCESS_TOKEN",
-                    "ghcr.io/github/github-mcp-server@sha256:a1d43076a36638ee24520fd6e83c3905ae41bc9850179081df1de2ba3a7afae0"
-                  ],
-                  "includeTools": [
-                    "add_comment_to_pending_review",
-                    "pull_request_read",
-                    "pull_request_review_write"
-                  ],
-                  "env": {
-                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-                  }
-                }
-              },
-              "tools": {
-                "core": [
-                  "read_file",
-                  "read_many_files",
-                  "list_directory",
-                  "glob",
-                  "grep_search"
-                ]
-              }
-            }
-          extensions: |
-            [
-              "https://github.com/gemini-cli-extensions/code-review@dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04"
-            ]
-          prompt: "/pr-code-review"
+              echo "### Gemini CLI Execution"
+              echo
+              echo "#### Prompt"
+              echo
+              echo '```'
+              echo "/pr-code-review"
+              echo '```'
+              if [ -n "${response}" ]; then
+                echo
+                echo "#### Response"
+                echo
+                echo "${response}"
+              fi
+              if [ -n "${error_json}" ]; then
+                echo
+                echo "#### Error"
+                echo
+                echo '```json'
+                echo "${error_json}"
+                echo '```'
+              elif [ "${failed}" = true ]; then
+                echo
+                echo "#### Error Output"
+                echo
+                echo '```'
+                cat "${temp_stderr}"
+                echo '```'
+              fi
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+          if [ "${failed}" = true ]; then
+            if [ -n "${error_json}" ]; then
+              error_message="$(jq -r '.message // .' <<< "${error_json}")"
+              echo "::error title=Gemini CLI execution failed::${error_message}"
+            fi
+            echo "::: Start Gemini CLI STDERR :::"
+            cat "${temp_stderr}"
+            echo "::: End Gemini CLI STDERR :::"
+            exit 1
+          fi
       - name: Note Gemini API quota exhaustion
         if: >
           steps.gemini.outcome == 'failure' &&
