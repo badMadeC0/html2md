@@ -224,3 +224,18 @@ def test_bound_getaddrinfo_pins_vetted_answer_during_fetch():
         with cli._bound_getaddrinfo("example.com", vetted):
             assert socket.getaddrinfo("example.com", 443) == vetted
             assert socket.getaddrinfo("other.example", 443) == rebinding_answer
+
+
+def test_bound_getaddrinfo_pins_idna_normalized_hostname_during_fetch():
+    """IDNA hostnames prepared by requests must reuse vetted DNS answers."""
+    vetted = addrinfo("93.184.216.34")
+    rebinding_answer = addrinfo("127.0.0.1")
+
+    def rebinding_getaddrinfo(host, port, *args, **kwargs):
+        return rebinding_answer
+
+    with patch("html2md.cli.socket.getaddrinfo", side_effect=rebinding_getaddrinfo):
+        with cli._bound_getaddrinfo("bücher.example", vetted):
+            assert socket.getaddrinfo("bücher.example", 443) == vetted
+            assert socket.getaddrinfo("xn--bcher-kva.example", 443) == vetted
+            assert socket.getaddrinfo("other.example", 443) == rebinding_answer

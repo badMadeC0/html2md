@@ -29,16 +29,30 @@ def _resolve_global_addrinfo(hostname: str, port: int):
     return addrinfo
 
 
+def _normalized_hostname_variants(hostname: str) -> set[str]:
+    """Return hostnames that may be used for DNS after URL preparation."""
+    normalized_hostname = hostname.rstrip('.').lower()
+    variants = {normalized_hostname}
+
+    try:
+        idna_hostname = normalized_hostname.encode('idna').decode('ascii')
+    except UnicodeError:
+        return variants
+
+    variants.add(idna_hostname.rstrip('.').lower())
+    return variants
+
+
 @contextmanager
 def _bound_getaddrinfo(hostname: str, addrinfo):
     """Pin requests' DNS lookup for hostname to previously vetted answers."""
     original_getaddrinfo = socket.getaddrinfo
-    normalized_hostname = hostname.rstrip('.').lower()
+    pinned_hostnames = _normalized_hostname_variants(hostname)
 
     def getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
         if (
             isinstance(host, str)
-            and host.rstrip('.').lower() == normalized_hostname
+            and host.rstrip('.').lower() in pinned_hostnames
         ):
             return addrinfo
         return original_getaddrinfo(host, port, family, type, proto, flags)
