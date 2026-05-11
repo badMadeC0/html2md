@@ -8,18 +8,28 @@ on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+permissions: {}
 
 concurrency:
-  group: gemini-code-assist-${{ github.event.pull_request.number || github.event.issue.number }}
+  # Group by PR number for any PR-related event (pull_request,
+  # pull_request_review_comment, or an issue_comment posted on a PR).
+  # Fall back to run_id for non-PR issue_comment events so a comment on
+  # issue #N never collides with — and cancels — a running PR #N workflow.
+  group: >-
+    gemini-code-assist-${{
+      github.event.pull_request.number
+      || (github.event.issue.pull_request && github.event.issue.number)
+      || github.run_id
+    }}
   cancel-in-progress: true
 
 jobs:
   preflight:
     runs-on: ubuntu-latest
+    permissions:
+      # Read-only: needed for `gh api repos/.../pulls/N` on issue_comment
+      # triggers to look up the PR's head repo for fork detection.
+      pull-requests: read
     if: >
       (github.event_name == 'pull_request') ||
       (github.event_name == 'pull_request_review_comment' &&
@@ -36,12 +46,33 @@ jobs:
     outputs:
       enabled: ${{ steps.gate.outputs.enabled }}
     steps:
-      - name: Check for Gemini API key
+      - name: Gate on fork status and Gemini API key
         id: gate
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          # Populated by pull_request and pull_request_review_comment;
+          # empty for issue_comment (we look it up below).
+          PR_HEAD_REPO_FROM_EVENT: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
-          if [ -n "$GEMINI_API_KEY" ]; then
+          set -euo pipefail
+          head_repo=""
+          case "$EVENT_NAME" in
+            pull_request|pull_request_review_comment)
+              head_repo="$PR_HEAD_REPO_FROM_EVENT"
+              ;;
+            issue_comment)
+              head_repo=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .head.repo.full_name)
+              ;;
+          esac
+
+          if [ -n "$head_repo" ] && [ "$head_repo" != "$REPO" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Gemini Code Assist: PR is from a fork ($head_repo); not running secret-backed review against untrusted code."
+          elif [ -n "$GEMINI_API_KEY" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -53,17 +84,56 @@ jobs:
     if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      # Write scope is needed so the github-mcp-server can create
+      # pending reviews and post inline review comments on the PR.
+      pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
         with:
+          # Explicitly check out the PR's merge commit. For pull_request
+          # events this is already the default, but issue_comment and
+          # pull_request_review_comment runs default to the workflow ref
+          # (the base branch's tip), which would make local read tools
+          # like read_file/glob inspect base-branch code instead of the
+          # PR under review.
+          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/merge
           fetch-depth: 0
           persist-credentials: false
       - name: Strip PR-supplied Gemini config
-        # Project-local .gemini/commands/*.toml shadow extension commands
-        # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
-        # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
-        # so wiping it is safe and removes the attack surface.
-        run: rm -rf .gemini
+        # Three distinct attack vectors via PR-authored content:
+        #   1. .gemini/commands/*.toml shadow extension commands in
+        #      Gemini CLI's loader (project commands win over extension
+        #      commands), so a PR could plant pr-code-review.toml that
+        #      hijacks /pr-code-review.
+        #   2. GEMINI.md is loaded as project instructional context on
+        #      every prompt and could steer the reviewer to suppress,
+        #      soften, or forge feedback. Match symlinks too — a
+        #      symlinked GEMINI.md is still followed by the loader.
+        #   3. Gemini CLI auto-loads .env from the working directory.
+        #      PR-authored .env can set GEMINI_SYSTEM_MD or similar to
+        #      override the system prompt from a PR-supplied file.
+        # None of these files are shipped by this repo, so unconditional
+        # removal is safe and eliminates all three attack surfaces.
+        run: |
+          rm -rf .gemini
+          find . \( -type f -o -type l \) -name 'GEMINI.md' -delete
+          find . \( -type f -o -type l \) -name '.env' -delete
+      - name: Pin code-review extension
+        # run-gemini-cli@v0.1.22 invokes `gemini extensions install
+        # <url>` without forwarding --ref, and URL fragment syntax
+        # (#sha) is not understood by git clone, so pinning via the
+        # extensions: input is not possible. Check out the extension
+        # at a known-good commit into a sibling directory and install
+        # it from that local path instead.
+        uses: actions/checkout@v4
+        with:
+          repository: gemini-cli-extensions/code-review
+          ref: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+          path: .gemini-extensions/code-review
+          persist-credentials: false
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -101,7 +171,9 @@ jobs:
                     "ghcr.io/github/github-mcp-server@sha256:a1d43076a36638ee24520fd6e83c3905ae41bc9850179081df1de2ba3a7afae0"
                   ],
                   "includeTools": [
+                    "create_pending_pull_request_review",
                     "add_comment_to_pending_review",
+                    "submit_pending_pull_request_review",
                     "pull_request_read",
                     "pull_request_review_write"
                   ],
@@ -116,13 +188,14 @@ jobs:
                   "read_many_files",
                   "list_directory",
                   "glob",
-                  "grep_search"
+                  "grep_search",
+                  "activate_skill"
                 ]
               }
             }
           extensions: |
             [
-              "https://github.com/gemini-cli-extensions/code-review#dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04"
+              "./.gemini-extensions/code-review"
             ]
           prompt: "/pr-code-review"
       - name: Note Gemini API quota exhaustion
