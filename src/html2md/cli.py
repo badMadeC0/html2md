@@ -6,6 +6,17 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+def _remove_page_chrome(html: str, soup_class) -> str:
+    """Remove document chrome omitted by default URL conversions."""
+    soup = soup_class(html, 'html.parser')
+    for tag in soup.find_all(('header', 'footer')):
+        parent_name = getattr(tag.parent, 'name', None)
+        role = (tag.get('role') or '').strip().lower()
+        if parent_name in ('body', 'html', '[document]') or role in ('banner', 'contentinfo'):
+            tag.decompose()
+    return str(soup)
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -30,10 +41,12 @@ def main(argv=None):
     if args.url or args.batch:
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
+            from bs4 import BeautifulSoup  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests markdownify beautifulsoup4",
+                  file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -78,12 +91,12 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                tags_to_strip = None if args.whole_page else ["header", "footer"]
-                md_content = md(
-                    response.text,
-                    heading_style="ATX",
-                    strip=tags_to_strip,
+                html = (
+                    response.text
+                    if args.whole_page
+                    else _remove_page_chrome(response.text, BeautifulSoup)
                 )
+                md_content = md(html, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):

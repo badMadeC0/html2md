@@ -53,10 +53,52 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert not (tmp_path / "secret.txt.md").exists()
 
 
+@patch("requests.Session.get")
+def test_whole_page_option_includes_header_and_footer(mock_get, capsys):
+    """--whole-page includes document chrome that defaults omit."""
+    response = MagicMock()
+    response.text = (
+        "<header><h1>Site Header</h1></header>"
+        "<main><p>Main body</p></main>"
+        "<footer>Site Footer</footer>"
+    )
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    rc = cli.main(["--url", "https://example.com", "--whole-page"])
+    outerr = capsys.readouterr()
+
+    assert rc == 0
+    assert "Site Header" in outerr.out
+    assert "Main body" in outerr.out
+    assert "Site Footer" in outerr.out
+
+
+@patch("requests.Session.get")
+def test_default_url_conversion_omits_header_and_footer(mock_get, capsys):
+    """The default GUI/CLI URL conversion excludes page chrome."""
+    response = MagicMock()
+    response.text = (
+        "<header><h1>Site Header</h1></header>"
+        "<main><p>Main body</p></main>"
+        "<footer>Site Footer</footer>"
+    )
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    rc = cli.main(["--url", "https://example.com"])
+    outerr = capsys.readouterr()
+
+    assert rc == 0
+    assert "Site Header" not in outerr.out
+    assert "Main body" in outerr.out
+    assert "Site Footer" not in outerr.out
+
+
 @patch("markdownify.markdownify", return_value="# Body")
 @patch("requests.Session.get")
-def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_path):
-    """GUI batch mode --whole-page should drive conversion behavior."""
+def test_whole_page_option_controls_batch_conversion(mock_get, mock_md, tmp_path):
+    """CLI batch mode --whole-page should drive conversion behavior."""
     batch_file = tmp_path / "urls.txt"
     batch_file.write_text("https://example.com/article\n", encoding="utf-8")
     outdir = tmp_path / "out"
@@ -77,6 +119,5 @@ def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_
     mock_md.assert_called_once_with(
         response.text,
         heading_style="ATX",
-        strip=None,
     )
     assert (outdir / "article.md").read_text(encoding="utf-8") == "# Body"
