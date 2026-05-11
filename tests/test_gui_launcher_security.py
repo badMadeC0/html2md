@@ -34,8 +34,8 @@ def test_single_url_launch_uses_encoded_command() -> None:
 
     # The section must NOT fall back to a raw nested -Command string.
     assert '"-NoExit -NoProfile -Command' not in single_url_section, (
-        "Single-URL launch must not use a raw nested -Command string"
+        "Single-URL launch must not use a raw nested -Command string (with -NoProfile variant)"
     )
     assert '"-NoExit -Command' not in single_url_section, (
-        "Single-URL launch must not use a raw nested -Command string"
+        "Single-URL launch must not use a raw nested -Command string (without -NoProfile variant)"
     )
