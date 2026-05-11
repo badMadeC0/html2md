@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -24,22 +25,27 @@ def run_hook(payload: dict[str, object]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_configured_hook_command_uses_available_python3() -> None:
+def test_configured_hook_command_uses_project_root_from_subdirectory() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     settings_path = repo_root / ".claude" / "settings.json"
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
     command_parts = shlex.split(command)
 
-    assert command_parts[:2] == ["python3", ".claude/hooks/protect_sensitive_files.py"]
+    assert command_parts[:2] == [
+        "python3",
+        "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py",
+    ]
 
     result = subprocess.run(
-        command_parts,
+        command,
         input=json.dumps({"tool_input": {"file_path": ".env"}}),
         text=True,
         capture_output=True,
         check=False,
-        cwd=repo_root,
+        cwd=repo_root / "src",
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(repo_root)},
+        shell=True,
     )
 
     assert result.returncode == 2
