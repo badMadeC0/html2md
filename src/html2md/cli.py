@@ -59,10 +59,11 @@ def main(argv=None):
             encoding = response.encoding
             if not isinstance(encoding, str) or not encoding:
                 encoding = 'utf-8'
+            bytes_ = bytes(content_bytes)
             try:
-                return bytes(content_bytes).decode(encoding, errors='replace')
+                return bytes_.decode(encoding, errors='replace')
             except LookupError:
-                return bytes(content_bytes).decode('utf-8', errors='replace')
+                return bytes_.decode('utf-8', errors='replace')
 
         def process_url(target_url: str) -> bool:
             """Process a single URL. Return True when conversion succeeds."""
