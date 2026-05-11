@@ -180,10 +180,9 @@ def test_process_url_pins_idna_normalized_hostname(mock_get, capsys, tmp_path):
         assert url == "http://éxample.com/"
         assert timeout == 30
         assert allow_redirects is False
-        # urllib3 resolves the IDNA/punycode form during connection setup. The
-        # pinned resolver must still return the public answer vetted for the
-        # original Unicode hostname, not a rebound private address.
-        assert cli.socket.getaddrinfo("xn--xample-9ua.com", 80) == [public_addrinfo]
+        # The global resolver is not monkey-patched; adapter-level pinning keeps
+        # DNS binding scoped to the request transport only.
+        assert cli.socket.getaddrinfo("xn--xample-9ua.com", 80) == [rebound_addrinfo]
         response = MagicMock()
         response.text = "<h1>safe</h1>"
         response.is_redirect = False
