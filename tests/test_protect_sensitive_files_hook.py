@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -79,14 +80,57 @@ def test_hook_settings_uses_python_directly_and_fails_closed() -> None:
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
 
     assert command == (
-        'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" '
-        '|| py -3 "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" '
-        '|| python "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py" '
-        '|| exit 2'
+        "claude_hook_input=''; "
+        'while IFS= read -r claude_hook_line || [ -n "$claude_hook_line" ]; do '
+        'claude_hook_input="${claude_hook_input}${claude_hook_line}"; done; '
+        'for claude_python_launcher in python3 "py -3" python; do '
+        "printf '%s' \"$claude_hook_input\" | $claude_python_launcher "
+        '"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py"; '
+        'claude_hook_status=$?; '
+        'if [ "$claude_hook_status" -eq 0 ] || [ "$claude_hook_status" -eq 2 ]; then '
+        'exit "$claude_hook_status"; fi; done; exit 2'
     )
     assert "node" not in command
     assert "run_protect_sensitive_files.js" not in command
-    assert command.endswith("|| exit 2")
+    assert command.endswith("; exit 2")
+
+
+def test_hook_settings_preserves_blocking_exit_with_multiple_launchers(tmp_path: Path) -> None:
+    """Fallback launchers must not mask a hook block after stdin is consumed."""
+    settings_path = Path(__file__).resolve().parents[1] / ".claude" / "settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    marker_path = tmp_path / "fallback-ran"
+    python3_path = tmp_path / "python3"
+    python_path = tmp_path / "python"
+    python3_path.write_text(
+        f"#!/bin/sh\nexec {shlex.quote(sys.executable)} \"$@\"\n",
+        encoding="utf-8",
+    )
+    python_path.write_text(
+        f"#!/bin/sh\nprintf fallback > {shlex.quote(str(marker_path))}\nexit 0\n",
+        encoding="utf-8",
+    )
+    python3_path.chmod(0o755)
+    python_path.chmod(0o755)
+    env = {
+        "CLAUDE_PROJECT_DIR": str(Path(__file__).resolve().parents[1]),
+        "PATH": str(tmp_path),
+    }
+
+    result = subprocess.run(
+        command,
+        input=json.dumps(tool_payload("Write", ".env")),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+        shell=True,
+    )
+
+    assert result.returncode == 2
+    assert "BLOCKED" in result.stderr
+    assert not marker_path.exists()
 
 
 def test_hook_settings_fails_closed_when_no_python_launcher_works(tmp_path: Path) -> None:

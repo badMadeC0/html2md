@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\" || py -3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\" || python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\" || exit 2"
+            "command": "claude_hook_input=''; while IFS= read -r claude_hook_line || [ -n \"$claude_hook_line\" ]; do claude_hook_input=\"${claude_hook_input}${claude_hook_line}\"; done; for claude_python_launcher in python3 \"py -3\" python; do printf '%s' \"$claude_hook_input\" | $claude_python_launcher \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py\"; claude_hook_status=$?; if [ \"$claude_hook_status\" -eq 0 ] || [ \"$claude_hook_status\" -eq 2 ]; then exit \"$claude_hook_status\"; fi; done; exit 2"
           }
         ]
       }
