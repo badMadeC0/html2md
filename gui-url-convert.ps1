@@ -75,16 +75,6 @@ Add-Type -AssemblyName WindowsBase
 Add-Type -AssemblyName System.Xaml
 Add-Type -AssemblyName System.Windows.Forms
 
-function ConvertTo-PowerShellSingleQuotedLiteral {
-    param([string]$Value)
-    return "'" + ($Value -replace "'", "''") + "'"
-}
-
-function ConvertTo-EncodedPowerShellCommand {
-    param([string]$Command)
-    return [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($Command))
-}
-
 # --- Define XAML UI ---
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -334,9 +324,6 @@ $ConvertBtn.Add_Click({
         $scriptDir = (Get-Location).Path
     }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
-
     # Attempt to use Short Path (8.3) to avoid path-escaping issues in PowerShell/CMD
     try {
         $fso = New-Object -ComObject Scripting.FileSystemObject
@@ -357,8 +344,10 @@ $ConvertBtn.Add_Click({
         }
     }
 
-    # Use powershell.exe with -EncodedCommand so Windows native command-line parsing never
-    # consumes nested quotes around paths, URLs, or output directories before PowerShell runs.
+    # Use a robust way to launch the process:
+    # 1. Revert to ProcessStartInfo for precise control over the command line.
+    # 2. Use powershell.exe to keep the window open with -NoExit.
+    # 3. Use -File for batch mode and -Command with proper quoting for single URL mode.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
@@ -370,34 +359,39 @@ $ConvertBtn.Add_Click({
         $tempFile = [System.IO.Path]::GetTempFileName()
         $urlList | Set-Content -Path $tempFile
 
-        # Relaunch this script in batch mode from an encoded command. Single-quoted
-        # PowerShell literals preserve spaces, trailing backslashes, dollar signs, and
-        # other valid path characters without relying on raw native quoting.
-        $batchCommand = "& $(ConvertTo-PowerShellSingleQuotedLiteral $PSCommandPath) -BatchFile $(ConvertTo-PowerShellSingleQuotedLiteral $tempFile) -BatchOutDir $(ConvertTo-PowerShellSingleQuotedLiteral $outdir)"
+        # Sanitize for -File arguments by using double quotes to handle spaces
+        # Windows command line splitting treates " as the primary quote character.
+        $safeCommandPath = "`"$PSCommandPath`""
+        $safeTempFile = "`"$tempFile`""
+        $safeOutDir = "`"$outdir`""
+
+        # Relaunch this script in batch mode
+        # Use -File with double-quoted paths for robust Windows command-line handling
+        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File $safeCommandPath -BatchFile $safeTempFile -BatchOutDir $safeOutDir"
         if ($WholePageChk.IsChecked) {
-            $batchCommand += " -BatchWholePage"
+            $psi.Arguments += " -BatchWholePage"
         }
-        $encodedCommand = ConvertTo-EncodedPowerShellCommand $batchCommand
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        $html2mdArgs = @("--url", $url, "--outdir", $outdir, "--all-formats")
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
-        if (-not $WholePageChk.IsChecked) { $html2mdArgs += "--main-content" }
-        $encodedCommand = $null
+        $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
+
+        # Sanitize inputs for PowerShell -Command interpolation.
+        # We use double quotes around arguments and escape internal double quotes, dollar signs,
+        # and backticks with the PowerShell escape character (backtick) to prevent subexpression execution.
+        $safeUrl = $url -replace '["$`]', '`$0'
+        $safeOutDir = $outdir -replace '["$`]', '`$0'
+        $safeVenvExe = $venvExe -replace '["$`]', '`$0'
+        $safePyScript = $pyScript -replace '["$`]', '`$0'
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $commandArgs = ($html2mdArgs | ForEach-Object { ConvertTo-PowerShellSingleQuotedLiteral $_ }) -join " "
-            $command = "& $(ConvertTo-PowerShellSingleQuotedLiteral $venvExe) $commandArgs"
-            $encodedCommand = ConvertTo-EncodedPowerShellCommand $command
+            $psi.Arguments = "-NoExit -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $commandArgs = (@($pyScript) + $html2mdArgs | ForEach-Object { ConvertTo-PowerShellSingleQuotedLiteral $_ }) -join " "
-            $command = "& $(ConvertTo-PowerShellSingleQuotedLiteral $pyCmd) $commandArgs"
-            $encodedCommand = ConvertTo-EncodedPowerShellCommand $command
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
@@ -407,8 +401,6 @@ $ConvertBtn.Add_Click({
             $ProgressBar.IsIndeterminate = $false
             return
         }
-
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
     }
     
     $LogBox.AppendText("Executing process...`r`n")
