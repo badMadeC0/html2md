@@ -5,26 +5,78 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
+  issues: write
   pull-requests: write
 
 jobs:
   request-review:
     runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Request review from Jules bot
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            try {
-              await github.rest.pulls.requestReviewers({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                reviewers: ['google-labs-jules[bot]']
-              });
-              console.log(`Requested review from @google-labs-jules[bot] on PR #${pr.number}`);
-            } catch (error) {
-              console.log(`Could not request review: ${error.message}`);
-              console.log('Ensure @google-labs-jules[bot] has access to this repository.');
-            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          api_url = os.environ["GITHUB_API_URL"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          pr_number = os.environ["PR_NUMBER"]
+          token = os.environ["GITHUB_TOKEN"]
+          review_body = "@jules please review this pull request."
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          }
+
+          # Check existing comments for a duplicate before posting.
+          page = 1
+          while True:
+              list_req = urllib.request.Request(
+                  url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
+                  headers=headers,
+                  method="GET",
+              )
+              with urllib.request.urlopen(list_req) as resp:
+                  comments = json.loads(resp.read().decode("utf-8"))
+              if any(c["body"].strip() == review_body for c in comments):
+                  print("Review already requested — skipping duplicate comment.")
+                  sys.exit(0)
+              if len(comments) < 100:
+                  break
+              page += 1
+
+          post_req = urllib.request.Request(
+              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
+              data=json.dumps({"body": review_body}).encode("utf-8"),
+              headers=headers,
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(post_req) as response:
+                  print(
+                      "Requested review from @jules via comment on "
+                      f"PR #{pr_number} (status {response.status})"
+                  )
+          except urllib.error.HTTPError as error:
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context (HTTP 403).")
+                  sys.exit(0)
+              body = error.read().decode("utf-8")
+              print(f"Could not request review: {body}")
+              raise
+          PY

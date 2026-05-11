@@ -1,26 +1,27 @@
+"""Tests for html2md CLI exception-handling paths."""
 import unittest
 from unittest.mock import patch, MagicMock
 import io
-import requests
+import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
+
 class TestCliExceptions(unittest.TestCase):
+    """Unit tests for CLI network, file, and path-containment error handling."""
+
     def test_network_error(self):
         """Test that network errors are caught and printed."""
-        # Mock sys.stderr to capture output
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
-            # Patch requests.Session.get directly
             with patch('requests.Session.get') as mock_get:
                 mock_get.side_effect = requests.RequestException("Network unreachable")
 
                 try:
                     main(['--url', 'http://example.com'])
-                except Exception as e:
+                except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
 
                 output = captured_stderr.getvalue()
-                # Expect "Network error: Network unreachable"
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
@@ -37,15 +38,14 @@ class TestCliExceptions(unittest.TestCase):
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
                         with patch('builtins.open', side_effect=OSError("Permission denied")):
-                             try:
-                                 main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                             except Exception as e:
-                                 self.fail(f"main raised exception {e}")
+                            try:
+                                main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                            except (SystemExit, RuntimeError, ValueError) as e:
+                                self.fail(f"main raised exception {e}")
 
-                             output = captured_stderr.getvalue()
-                             # Expect "File error: Permission denied"
-                             self.assertIn("File error", output)
-                             self.assertIn("Permission denied", output)
+                            output = captured_stderr.getvalue()
+                            self.assertIn("File error", output)
+                            self.assertIn("Permission denied", output)
 
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
@@ -59,7 +59,7 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('builtins.open') as mock_open:
+                        with patch('html2md.cli.open', create=True) as mock_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
