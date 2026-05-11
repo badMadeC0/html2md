@@ -8,6 +8,17 @@ import socket
 import ipaddress
 from urllib.parse import urlparse, unquote
 
+
+def _is_allowed_public_ip(ip: str) -> bool:
+    """Return whether an IP is safe for outbound URL fetches."""
+    ip_obj = ipaddress.ip_address(ip)
+
+    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+        ip_obj = ip_obj.ipv4_mapped
+
+    return ip_obj.is_global and not ip_obj.is_multicast and not ip_obj.is_reserved
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -78,8 +89,7 @@ def main(argv=None):
                         return
 
                     for ip in resolved_ips:
-                        ip_obj = ipaddress.ip_address(ip)
-                        if not ip_obj.is_global or ip_obj.is_reserved:
+                        if not _is_allowed_public_ip(ip):
                             print("Error: URL resolves to a restricted/private network address.", file=sys.stderr)
                             return
                 except (socket.gaierror, ValueError):
