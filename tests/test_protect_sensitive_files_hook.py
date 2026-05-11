@@ -56,6 +56,28 @@ def test_is_sensitive_matches_secret_basenames():
     assert not hook.is_sensitive("docs/env-example.md")
 
 
+def test_is_sensitive_checks_raw_symlink_filename(tmp_path):
+    """A sensitive symlink name is blocked even when its target basename is safe."""
+    hook = load_hook_module()
+    safe_target = tmp_path / "safe-target.txt"
+    sensitive_link = tmp_path / ".env"
+    safe_target.write_text("not secret", encoding="utf-8")
+    sensitive_link.symlink_to(safe_target)
+
+    assert hook.is_sensitive(str(sensitive_link))
+
+
+def test_is_sensitive_checks_resolved_symlink_target(tmp_path):
+    """A safe-looking symlink name is blocked when it resolves to a sensitive file."""
+    hook = load_hook_module()
+    sensitive_target = tmp_path / "id_ed25519"
+    safe_link = tmp_path / "safe-target.txt"
+    sensitive_target.write_text("secret", encoding="utf-8")
+    safe_link.symlink_to(sensitive_target)
+
+    assert hook.is_sensitive(str(safe_link))
+
+
 def test_candidate_paths_extracts_supported_keys_only():
     """Only supported Claude Code path keys are considered targets."""
     hook = load_hook_module()

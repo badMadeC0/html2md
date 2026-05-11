@@ -37,20 +37,21 @@ PATH_KEYS = ("file_path", "path", "notebook_path")
 
 
 def is_sensitive(path: str) -> bool:
-    """Return whether ``path`` matches a sensitive filename pattern."""
+    """Return whether ``path`` or its resolved target matches a sensitive pattern."""
     if not path:
         return False
 
-    normalized_path = os.path.realpath(path)
-    basename = os.path.basename(normalized_path)
+    paths_to_check = (os.path.normpath(path), os.path.realpath(path))
 
-    for pattern in SENSITIVE_BASENAME_PATTERNS:
-        if fnmatch.fnmatch(basename, pattern):
-            return True
-        if fnmatch.fnmatch(normalized_path, pattern):
-            return True
-        if fnmatch.fnmatch(normalized_path, os.path.join("*", pattern)):
-            return True
+    for candidate_path in paths_to_check:
+        basename = os.path.basename(candidate_path)
+        for pattern in SENSITIVE_BASENAME_PATTERNS:
+            if fnmatch.fnmatch(basename, pattern):
+                return True
+            if fnmatch.fnmatch(candidate_path, pattern):
+                return True
+            if fnmatch.fnmatch(candidate_path, os.path.join("*", pattern)):
+                return True
 
     return False
 
