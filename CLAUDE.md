@@ -61,6 +61,7 @@ pip install pytest build
 - `markdownify>=0.11.6` — HTML to Markdown conversion
 - `beautifulsoup4>=4.10.0` — HTML parsing
 - `requests>=2.25.0` — HTTP fetching
+- `idna>=2.5,<4` — IDNA hostname normalization for URL validation
 - `reportlab>=3.6.0` — PDF generation
 - `pillow>=9.0.0` — Image processing
 - `pyyaml>=6.0` — YAML config parsing
