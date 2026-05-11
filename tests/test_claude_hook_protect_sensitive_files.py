@@ -44,7 +44,10 @@ def test_sensitive_basename_patterns_match_case_insensitively():
     assert hook.is_sensitive("nested/credentials.json")
     assert hook.is_sensitive(r"C:\\repo\\secrets\\id_rsa")
     assert hook.is_sensitive("~/.ssh/id_ed25519")
+    assert hook.is_sensitive("~/.ssh/id_ed25519.pub")
+    assert hook.is_sensitive("~/.ssh/id_ed25519_sk")
     assert hook.is_sensitive("~/.ssh/id_ecdsa")
+    assert hook.is_sensitive("~/.ssh/id_ecdsa_sk")
     assert hook.is_sensitive("~/.ssh/id_dsa")
     assert not hook.is_sensitive("docs/credentials-example.json")
 
