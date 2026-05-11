@@ -204,6 +204,7 @@ jobs:
               await github.rest.pulls.merge({
                 owner, repo,
                 pull_number: pr.number,
+                sha: pr.head.sha,
                 merge_method: method,
                 commit_title: `${pr.title} (#${pr.number})`,
               });
