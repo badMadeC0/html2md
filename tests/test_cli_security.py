@@ -146,6 +146,44 @@ def test_process_url_disables_ambient_proxies_during_pinned_fetch(mock_get, monk
 
 
 @patch("requests.Session.get")
+def test_process_url_pins_idna_normalized_hostname(mock_get, capsys, tmp_path):
+    """DNS pinning matches the IDNA hostname urllib3 resolves for Unicode domains."""
+    public_addrinfo = _addrinfo("93.184.216.34")
+    rebound_addrinfo = _addrinfo("127.0.0.1")
+    real_getaddrinfo = cli.socket.getaddrinfo
+    lookup_count = 0
+
+    def rebinding_getaddrinfo(host, port, *args, **kwargs):
+        nonlocal lookup_count
+        if host in {"éxample.com", "xn--xample-9ua.com"}:
+            lookup_count += 1
+            return [public_addrinfo] if lookup_count == 1 else [rebound_addrinfo]
+        return real_getaddrinfo(host, port, *args, **kwargs)
+
+    def request_side_effect(url, timeout, allow_redirects):
+        assert url == "http://éxample.com/"
+        assert timeout == 30
+        assert allow_redirects is False
+        # urllib3 resolves the IDNA/punycode form during connection setup. The
+        # pinned resolver must still return the public answer vetted for the
+        # original Unicode hostname, not a rebound private address.
+        assert cli.socket.getaddrinfo("xn--xample-9ua.com", 80) == [public_addrinfo]
+        response = MagicMock()
+        response.text = "<h1>safe</h1>"
+        response.is_redirect = False
+        response.raise_for_status.return_value = None
+        return response
+
+    mock_get.side_effect = request_side_effect
+
+    with patch("html2md.cli.socket.getaddrinfo", side_effect=rebinding_getaddrinfo):
+        cli.main(["--url", "http://éxample.com/", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+
+
+@patch("requests.Session.get")
 def test_process_url_validates_redirect_targets(mock_get, capsys, tmp_path):
     """Redirect locations are revalidated before following them."""
     redirect_response = MagicMock()
