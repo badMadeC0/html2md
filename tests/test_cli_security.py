@@ -162,6 +162,112 @@ def test_idna_hostname_is_normalized_for_dns_pinning(mock_get, mock_getaddrinfo,
     )
 
 
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_idna_hostname_uses_uts46_mapping_for_dns_pinning(mock_get, mock_getaddrinfo, capsys):
+    """UTS46-mapped Unicode labels are pinned with requests-compatible DNS names."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>UTS46 Pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_uts46_pinned_dns(*_args, **_kwargs):
+        resolved = socket.getaddrinfo("fullwidth.example", 80, type=socket.SOCK_STREAM)
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_uts46_pinned_dns
+
+    cli.main(["--url", "http://ｆｕｌｌｗｉｄｔｈ.example/"])
+
+    outerr = capsys.readouterr()
+    assert "# UTS46 Pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    mock_getaddrinfo.assert_called_once_with(
+        "fullwidth.example", 80, type=socket.SOCK_STREAM
+    )
+    mock_get.assert_called_once_with(
+        "http://ｆｕｌｌｗｉｄｔｈ.example/", timeout=30, allow_redirects=False
+    )
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_idna_hostname_normalizes_non_ascii_labels_only(mock_get, mock_getaddrinfo, capsys):
+    """ASCII labels requests leaves alone are not rejected while IDN labels are encoded."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Per Label Pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_per_label_pinned_dns(*_args, **_kwargs):
+        resolved = socket.getaddrinfo(
+            "_svc.xn--fa-hia.example", 80, type=socket.SOCK_STREAM
+        )
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_per_label_pinned_dns
+
+    cli.main(["--url", "http://_svc.faß.example/"])
+
+    outerr = capsys.readouterr()
+    assert "# Per Label Pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    mock_getaddrinfo.assert_called_once_with(
+        "_svc.xn--fa-hia.example", 80, type=socket.SOCK_STREAM
+    )
+    mock_get.assert_called_once_with(
+        "http://_svc.faß.example/", timeout=30, allow_redirects=False
+    )
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_absolute_fqdn_trailing_dot_is_preserved_for_dns_pinning(
+    mock_get, mock_getaddrinfo, capsys
+):
+    """Absolute FQDNs keep their trailing dot for validation and pinned fetches."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Absolute Pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_absolute_pinned_dns(*_args, **_kwargs):
+        resolved = socket.getaddrinfo("host.example.", 80, type=socket.SOCK_STREAM)
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_absolute_pinned_dns
+
+    cli.main(["--url", "http://host.example./"])
+
+    outerr = capsys.readouterr()
+    assert "# Absolute Pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    mock_getaddrinfo.assert_called_once_with(
+        "host.example.", 80, type=socket.SOCK_STREAM
+    )
+    mock_get.assert_called_once_with(
+        "http://host.example./", timeout=30, allow_redirects=False
+    )
+
+
 @patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("8.8.8.8", 0))])
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, _mock_getaddrinfo, capsys, tmp_path):
