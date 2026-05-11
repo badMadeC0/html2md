@@ -116,7 +116,7 @@ class TestCliStreamingResponses(unittest.TestCase):
 
     def test_oversized_real_response_is_closed_before_conversion(self):
         """Oversized real streamed responses should be closed and not converted."""
-        response = StreamingResponse([b"x" * (10 * 1024 * 1024 + 1)])
+        response = StreamingResponse([b"x" * (html2md.cli.MAX_DOWNLOAD_SIZE + 1)])
         captured_stderr = io.StringIO()
 
         with patch('sys.stderr', captured_stderr):
@@ -131,6 +131,21 @@ class TestCliStreamingResponses(unittest.TestCase):
         self.assertFalse(response.text_accessed)
         self.assertTrue(response.closed)
         mock_md.assert_not_called()
+
+    def test_response_that_reaches_exact_download_cap_is_converted(self):
+        """Real responses at the download cap should still be converted."""
+        response = StreamingResponse([b"x" * html2md.cli.MAX_DOWNLOAD_SIZE])
+
+        with patch('requests.Session.get', return_value=response):
+            with patch('markdownify.markdownify', return_value="converted") as mock_md:
+                html2md.cli.main(['--url', 'http://example.com'])
+
+        self.assertFalse(response.text_accessed)
+        self.assertTrue(response.closed)
+        mock_md.assert_called_once_with(
+            "x" * html2md.cli.MAX_DOWNLOAD_SIZE,
+            heading_style="ATX",
+        )
 
     def test_error_response_is_closed_when_status_check_raises(self):
         """HTTP error responses should close even if raise_for_status() raises."""

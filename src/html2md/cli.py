@@ -7,6 +7,9 @@ import sys
 from contextlib import closing
 from urllib.parse import urlparse, unquote
 
+MAX_DOWNLOAD_SIZE = 10 * 1024 * 1024
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -75,7 +78,7 @@ def main(argv=None):
                     response.raise_for_status()
 
                     print("Converting to Markdown...")
-                    max_size = 10 * 1024 * 1024
+                    max_size = MAX_DOWNLOAD_SIZE
 
                     response_type = getattr(requests, "Response", None)
                     is_real_response = (
@@ -95,13 +98,13 @@ def main(argv=None):
                         for chunk in response.iter_content(chunk_size=8192):
                             if not chunk:
                                 continue
-                            content_bytes.extend(chunk)
-                            if len(content_bytes) > max_size:
+                            if len(content_bytes) + len(chunk) > max_size:
                                 print(
                                     f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).",
                                     file=sys.stderr,
                                 )
                                 return
+                            content_bytes.extend(chunk)
 
                         encoding = getattr(response, "encoding", None)
                         if not isinstance(encoding, str) or not encoding:
