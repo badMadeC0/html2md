@@ -106,4 +106,4 @@ jobs:
             Request precedence: triggering comment body, then workflow_dispatch prompt, then automatic PR review.
 
             Request:
-            ${{ github.event.comment.body || (github.event.inputs && github.event.inputs.prompt) || 'Automatically review the checked-out pull request and post actionable feedback on the PR.' }}
+            ${{ github.event.comment.body || github.event.inputs.prompt || 'Automatically review the checked-out pull request and post actionable feedback on the PR.' }}
