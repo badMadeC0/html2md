@@ -130,8 +130,10 @@ jobs:
                   ],
                   "includeTools": [
                     "add_comment_to_pending_review",
+                    "create_pending_pull_request_review",
                     "pull_request_read",
-                    "pull_request_review_write"
+                    "pull_request_review_write",
+                    "submit_pending_pull_request_review"
                   ],
                   "env": {
                     "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
