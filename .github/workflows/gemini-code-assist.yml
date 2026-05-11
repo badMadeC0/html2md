@@ -28,14 +28,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Export PR review context
+        run: |
+          {
+            echo "REPOSITORY=${{ github.repository }}"
+            echo "PULL_REQUEST_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}"
+            echo "PR_URL=${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number || github.event.issue.number }}"
+            echo "ADDITIONAL_CONTEXT=Review ${{ github.repository }} pull request #${{ github.event.pull_request.number || github.event.issue.number }} (${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number || github.event.issue.number }})."
+          } >> "$GITHUB_ENV"
       - name: Gemini Code Assist
         uses: google-github-actions/run-gemini-cli@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number || github.event.issue.number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
