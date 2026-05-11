@@ -30,16 +30,22 @@ if ($BatchFile) {
                 $argsList = @("--url", "$safeUrl", "--outdir", "$outDir")
 
                 if (Test-Path -LiteralPath $venvExe) {
-                    Start-Process -FilePath $venvExe -ArgumentList $argsList -Wait
+                    $proc = Start-Process -FilePath $venvExe -ArgumentList $argsList -Wait -PassThru -NoNewWindow
+                    if ($proc.ExitCode -ne 0) {
+                        Write-Warning "Conversion failed for $safeUrl (exit code: $($proc.ExitCode))"
+                    }
                 } elseif (Test-Path -LiteralPath $pyScript) {
                     $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
                     $argsList = @("$pyScript") + $argsList
-                    Start-Process -FilePath $pyCmd -ArgumentList $argsList -Wait
+                    $proc = Start-Process -FilePath $pyCmd -ArgumentList $argsList -Wait -PassThru -NoNewWindow
+                    if ($proc.ExitCode -ne 0) {
+                        Write-Warning "Conversion failed for $safeUrl (exit code: $($proc.ExitCode))"
+                    }
                 } else {
                     Write-Error "Could not find html2md executable or script."
                 }
             } else {
-                Write-Error "Skipping invalid URL: $url"
+                Write-Warning "Skipping invalid URL: $url"
             }
         }
     }

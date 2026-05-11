@@ -7,8 +7,9 @@ from pathlib import Path
 import pytest
 
 
-def get_powershell_executable():
-    """Return an available PowerShell executable, or None if unavailable."""
+@pytest.fixture
+def powershell_exe():
+    """Return an available PowerShell executable, or skip if unavailable."""
     for candidate in ("pwsh", "powershell"):
         executable = shutil.which(candidate)
         if executable is None:
@@ -29,14 +30,10 @@ def get_powershell_executable():
         if probe.returncode == 0:
             return executable
 
-    return None
+    pytest.skip("PowerShell not available on this system")
 
 
-PS_EXE = get_powershell_executable()
-
-
-@pytest.mark.skipif(PS_EXE is None, reason="PowerShell not available on this system")
-def test_batch_mode_rejects_unsupported_schemes(tmp_path):
+def test_batch_mode_rejects_unsupported_schemes(tmp_path, powershell_exe):
     """Batch mode rejects non-HTTP(S) URLs before invoking the converter."""
     repo_script = Path(__file__).resolve().parents[1] / "gui-url-convert.ps1"
     script_path = tmp_path / "gui-url-convert.ps1"
@@ -46,7 +43,7 @@ def test_batch_mode_rejects_unsupported_schemes(tmp_path):
     batch_file.write_text("file:///etc/passwd\nhttp://example.com\n", encoding="utf-8")
 
     cmd = [
-        PS_EXE,
+        powershell_exe,
         "-NoProfile",
         "-NonInteractive",
         "-File",
@@ -58,6 +55,7 @@ def test_batch_mode_rejects_unsupported_schemes(tmp_path):
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
+    assert result.returncode == 0, f"Script exited with code {result.returncode}"
     combined_output = result.stdout + result.stderr
     assert "Skipping invalid URL: file:///etc/passwd" in combined_output
     assert "Processing: http://example.com/" in result.stdout
