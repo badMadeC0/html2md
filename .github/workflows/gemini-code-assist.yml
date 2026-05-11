@@ -59,11 +59,58 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Strip PR-supplied Gemini config
-        # Project-local .gemini/commands/*.toml shadow extension commands
+        # Project-local .gemini/commands/*.toml shadow generated commands
         # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
         # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
         # so wiping it is safe and removes the attack surface.
         run: rm -rf .gemini
+      - name: Generate Gemini PR review command
+        # Keep the review prompt aligned with the MCP tools exposed below. The
+        # upstream code-review extension prompt currently calls legacy
+        # create/submit review tools that this workflow does not allow.
+        run: |
+          mkdir -p .gemini/commands
+          cat > .gemini/commands/pr-code-review.toml <<'EOF'
+          description = "Reviews the code changes in a pull request"
+          prompt = """
+          <CONTEXT>
+          **GitHub Repository**: $REPOSITORY
+          **Pull Request Number**: $PULL_REQUEST_NUMBER
+          **Additional User Instructions**: $ADDITIONAL_CONTEXT
+          </CONTEXT>
+
+          <TASK>
+          Review this pull request for correctness, regressions, security issues,
+          data-loss risks, and maintainability problems introduced by the diff.
+          Focus only on actionable findings caused by the changed lines.
+          </TASK>
+
+          <TOOLS>
+          Use only these GitHub MCP tools for pull request review operations:
+          - pull_request_read
+          - pull_request_review_write
+          - add_comment_to_pending_review
+          </TOOLS>
+
+          <PROTOCOL>
+          1. Parse $REPOSITORY into owner and repo, and parse
+             $PULL_REQUEST_NUMBER as pullNumber.
+          2. Call pull_request_read with method "get" to read PR metadata.
+          3. Call pull_request_read with method "get_diff" to read the diff.
+          4. Start a pending review by calling pull_request_review_write with
+             method "create". If a pending review already exists, continue.
+          5. For each high-confidence finding, call add_comment_to_pending_review
+             with the path, side, and line from the diff. Include a severity
+             prefix such as [P1], [P2], or [P3]. When a precise replacement is
+             useful, include a fenced ```suggestion block.
+          6. Submit the pending review by calling pull_request_review_write with
+             method "submit", event "COMMENT", and a concise markdown summary.
+             Never use APPROVE or REQUEST_CHANGES.
+          7. If there are no actionable findings, still submit a COMMENT review
+             summarizing that no issues were found.
+          </PROTOCOL>
+          """
+          EOF
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -72,10 +119,11 @@ jobs:
           GEMINI_CLI_TRUST_WORKSPACE: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Consumed by the code-review extension's /pr-code-review prompt
-          # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
+          # Consumed by the generated /pr-code-review prompt template via
+          # $REPOSITORY, $PULL_REQUEST_NUMBER, and $ADDITIONAL_CONTEXT expansions.
           REPOSITORY: ${{ github.repository }}
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          ADDITIONAL_CONTEXT: ""
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
@@ -120,10 +168,6 @@ jobs:
                 ]
               }
             }
-          extensions: |
-            [
-              "https://github.com/gemini-cli-extensions/code-review@dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04"
-            ]
           prompt: "/pr-code-review"
       - name: Note Gemini API quota exhaustion
         if: >
