@@ -20,8 +20,7 @@ if ($BatchFile) {
     $pyScript = Join-Path $scriptDir "html2md.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
-    $urls = Get-Content -LiteralPath $BatchFile
-    foreach ($line in $urls) {
+    foreach ($line in Get-Content -LiteralPath $BatchFile) {
         $url = $line.Trim()
         if ([string]::IsNullOrWhiteSpace($url)) { continue }
 
