@@ -38,7 +38,7 @@ jobs:
           request = urllib.request.Request(
               url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
               data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
+                  {"body": "@jules please review this pull request."}
               ).encode("utf-8"),
               headers={
                   "Accept": "application/vnd.github+json",
@@ -51,7 +51,7 @@ jobs:
           try:
               with urllib.request.urlopen(request) as response:
                   print(
-                      "Requested review from @google-labs-jules via comment on "
+                      "Requested review from @jules via comment on "
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
