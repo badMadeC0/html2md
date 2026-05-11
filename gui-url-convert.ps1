@@ -13,6 +13,10 @@ if ($BatchFile) {
         Write-Error "Batch file not found: $BatchFile"
         exit 1
     }
+    
+    # Check if this is a temp file created by the GUI (temp files are in %TEMP%)
+    $isTempFile = $BatchFile -like "$env:TEMP\*"
+    
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
@@ -20,33 +24,45 @@ if ($BatchFile) {
     $pyScript = Join-Path $scriptDir "html2md.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
-    $urls = Get-Content -LiteralPath $BatchFile
-    foreach ($line in $urls) {
-        $url = $line.Trim()
-        if ([string]::IsNullOrWhiteSpace($url)) { continue }
+    try {
+        $urls = Get-Content -LiteralPath $BatchFile
+        foreach ($line in $urls) {
+            $url = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($url)) { continue }
 
-        # Security Validation
-        $uriOut = $null
-        if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
-            $url = $uriOut.AbsoluteUri
-        } else {
-            Write-Error "Invalid URL skipped: $url"
-            continue
+            # Security Validation
+            $uriOut = $null
+            if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriOut) -and $uriOut.Scheme -match '^https?$') {
+                $url = $uriOut.AbsoluteUri
+            } else {
+                Write-Error "Invalid URL skipped: $url"
+                continue
+            }
+
+            Write-Host "Processing: $url"
+            # Default to main content unless BatchWholePage is set
+            $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
+            if (-not $BatchWholePage) { $argsList += "--main-content" }
+
+            if (Test-Path -LiteralPath $venvExe) {
+                & $venvExe $argsList
+            } elseif (Test-Path -LiteralPath $pyScript) {
+                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+                $argsList = @("$pyScript") + $argsList
+                & $pyCmd $argsList
+            } else {
+                Write-Error "Could not find html2md executable or script."
+            }
         }
-
-        Write-Host "Processing: $url"
-        # Default to main content unless BatchWholePage is set
-        $argsList = @("--url", "$url", "--outdir", "$outDir", "--all-formats")
-        if (-not $BatchWholePage) { $argsList += "--main-content" }
-
-        if (Test-Path -LiteralPath $venvExe) {
-            & $venvExe $argsList
-        } elseif (Test-Path -LiteralPath $pyScript) {
-            $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-            $argsList = @("$pyScript") + $argsList
-            & $pyCmd $argsList
-        } else {
-            Write-Error "Could not find html2md executable or script."
+    } finally {
+        # Clean up temp file if it was created by the GUI
+        if ($isTempFile -and (Test-Path -LiteralPath $BatchFile)) {
+            try {
+                Remove-Item -LiteralPath $BatchFile -Force -ErrorAction SilentlyContinue
+                Write-Host "Cleaned up temporary batch file: $BatchFile"
+            } catch {
+                Write-Warning "Could not delete temporary file: $BatchFile"
+            }
         }
     }
     exit
@@ -311,16 +327,16 @@ $ConvertBtn.Add_Click({
     $urlList = $validatedUrls.ToArray()
 
     # Reject quotes and other dangerous metacharacters in outdir for defense-in-depth.
-    # We allow () and [] as they are common in Windows paths and safe within quoted arguments.
-    if ($outdir -match '[&|;<>^"]' -or $outdir -match '%') {
+    # We allow (), [], and % as they are common/safe in Windows paths when properly quoted.
+    if ($outdir -match '[&|;<>^"]') {
         [System.Windows.MessageBox]::Show("Invalid characters detected in output directory (e.g. quotes or redirects).","Security Warning","OK","Warning") | Out-Null
         $ProgressBar.IsIndeterminate = $false
         return
     }
     # ---------------------------
 
-    if (-not (Test-Path $outdir)) {
-        try { New-Item -ItemType Directory -Path $outdir -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $outdir)) {
+        try { New-Item -ItemType Directory -LiteralPath $outdir -Force | Out-Null }
         catch {}
     }
 
@@ -329,15 +345,16 @@ $ConvertBtn.Add_Click({
         $scriptDir = (Get-Location).Path
     }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
-
     # Attempt to use Short Path (8.3) to avoid path-escaping issues in PowerShell/CMD
     try {
         $fso = New-Object -ComObject Scripting.FileSystemObject
         $short = $fso.GetFolder($scriptDir).ShortPath
         if ($short) { $scriptDir = $short }
     } catch {}
+
+    # Initialize paths to html2md executable and script
+    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
+    $pyScript = Join-Path $scriptDir "html2md.py"
 
     # Check for Python executable
     $pyCmd = "python"
@@ -354,10 +371,12 @@ $ConvertBtn.Add_Click({
 
     # Use a robust way to launch the process:
     # 1. Revert to ProcessStartInfo for precise control over the command line.
-    # 2. Use powershell.exe to keep the window open with -NoExit.
+    # 2. Use powershell.exe with -NoProfile to avoid side effects and keep the window open with -NoExit.
     # 3. Use -File for batch mode and -EncodedCommand for single URL mode.
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
+    $powershellPath = Join-Path $PSHOME "powershell.exe"
+    if (-not (Test-Path -LiteralPath $powershellPath)) { $powershellPath = "powershell.exe" }
+    $psi.FileName = $powershellPath
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
@@ -365,17 +384,26 @@ $ConvertBtn.Add_Click({
         # --- BATCH MODE ---
         $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
         $tempFile = [System.IO.Path]::GetTempFileName()
-        $urlList | Set-Content -Path $tempFile
+        $urlList | Set-Content -LiteralPath $tempFile
+
+        # Normalize outdir to avoid trailing backslash issues with Windows command-line parsing
+        # A trailing backslash can escape the closing quote in "C:\"
+        $normalizedOutDir = $outdir.TrimEnd('\')
+        if ($normalizedOutDir.Length -eq 2 -and $normalizedOutDir.EndsWith(':')) {
+            # Drive root like "C:" needs the backslash
+            $normalizedOutDir += '\'
+        }
 
         # Sanitize for -File arguments by using double quotes to handle spaces
         # Windows command line splitting treats " as the primary quote character.
         $safeCommandPath = "`"$PSCommandPath`""
         $safeTempFile = "`"$tempFile`""
-        $safeOutDir = "`"$outdir`""
+        $safeOutDir = "`"$normalizedOutDir`""
 
         # Relaunch this script in batch mode
         # Use -File with double-quoted paths for robust Windows command-line handling
-        $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File $safeCommandPath -BatchFile $safeTempFile -BatchOutDir $safeOutDir"
+        # Pass the temp file path so the batch process can clean it up
+        $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -File $safeCommandPath -BatchFile $safeTempFile -BatchOutDir $safeOutDir"
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
@@ -398,13 +426,13 @@ $ConvertBtn.Add_Click({
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
             $command = "& $safeVenvExe --url $safeUrl --outdir $safeOutDir --all-formats$optArg"
             $encodedCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
-            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
+            $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
             $command = "& $safePyCmd $safePyScript --url $safeUrl --outdir $safeOutDir --all-formats$optArg"
             $encodedCommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($command))
-            $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
+            $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedCommand"
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
