@@ -55,10 +55,14 @@ def main(argv=None):
         })
 
         def decode_response_content(response, content_bytes: bytearray) -> str:
-            """Decode streamed bytes without reading the consumed response body."""
-            encoding = getattr(response, 'encoding', None)
-            if not isinstance(encoding, str) or not encoding:
-                encoding = 'utf-8'
+            """Decode streamed bytes without reading consumed response content."""
+            # response.apparent_encoding inspects response.content, which raises
+            # RuntimeError after a streamed response has been consumed. Only use
+            # the header-provided encoding and fall back to utf-8 for the bytes
+            # already collected from iter_content().
+            encoding = (
+                response.encoding if isinstance(response.encoding, str) else 'utf-8'
+            )
             try:
                 return bytes(content_bytes).decode(encoding, errors='replace')
             except LookupError:

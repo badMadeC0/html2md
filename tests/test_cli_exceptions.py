@@ -1,7 +1,7 @@
 """Tests for html2md CLI exception-handling paths."""
 import io
 import unittest
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import requests  # type: ignore[import-untyped]
 
@@ -114,15 +114,21 @@ class TestCliExceptions(unittest.TestCase):
                 mock_md.assert_not_called()
                 mock_resp.__exit__.assert_called_once()
 
-    def test_streamed_decode_uses_utf8_when_charset_missing(self):
-        """Missing charset should fall back to utf-8 without apparent_encoding."""
+    def test_streamed_decode_avoids_apparent_encoding_after_consumption(self):
+        """Missing charset should not read apparent_encoding after streaming."""
         captured_stdout = io.StringIO()
         with patch('sys.stdout', captured_stdout):
             with patch('requests.Session.get') as mock_get:
-                mock_get.return_value = make_stream_response(
-                    chunks=["<p>café</p>".encode('utf-8')],
+                mock_response = make_stream_response(
+                    chunks=[b"<p>ok</p>"],
                     encoding=None,
                 )
+                type(mock_response).apparent_encoding = PropertyMock(
+                    side_effect=RuntimeError(
+                        "The content for this response was already consumed"
+                    )
+                )
+                mock_get.return_value = mock_response
 
                 with patch(
                     'markdownify.markdownify',
@@ -132,8 +138,8 @@ class TestCliExceptions(unittest.TestCase):
 
         self.assertEqual(result, 0)
         mock_md.assert_called_once()
-        self.assertIn("café", mock_md.call_args.args[0])
-        self.assertIn("café", captured_stdout.getvalue())
+        self.assertIn("ok", mock_md.call_args.args[0])
+        self.assertIn("ok", captured_stdout.getvalue())
 
     def test_streamed_decode_does_not_read_apparent_encoding(self):
         """Consumed streamed bodies must not trigger apparent_encoding access."""
