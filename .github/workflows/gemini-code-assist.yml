@@ -27,19 +27,50 @@ jobs:
     env:
       GEMINI_API_KEY_AVAILABLE: ${{ secrets.GEMINI_API_KEY != '' }}
     steps:
+      - name: Resolve PR trust
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+
+          echo "number=${PR_NUMBER}" >> "${GITHUB_OUTPUT}"
+
+          if [[ -n "${PR_HEAD_REPO}" ]]; then
+            if [[ "${PR_HEAD_REPO}" == "${GITHUB_REPOSITORY}" ]]; then
+              echo "trusted=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "trusted=false" >> "${GITHUB_OUTPUT}"
+              echo "Skipping Gemini Code Assist for forked pull request #${PR_NUMBER}."
+            fi
+            exit 0
+          fi
+
+          if gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.repo.full_name == .base.repo.full_name' | grep -qx 'true'; then
+            echo "trusted=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "trusted=false" >> "${GITHUB_OUTPUT}"
+            echo "Skipping Gemini Code Assist for forked pull request #${PR_NUMBER}."
+          fi
+
       - uses: actions/checkout@v4
+        if: env.GEMINI_API_KEY_AVAILABLE == 'true' && steps.pr.outputs.trusted == 'true'
         with:
           fetch-depth: 0
+
       - name: Gemini Code Assist
-        if: env.GEMINI_API_KEY_AVAILABLE == 'true'
+        if: env.GEMINI_API_KEY_AVAILABLE == 'true' && steps.pr.outputs.trusted == 'true'
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
           GH_TOKEN: ${{ github.token }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          github_pr_number: ${{ steps.pr.outputs.number }}
           prompt: |
-            You are Gemini Code Assist reviewing pull request #${{ github.event.pull_request.number || github.event.issue.number }} in ${{ github.repository }}.
+            You are Gemini Code Assist reviewing pull request #${{ steps.pr.outputs.number }} in ${{ github.repository }}.
 
             Review the pull request changes and post actionable review feedback to GitHub. Use the available repository checkout and GitHub CLI (`gh`) as needed. The `GH_TOKEN` environment variable is already configured for GitHub API access.
 
@@ -53,6 +84,6 @@ jobs:
             - Do not modify files or push commits.
 
             Suggested commands:
-            - `gh pr view ${{ github.event.pull_request.number || github.event.issue.number }} --json title,body,baseRefName,headRefName,author,url`
-            - `gh pr diff ${{ github.event.pull_request.number || github.event.issue.number }}`
-            - `gh pr comment ${{ github.event.pull_request.number || github.event.issue.number }} --body-file <file>`
+            - `gh pr view ${{ steps.pr.outputs.number }} --json title,body,baseRefName,headRefName,author,url`
+            - `gh pr diff ${{ steps.pr.outputs.number }}`
+            - `gh pr comment ${{ steps.pr.outputs.number }} --body-file <file>`
