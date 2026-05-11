@@ -54,12 +54,13 @@ jobs:
               "Content-Type": "application/json",
           }
 
-          # --- Fetch unresolved review threads via GraphQL ---
+          # --- Fetch unresolved review threads via GraphQL (paginated) ---
           query = """
-          query($owner: String!, $repo: String!, $pr: Int!) {
+          query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
             repository(owner: $owner, name: $repo) {
               pullRequest(number: $pr) {
-                reviewThreads(first: 100) {
+                reviewThreads(first: 100, after: $after) {
+                  pageInfo { hasNextPage endCursor }
                   nodes {
                     isResolved
                     isOutdated
@@ -79,27 +80,44 @@ jobs:
           }
           """
 
-          gql_req = urllib.request.Request(
-              url=graphql_url,
-              data=json.dumps({
-                  "query": query,
-                  "variables": {"owner": owner, "repo": repo_name, "pr": pr_number},
-              }).encode("utf-8"),
-              headers=auth_headers,
-              method="POST",
-          )
+          threads = []
+          cursor = None
+          while True:
+              gql_req = urllib.request.Request(
+                  url=graphql_url,
+                  data=json.dumps({
+                      "query": query,
+                      "variables": {
+                          "owner": owner,
+                          "repo": repo_name,
+                          "pr": pr_number,
+                          "after": cursor,
+                      },
+                  }).encode("utf-8"),
+                  headers=auth_headers,
+                  method="POST",
+              )
 
-          with urllib.request.urlopen(gql_req) as resp:
-              gql_data = json.loads(resp.read().decode("utf-8"))
+              with urllib.request.urlopen(gql_req) as resp:
+                  gql_data = json.loads(resp.read().decode("utf-8"))
 
-          threads = (
-              gql_data
-              .get("data", {})
-              .get("repository", {})
-              .get("pullRequest", {})
-              .get("reviewThreads", {})
-              .get("nodes", [])
-          )
+              if gql_data.get("errors"):
+                  for err in gql_data["errors"]:
+                      print(f"GraphQL error: {err.get('message', err)}")
+                  sys.exit(1)
+
+              rt = (
+                  gql_data
+                  .get("data", {})
+                  .get("repository", {})
+                  .get("pullRequest", {})
+                  .get("reviewThreads", {})
+              )
+              threads.extend(rt.get("nodes", []))
+              page_info = rt.get("pageInfo", {})
+              if not page_info.get("hasNextPage"):
+                  break
+              cursor = page_info["endCursor"]
 
           unresolved = []
           for thread in threads:
@@ -132,22 +150,20 @@ jobs:
               lines.append(f"- [ ] [{label}]({item['url']})")
           todo_body = "\n".join(lines)
 
-          # --- Deduplication: skip if exact comment already exists ---
-          page = 1
-          while True:
-              list_req = urllib.request.Request(
-                  url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
-                  headers=auth_headers,
-                  method="GET",
-              )
-              with urllib.request.urlopen(list_req) as resp:
-                  existing = json.loads(resp.read().decode("utf-8"))
-              if any(c["body"].strip() == todo_body.strip() for c in existing):
-                  print("Identical ToDo comment already exists — skipping duplicate.")
-                  sys.exit(0)
-              if len(existing) < 100:
-                  break
-              page += 1
+          # --- Deduplication: check most recent comments newest-first ---
+          list_req = urllib.request.Request(
+              url=(
+                  f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+                  f"?per_page=100&sort=created&direction=desc"
+              ),
+              headers=auth_headers,
+              method="GET",
+          )
+          with urllib.request.urlopen(list_req) as resp:
+              recent = json.loads(resp.read().decode("utf-8"))
+          if any(c["body"].strip() == todo_body.strip() for c in recent):
+              print("Identical ToDo comment already exists — skipping duplicate.")
+              sys.exit(0)
 
           # --- Post the ToDo comment ---
           post_req = urllib.request.Request(
