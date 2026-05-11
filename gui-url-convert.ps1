@@ -314,8 +314,12 @@ $ConvertBtn.Add_Click({
     # ---------------------------
 
     if (-not (Test-Path -LiteralPath $outdir)) {
-        try { New-Item -ItemType Directory -LiteralPath $outdir -Force | Out-Null }
-        catch {}
+        try { New-Item -ItemType Directory -LiteralPath $outdir -Force -ErrorAction Stop | Out-Null }
+        catch {
+            [System.Windows.MessageBox]::Show("Failed to create output directory:`n$outdir`n`n$($_.Exception.Message)","Output Directory Error","OK","Error") | Out-Null
+            $ProgressBar.IsIndeterminate = $false
+            return
+        }
     }
 
     $scriptDir = Split-Path -Parent $PSCommandPath
