@@ -124,18 +124,21 @@ class TestCliExceptions(unittest.TestCase):
                     chunks=[b"<p>ok</p>"],
                     encoding=None,
                 )
-                type(mock_response).apparent_encoding = PropertyMock(
+                with patch.object(
+                    type(mock_response),
+                    'apparent_encoding',
+                    new_callable=PropertyMock,
+                    create=True,
                     side_effect=RuntimeError(
                         "The content for this response was already consumed"
-                    )
-                )
-                mock_get.return_value = mock_response
-
-                with patch(
-                    'markdownify.markdownify',
-                    side_effect=lambda html, **_: html,
-                ) as mock_md:
-                    result = main(['--url', 'http://example.com'])
+                    ),
+                ):
+                    mock_get.return_value = mock_response
+                    with patch(
+                        'markdownify.markdownify',
+                        side_effect=lambda html, **_: html,
+                    ) as mock_md:
+                        result = main(['--url', 'http://example.com'])
 
         self.assertEqual(result, 0)
         mock_md.assert_called_once()
