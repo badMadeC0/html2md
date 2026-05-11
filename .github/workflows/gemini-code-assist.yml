@@ -60,13 +60,15 @@ jobs:
           persist-credentials: false
       - name: Remove PR-local Gemini configuration overrides
         # Project-local Gemini commands, workspace extensions, and .env files
-        # can alter Gemini CLI behavior before the pinned code-review extension
-        # runs. Remove these checkout-provided control surfaces so a PR cannot
+        # (including the repository-root .env that Gemini loads from the
+        # current working directory) can alter Gemini CLI behavior before the
+        # pinned code-review extension runs. Remove these checkout-provided
+        # control surfaces so a PR cannot
         # hijack /pr-code-review, load attacker-controlled MCP servers, or
         # replace Gemini-specific environment settings such as GEMINI_SYSTEM_MD.
         run: |
           rm -rf .gemini/commands .gemini/extensions
-          rm -f .gemini/.env .gemini/.env.*
+          rm -f .env .env.* .gemini/.env .gemini/.env.*
           if find .gemini -path '*/commands/pr-code-review.toml' -print -quit 2>/dev/null | grep -q .; then
             echo "::error::PR-local Gemini pr-code-review command override is still present."
             exit 1
@@ -75,8 +77,12 @@ jobs:
             echo "::error::PR-local Gemini workspace extension is still present."
             exit 1
           fi
+          if find . -maxdepth 1 -name '.env*' -print -quit | grep -q .; then
+            echo "::error::PR-local repository-root Gemini .env file is still present."
+            exit 1
+          fi
           if find .gemini -maxdepth 1 -name '.env*' -print -quit 2>/dev/null | grep -q .; then
-            echo "::error::PR-local Gemini .env file is still present."
+            echo "::error::PR-local Gemini .gemini/.env file is still present."
             exit 1
           fi
       - name: Gemini Code Assist
