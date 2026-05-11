@@ -2,6 +2,8 @@ name: Gemini Code Assist
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
   pull_request_review_comment:
     types: [created]
   issue_comment:
@@ -17,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
       ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
         (github.event.comment.author_association == 'MEMBER' ||
@@ -26,7 +30,7 @@ jobs:
          contains(github.event.comment.body, '@gemini-code-assist')))
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_CLI_TRUST_WORKSPACE: "true"
+      GEMINI_CLI_TRUST_WORKSPACE: 'true'
     steps:
       - name: Resolve PR head SHA
         id: pr_head
@@ -35,7 +39,9 @@ jobs:
         with:
           script: |
             let pr;
-            if (context.eventName === "pull_request_review_comment") {
+            if (context.eventName === "pull_request") {
+              pr = context.payload.pull_request;
+            } else if (context.eventName === "pull_request_review_comment") {
               pr = context.payload.pull_request;
             } else if (context.eventName === "issue_comment" && context.payload.issue?.pull_request) {
               const response = await github.rest.pulls.get({
@@ -47,14 +53,14 @@ jobs:
             }
 
             if (!pr) {
-              core.setFailed("Could not resolve pull request from event payload. This workflow requires pull_request_review_comment or issue_comment on a pull request.");
+              core.setFailed("Could not resolve pull request from event payload. This workflow requires pull_request, pull_request_review_comment, or issue_comment on a pull request.");
               return;
             }
 
             const sameRepo = pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("is_same_repo", String(sameRepo));
-            core.setOutput("pr_number", String(pr.number));
+            core.setOutput("number", String(pr.number));
 
       - uses: actions/checkout@v6
         if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
@@ -70,7 +76,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body || '' }}
           COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.actor }}
           COMMENT_URL: ${{ github.event.comment.html_url || github.server_url }}
-          PR_NUMBER: ${{ steps.pr_head.outputs.pr_number || github.event.pull_request.number || github.event.issue.number || '' }}
+          PR_NUMBER: ${{ steps.pr_head.outputs.number || github.event.pull_request.number || github.event.issue.number || '' }}
           REPOSITORY: ${{ github.repository }}
         run: |
           if [[ "$COMMENT_BODY" == *"/review"* ]]; then
@@ -81,22 +87,18 @@ jobs:
             if [[ -n "$PR_NUMBER" ]]; then
               pr_context="#${PR_NUMBER}"
             fi
+            default_body="Manual workflow_dispatch run: review the checked-out repository and summarize any actionable findings."
             {
               echo "prompt<<${delimiter}"
-              cat <<PROMPT
-          You are Gemini Code Assist running in a GitHub Actions workflow for ${REPOSITORY}.
-
-          Event: ${EVENT_NAME}
-          Pull request: ${pr_context}
-          Comment author: ${COMMENT_AUTHOR}
-          Comment URL: ${COMMENT_URL}
-
-          Respond to the pull request by carrying out the request in the triggering comment.
-          Use the GitHub CLI or GitHub API when you need pull request details, diffs, or to post feedback.
-
-          Triggering comment:
-          ${COMMENT_BODY:-Manual workflow_dispatch run: review the checked-out repository and summarize any actionable findings.}
-          PROMPT
+              printf 'You are Gemini Code Assist running in a GitHub Actions workflow for %s.\n\n' "${REPOSITORY}"
+              printf 'Event: %s\n' "${EVENT_NAME}"
+              printf 'Pull request: %s\n' "${pr_context}"
+              printf 'Comment author: %s\n' "${COMMENT_AUTHOR}"
+              printf 'Comment URL: %s\n\n' "${COMMENT_URL}"
+              printf 'Respond to the pull request by carrying out the request in the triggering comment.\n'
+              printf 'Use the GitHub CLI or GitHub API when you need pull request details, diffs, or to post feedback.\n\n'
+              printf 'Triggering comment:\n'
+              printf '%s\n' "${COMMENT_BODY:-${default_body}}"
               echo "${delimiter}"
             } >> "$GITHUB_OUTPUT"
           fi
@@ -106,12 +108,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ steps.pr_head.outputs.pr_number || github.event.pull_request.number || github.event.issue.number || '' }}
-          ADDITIONAL_CONTEXT: ${{ github.event.comment.body || 'Manual workflow_dispatch run.' }}
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
-          github_pr_number: ${{ steps.pr_head.outputs.pr_number || github.event.pull_request.number || github.event.issue.number || '' }}
+          github_pr_number: ${{ steps.pr_head.outputs.number || github.event.pull_request.number || github.event.issue.number || '' }}
           settings: |
             {
               "model": {
