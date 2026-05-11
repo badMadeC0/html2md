@@ -66,6 +66,23 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return
 
+            import ipaddress
+            import socket
+
+            try:
+                hostname = parsed.hostname
+                if hostname:
+                    # Resolve all IP addresses (IPv4 and IPv6) for the hostname
+                    addr_infos = socket.getaddrinfo(hostname, None)
+                    for addr_info in addr_infos:
+                        ip = addr_info[4][0]
+                        ip_obj = ipaddress.ip_address(ip)
+                        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                            print(f"Error: Request to local or private IP address ({ip}) is not allowed for security reasons.", file=sys.stderr)
+                            return
+            except socket.gaierror:
+                pass # let requests handle the resolution failure later
+
             print(f"Processing URL: {target_url}")
 
             try:

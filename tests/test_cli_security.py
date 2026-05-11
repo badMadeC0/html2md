@@ -5,7 +5,13 @@ import pytest
 
 from html2md import cli
 
+try:
+    import requests
+except ImportError:
+    requests = None
 
+
+@pytest.mark.skipif(requests is None, reason="requests not installed")
 @pytest.mark.parametrize(
     "url, scheme",
     [
@@ -23,6 +29,31 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@pytest.mark.skipif(requests is None, reason="requests not installed")
+@patch("requests.Session.get")
+def test_ssrf_protection_rejects_local_ips(mock_get, capsys, tmp_path):
+    """Local and private IP addresses should be rejected for security reasons."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    urls = [
+        "http://127.0.0.1/test",
+        "http://192.168.1.1/admin",
+        "http://10.0.0.5/api",
+        "http://localhost/secret",
+        "http://[::1]/",
+        "http://169.254.169.254/latest/meta-data/",
+    ]
+
+    for url in urls:
+        cli.main(["--url", url, "--outdir", str(outdir)])
+        outerr = capsys.readouterr()
+        assert "Error: Request to local or private IP address" in outerr.err
+
+    mock_get.assert_not_called()
+
+
+@pytest.mark.skipif(requests is None, reason="requests not installed")
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""

@@ -4,7 +4,11 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
-import requests  # type: ignore[import-untyped]
+
+try:
+    import requests  # type: ignore[import-untyped]
+except ImportError:
+    requests = None
 
 # Ensure src is in path before importing the local package.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
@@ -12,6 +16,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
 
 
+@unittest.skipIf(requests is None, "requests is not installed")
 class TestCliError(unittest.TestCase):
     """Unit tests for CLI network and conversion error handling."""
 
