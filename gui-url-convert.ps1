@@ -380,8 +380,6 @@ $ConvertBtn.Add_Click({
             $wholePageArg = " --whole-page"
         }
 
-        $wholePageArg = if ($WholePageChk.IsChecked) { " --whole-page" } else { "" }
-
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
             $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' --url '$safeUrl' --outdir '$safeOutDir'$wholePageArg`""
