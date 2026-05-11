@@ -1,7 +1,7 @@
 """Tests for html2md CLI exception-handling paths."""
 import io
 import unittest
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import requests  # type: ignore[import-untyped]
 
@@ -115,21 +115,26 @@ class TestCliExceptions(unittest.TestCase):
                 mock_md.assert_not_called()
                 mock_resp.__exit__.assert_called_once()
 
-    def test_streamed_decode_uses_apparent_encoding_when_charset_missing(self):
-        """Missing charset should use Requests-style apparent encoding fallback."""
-        word = "café"
+    def test_streamed_decode_avoids_apparent_encoding_after_consumption(self):
+        """Missing charset should not read apparent_encoding after streaming."""
         captured_stdout = io.StringIO()
         with patch('sys.stdout', captured_stdout):
             with patch('requests.Session.get') as mock_get:
-                mock_get.return_value = make_stream_response(
-                    chunks=[f"<p>{word}</p>".encode('iso-8859-1')],
+                mock_response = make_stream_response(
+                    chunks=[b"<p>ok</p>"],
                     encoding=None,
-                    apparent_encoding='iso-8859-1',
                 )
+                type(mock_response).apparent_encoding = PropertyMock(
+                    side_effect=RuntimeError(
+                        "The content for this response was already consumed"
+                    )
+                )
+                mock_get.return_value = mock_response
 
                 with patch(
                     'requests.compat.chardet.detect',
                     return_value={'encoding': 'iso-8859-1'},
+                    create=True,
                 ), patch(
                     'markdownify.markdownify',
                     side_effect=lambda html, **_: html,
@@ -138,8 +143,8 @@ class TestCliExceptions(unittest.TestCase):
 
         self.assertEqual(result, 0)
         mock_md.assert_called_once()
-        self.assertIn(word, mock_md.call_args.args[0])
-        self.assertIn(word, captured_stdout.getvalue())
+        self.assertIn("ok", mock_md.call_args.args[0])
+        self.assertIn("ok", captured_stdout.getvalue())
 
     def test_streamed_decode_does_not_read_response_apparent_encoding(self):
         """Successful streamed downloads must not inspect consumed response content."""
@@ -180,7 +185,6 @@ class TestCliExceptions(unittest.TestCase):
             mock_get.return_value = make_stream_response(
                 chunks=["<p>ok</p>".encode('utf-8')],
                 encoding='not-a-real-codec',
-                apparent_encoding='utf-8',
             )
 
             with patch(

@@ -56,13 +56,13 @@ def main(argv=None):
         })
 
         def detect_streamed_encoding(
-            content_bytes: bytearray, encoding_detector: Any
+            byte_content: bytes, encoding_detector: Any
         ) -> Optional[str]:
             """Guess encoding from buffered streamed bytes without re-reading response."""
             if not encoding_detector:
                 return None
             try:
-                detection = encoding_detector.detect(bytes(content_bytes))
+                detection = encoding_detector.detect(byte_content)
             except Exception:  # pylint: disable=broad-exception-caught
                 return None
             if isinstance(detection, dict):
@@ -80,7 +80,7 @@ def main(argv=None):
             byte_content = bytes(content_bytes)
             candidate_encodings = (
                 response_encoding,
-                detect_streamed_encoding(content_bytes, encoding_detector),
+                detect_streamed_encoding(byte_content, encoding_detector),
                 'utf-8',
             )
             attempted: Set[str] = set()
