@@ -76,11 +76,14 @@ jobs:
                   )
                   raise
 
+              if not isinstance(comments, list):
+                  raise ValueError("Expected the comments API to return a list")
+
               for comment in comments:
                   user = comment.get("user") or {}
                   if user.get("login") != "github-actions[bot]":
                       continue
-                  if (comment.get("body") or "") == marker:
+                  if (comment.get("body") or "").strip() == marker:
                       print(
                           f"Review request already present on PR #{pr_number}; skipping."
                       )
