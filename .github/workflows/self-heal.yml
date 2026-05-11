@@ -8,12 +8,11 @@ on:
       - completed
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
 
 jobs:
-  self-heal:
+  repair:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure' &&
@@ -21,12 +20,26 @@ jobs:
        !startsWith(github.event.workflow_run.head_branch, 'self-heal-fixes-'))
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      has_fixes: ${{ steps.patch.outputs.has_fixes }}
     steps:
+      - name: Checkout trusted workflow code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          fetch-depth: 1
+
       - name: Checkout failed revision
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          path: work
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -39,6 +52,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install Python deps
+        working-directory: work
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip wheel setuptools
@@ -47,21 +61,38 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
+        working-directory: work
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          node ../trusted/scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
+        working-directory: work
         run: |
           set -o pipefail
-          node scripts/self-heal.mjs | tee selfheal-repair.txt
+          node ../trusted/scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
+        working-directory: work
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          node ../trusted/scripts/healthcheck.mjs | tee selfheal-post.txt
+
+      - name: Build repair patch
+        id: patch
+        if: steps.post.outcome == 'success'
+        working-directory: work
+        run: |
+          set -euo pipefail
+          rm -f selfheal-pre.txt selfheal-repair.txt selfheal-post.txt
+          if git diff --quiet -- . ':!node_modules' ':!selfheal-*.txt'; then
+            echo "has_fixes=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --binary -- . ':!node_modules' ':!selfheal-*.txt' > ../selfheal.patch
+            echo "has_fixes=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Collect logs
         if: always()
@@ -69,22 +100,55 @@ jobs:
         with:
           name: selfheal-logs
           path: |
-            selfheal-pre.txt
-            selfheal-repair.txt
-            selfheal-post.txt
+            work/selfheal-pre.txt
+            work/selfheal-repair.txt
+            work/selfheal-post.txt
+
+      - name: Upload repair patch
+        if: steps.patch.outputs.has_fixes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-patch
+          path: selfheal.patch
+          if-no-files-found: error
+
+  create-pr:
+    needs: repair
+    if: needs.repair.outputs.has_fixes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Checkout failed revision for patch application
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Download repair patch
+        uses: actions/download-artifact@v4
+        with:
+          name: selfheal-patch
 
       - name: Create PR with fixes
-        if: steps.post.outcome == 'success'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          FIX_BRANCH: self-heal-fixes-${{ github.run_id }}
         run: |
-          rm -f selfheal-pre.txt selfheal-repair.txt selfheal-post.txt
-          if [ -n "$(git status --porcelain -- . ':!node_modules')" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b self-heal-fixes-${{ github.run_id }}
-            git add -- . ':!node_modules' ':!selfheal-*.txt'
-            git commit -m "chore: self-heal auto-fixes"
-            git push origin self-heal-fixes-${{ github.run_id }}
-            gh pr create --title "Self-heal auto-fixes" --body "Auto-generated PR from self-healing workflow. See job logs for details." --label "self-heal"
+          set -euo pipefail
+          git apply --index selfheal.patch
+          rm -f selfheal.patch
+          if git diff --cached --quiet; then
+            echo "Repair patch produced no staged changes; skipping PR creation."
+            exit 0
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$FIX_BRANCH"
+          git commit -m "chore: self-heal auto-fixes"
+          git push origin "$FIX_BRANCH"
+          gh pr create --base "$BASE_BRANCH" --head "$FIX_BRANCH" --title "Self-heal auto-fixes" --body "Auto-generated PR from self-healing workflow. See job logs for details." --label "self-heal"

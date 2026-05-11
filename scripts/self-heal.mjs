@@ -5,6 +5,12 @@
  */
 import { execSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const healthcheckPath = join(scriptDir, "healthcheck.mjs");
+const shellQuote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
 const sh = (cmd, opts = {}) => {
   console.log(`\n$ ${cmd}`);
@@ -26,7 +32,7 @@ const changed = () => getStatus() !== initialStatus;
 
 const passHealth = () => {
   try {
-    sh("node scripts/healthcheck.mjs");
+    sh(`node ${shellQuote(healthcheckPath)}`);
     return true;
   } catch {
     return false;
