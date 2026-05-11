@@ -20,7 +20,8 @@ if ($BatchFile) {
     $pyScript = Join-Path $scriptDir "html2md.py"
     $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
 
-    foreach ($line in Get-Content -LiteralPath $BatchFile) {
+    $urls = Get-Content -LiteralPath $BatchFile
+    foreach ($line in $urls) {
         $url = $line.Trim()
         if ([string]::IsNullOrWhiteSpace($url)) { continue }
 
@@ -314,12 +315,8 @@ $ConvertBtn.Add_Click({
     # ---------------------------
 
     if (-not (Test-Path -LiteralPath $outdir)) {
-        try { New-Item -ItemType Directory -LiteralPath $outdir -Force -ErrorAction Stop | Out-Null }
-        catch {
-            [System.Windows.MessageBox]::Show("Failed to create output directory:`n$outdir`n`n$($_.Exception.Message)","Output Directory Error","OK","Error") | Out-Null
-            $ProgressBar.IsIndeterminate = $false
-            return
-        }
+        try { New-Item -ItemType Directory -LiteralPath $outdir -Force | Out-Null }
+        catch {}
     }
 
     $scriptDir = Split-Path -Parent $PSCommandPath
@@ -362,10 +359,10 @@ $ConvertBtn.Add_Click({
         # --- BATCH MODE ---
         $LogBox.AppendText("Batch mode detected ($($urlList.Count) URLs).`r`n")
         $tempFile = [System.IO.Path]::GetTempFileName()
-        $urlList | Set-Content -LiteralPath $tempFile -Encoding Unicode
+        $urlList | Set-Content -LiteralPath $tempFile
 
         # Sanitize for -File arguments by using double quotes to handle spaces
-        # Windows command line splitting treats " as the primary quote character.
+        # Windows command line splitting treates " as the primary quote character.
         $safeCommandPath = "`"$PSCommandPath`""
         $safeTempFile = "`"$tempFile`""
         $safeOutDir = "`"$outdir`""
