@@ -25,9 +25,6 @@ if ($BatchFile) {
         if (-not [string]::IsNullOrWhiteSpace($url)) {
             Write-Host "Processing: $url"
             $argsList = @("--url", "$url", "--outdir", "$outDir")
-
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
             } elseif (Test-Path -LiteralPath $pyScript) {
                 $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
                 $argsList = @("$pyScript") + $argsList
@@ -376,14 +373,8 @@ $ConvertBtn.Add_Click({
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
             $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' $($singleArgs -join ' ')`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
             $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' $($singleArgs -join ' ')`""
-        }
-        else {
             $StatusText.Text = "Error: html2md executable not found."
             $StatusText.Foreground = "Red"
             $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
