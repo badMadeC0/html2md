@@ -79,7 +79,7 @@ def main(argv=None):
                     if int(response.headers.get('Content-Length', 0)) > max_size:
                         print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                         response.close()
-                        return
+                        return 1
                 except ValueError:
                     # Invalid or non-numeric Content-Length: treat as unknown size.
                     # The streaming loop below still enforces max_size.
@@ -91,11 +91,12 @@ def main(argv=None):
                     if len(content_bytes) > max_size:
                         print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                         response.close()
-                        return
-                response._content = content_bytes
+                        return 1
+                encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
+                html_content = content_bytes.decode(encoding, errors="replace")
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
