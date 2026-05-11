@@ -41,6 +41,7 @@ _EXAMPLE_COM_ADDRINFO = _make_addrinfo("93.184.216.34")
     "10.0.0.1",         # private class A
     "192.168.1.1",      # private class C
     "172.16.0.1",       # private class B
+    "100.64.0.1",       # carrier-grade NAT (not private, but non-global)
     "224.0.0.1",        # multicast
 ])
 def test_check_ssrf_blocks_non_public(blocked_ip):
@@ -104,6 +105,42 @@ def test_process_url_blocks_ssrf(ssrf_url, blocked_ip, capsys):
     outerr = capsys.readouterr()
     assert "SSRF blocked" in outerr.err
 
+
+def test_process_url_pins_validated_dns_answers_during_fetch(capsys):
+    """The CLI must fetch using the same DNS answers validated by the SSRF guard."""
+    public_ip = "93.184.216.34"
+    private_ip = "10.0.0.1"
+    original_resolutions = []
+
+    def rebinding_getaddrinfo(host, port, *args, **kwargs):
+        original_resolutions.append((host, port, args, kwargs))
+        if len(original_resolutions) == 1:
+            return _make_addrinfo(public_ip)
+        return _make_addrinfo(private_ip)
+
+    response = MagicMock()
+    response.text = "<h1>safe</h1>"
+    response.raise_for_status.return_value = None
+    response.status_code = 200
+    response.headers = {}
+    response.iter_content.return_value = iter([b"<h1>safe</h1>"])
+
+    def fake_get(url, **kwargs):
+        pinned = socket.getaddrinfo("rebind.example", 80, type=socket.SOCK_STREAM)
+        assert pinned[0][4] == (public_ip, 80)
+        assert all(result[4][0] == public_ip for result in pinned)
+        assert url == "http://rebind.example/"
+        assert kwargs["allow_redirects"] is False
+        return response
+
+    with patch("socket.getaddrinfo", side_effect=rebinding_getaddrinfo):
+        with patch("requests.Session.get", side_effect=fake_get) as mock_get:
+            cli.main(["--url", "http://rebind.example/"])
+            mock_get.assert_called_once()
+
+    outerr = capsys.readouterr()
+    assert "SSRF blocked" not in outerr.err
+    assert len(original_resolutions) == 1
 
 # ---------------------------------------------------------------------------
 # Existing scheme / path-traversal tests (preserved, now with SSRF mock)

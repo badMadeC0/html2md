@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 import argparse
+from collections.abc import Iterator
+from contextlib import contextmanager
 import ipaddress
 import os
 import socket
@@ -9,31 +11,106 @@ import sys
 from urllib.parse import urlparse, unquote, urljoin
 
 
-def _check_ssrf(hostname: str) -> None:
+_AddrInfo = tuple[int, int, int, str, tuple]
+
+
+def _check_ssrf(hostname: str) -> list[_AddrInfo]:
     """Resolve *hostname* and block any non-globally-routable address.
 
     Uses ``socket.getaddrinfo`` so that every returned address (IPv4 and IPv6)
     is validated, preventing SSRF via dual-stack hosts or unexpected AAAA records.
+    The validated address info is returned so the HTTP request can be pinned to
+    the same DNS answers that were checked.
 
     Raises ``ValueError`` if the hostname cannot be resolved or any resolved
-    address is private, loopback, link-local, or multicast.
+    address is not globally routable.
     """
     try:
-        results = socket.getaddrinfo(hostname, None)
+        results = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
     except OSError as exc:
         raise ValueError(f"Could not resolve hostname '{hostname}'") from exc
     if not results:
         raise ValueError(f"No addresses found for hostname '{hostname}'")
-    for _family, _type, _proto, _canon, sockaddr in results:
-        ip_str = sockaddr[0].split('%')[0]  # strip IPv6 scope-id (e.g. fe80::1%eth0)
+
+    validated_results: list[_AddrInfo] = []
+    for family, socktype, proto, canon, sockaddr in results:
+        ip_str = str(sockaddr[0]).split('%')[0]  # strip IPv6 scope-id (e.g. fe80::1%eth0)
         try:
             ip_obj = ipaddress.ip_address(ip_str)
-        except ValueError:
-            continue
+        except ValueError as exc:
+            raise ValueError(
+                f"Could not parse resolved address '{ip_str}' for hostname '{hostname}'"
+            ) from exc
         if not ip_obj.is_global or ip_obj.is_multicast:
             raise ValueError(
                 f"SSRF blocked: '{hostname}' resolves to non-public address {ip_obj}"
             )
+        validated_results.append((family, socktype, proto, canon, sockaddr))
+
+    if not validated_results:
+        raise ValueError(f"No usable addresses found for hostname '{hostname}'")
+    return validated_results
+
+
+def _normalize_hostname(hostname: object) -> str:
+    """Normalize hostnames for comparing requests' resolver input."""
+    if isinstance(hostname, bytes):
+        hostname = hostname.decode('idna')
+    return str(hostname).rstrip('.').lower()
+
+
+def _with_requested_port(sockaddr: tuple, port: object) -> tuple:
+    """Return *sockaddr* with the port requested by ``getaddrinfo``."""
+    requested_port = 0 if port is None else port
+    if len(sockaddr) == 2:
+        return (sockaddr[0], requested_port)
+    return (sockaddr[0], requested_port, *sockaddr[2:])
+
+
+@contextmanager
+def _pin_resolved_addrinfo(hostname: str, addrinfo: list[_AddrInfo]) -> Iterator[None]:
+    """Temporarily pin ``getaddrinfo`` for *hostname* to validated answers.
+
+    ``requests``/urllib3 performs its own DNS lookup after SSRF validation.
+    During the guarded request, return the already-validated address records for
+    the same hostname so DNS rebinding or round-robin changes cannot swap in an
+    unchecked private/link-local address between validation and connect.
+    """
+    original_getaddrinfo = socket.getaddrinfo
+    pinned_hostname = _normalize_hostname(hostname)
+
+    def pinned_getaddrinfo(
+        host: object,
+        port: object,
+        family: int = 0,
+        type: int = 0,  # pylint: disable=redefined-builtin
+        proto: int = 0,
+        flags: int = 0,
+    ) -> list[_AddrInfo]:
+        if _normalize_hostname(host) == pinned_hostname:
+            matches = [
+                (
+                    result_family,
+                    result_type,
+                    result_proto,
+                    canon,
+                    _with_requested_port(sockaddr, port),
+                )
+                for result_family, result_type, result_proto, canon, sockaddr in addrinfo
+                if family in (0, result_family)
+                and type in (0, result_type)
+                and proto in (0, result_proto)
+            ]
+            if matches:
+                return matches
+        return original_getaddrinfo(host, port, family, type, proto, flags)
+
+    socket.getaddrinfo = pinned_getaddrinfo
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -117,13 +194,14 @@ def main(argv=None):
                         )
                         return
                     try:
-                        _check_ssrf(hop_host)
+                        validated_addrinfo = _check_ssrf(hop_host)
                     except ValueError as ssrf_err:
                         print(f"Error: {ssrf_err}", file=sys.stderr)
                         return
-                    response = session.get(
-                        current_url, timeout=30, stream=True, allow_redirects=False
-                    )
+                    with _pin_resolved_addrinfo(hop_host, validated_addrinfo):
+                        response = session.get(
+                            current_url, timeout=30, stream=True, allow_redirects=False
+                        )
                     if response.status_code in (301, 302, 303, 307, 308):
                         location = response.headers.get('Location', '')
                         if not location:
