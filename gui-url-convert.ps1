@@ -92,8 +92,13 @@ if ($BatchFile) {
             }
 
             Write-Host "Processing: $url"
-            Invoke-Html2MdConversion -Url $url -OutDir $outDir -ScriptDir $scriptDir -WholePage:$BatchWholePage
-            if ($LASTEXITCODE -ne 0) { $batchFailed = $true }
+            try {
+                Invoke-Html2MdConversion -Url $url -OutDir $outDir -ScriptDir $scriptDir -WholePage:$BatchWholePage
+                if ($LASTEXITCODE -ne 0) { $batchFailed = $true }
+            } catch {
+                Write-Error $_
+                $batchFailed = $true
+            }
         }
     } finally {
         # Clean up temp file if it was created by the GUI
