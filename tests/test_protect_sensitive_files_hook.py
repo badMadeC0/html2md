@@ -154,12 +154,6 @@ def test_shell_launcher_fails_closed_when_no_python_launcher_runs(tmp_path: Path
         / "hooks"
         / "run_protect_sensitive_files.sh"
     )
-    for utility in ["cat", "dirname", "mktemp", "rm"]:
-        utility_path = shutil.which(utility)
-        if utility_path is None:
-            pytest.skip(f"{utility} is required to exercise the shell launcher")
-        (tmp_path / utility).symlink_to(utility_path)
-
     for launcher in ["python3", "py", "python"]:
         launcher_path_stub = tmp_path / launcher
         launcher_path_stub.write_text("#!/bin/sh\nexit 127\n", encoding="utf-8")
@@ -170,7 +164,8 @@ def test_shell_launcher_fails_closed_when_no_python_launcher_runs(tmp_path: Path
         pytest.skip("sh is required to exercise the shell launcher")
 
     env = os.environ.copy()
-    env["PATH"] = str(tmp_path)
+    current_path = env.get("PATH", "")
+    env["PATH"] = f"{tmp_path}{os.pathsep}{current_path}" if current_path else str(tmp_path)
     result = subprocess.run(
         [shell, str(launcher_path)],
         input=json.dumps(tool_payload("Write", ".env")),
