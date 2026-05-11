@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
+import socket
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
@@ -12,7 +13,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../s
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
 
 
-PUBLIC_ADDRINFO = [(2, 1, 0, "", ("93.184.216.34", 80))]
+def _public_addrinfo():
+    """Return deterministic public DNS results for request-mocked tests."""
+    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80))]
 
 
 class TestCliError(unittest.TestCase):
@@ -37,7 +40,7 @@ class TestCliError(unittest.TestCase):
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
-                with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
                     try:
                         html2md.cli.main(['--url', 'http://example.com'])
                     except (SystemExit, RuntimeError, ValueError) as e:
@@ -67,7 +70,7 @@ class TestCliError(unittest.TestCase):
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
             with patch('sys.stderr', captured_stderr):
-                with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
                     try:
                         html2md.cli.main(['--url', 'http://example.com'])
                     except (SystemExit, RuntimeError, ValueError) as e:

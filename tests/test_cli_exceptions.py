@@ -2,11 +2,14 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import socket
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
 
 
-PUBLIC_ADDRINFO = [(2, 1, 0, "", ("93.184.216.34", 80))]
+def _public_addrinfo():
+    """Return deterministic public DNS results for request-mocked tests."""
+    return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 80))]
 
 
 class TestCliExceptions(unittest.TestCase):
@@ -19,7 +22,7 @@ class TestCliExceptions(unittest.TestCase):
             with patch('requests.Session.get') as mock_get:
                 mock_get.side_effect = requests.RequestException("Network unreachable")
 
-                with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
                     try:
                         main(['--url', 'http://example.com'])
                     except (SystemExit, RuntimeError, ValueError) as e:
@@ -42,7 +45,7 @@ class TestCliExceptions(unittest.TestCase):
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
                         with patch('builtins.open', side_effect=OSError("Permission denied")):
-                            with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                            with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
                                 try:
                                     main(['--url', 'http://example.com', '--outdir', 'dummy'])
                                 except (SystemExit, RuntimeError, ValueError) as e:
@@ -71,7 +74,7 @@ class TestCliExceptions(unittest.TestCase):
                                 return '/tmp/out'
 
                             with patch('os.path.realpath', side_effect=fake_realpath):
-                                with patch('html2md.cli.socket.getaddrinfo', return_value=PUBLIC_ADDRINFO):
+                                with patch('html2md.cli.socket.getaddrinfo', return_value=_public_addrinfo()):
                                     main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
