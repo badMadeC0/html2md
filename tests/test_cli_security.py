@@ -51,3 +51,30 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+@patch("requests.Session.get")
+def test_gui_flags_are_supported_for_url_conversion(mock_get, capsys, tmp_path):
+    """GUI-only flags must be accepted by the packaged CLI."""
+    response = MagicMock()
+    response.text = "<html><body><nav>Skip me</nav><main><h1>Keep me</h1></main></body></html>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    result = cli.main([
+        "--url",
+        "http://example.com/page",
+        "--outdir",
+        str(tmp_path),
+        "--all-formats",
+        "--main-content",
+    ])
+
+    outerr = capsys.readouterr()
+    assert result == 0
+    assert "Success!" in outerr.out
+    assert (tmp_path / "page.md").exists()
+    assert (tmp_path / "page.txt").exists()
+    assert (tmp_path / "page.pdf").exists()
+    assert "Keep me" in (tmp_path / "page.md").read_text(encoding="utf-8")
+    assert "Skip me" not in (tmp_path / "page.md").read_text(encoding="utf-8")
+    mock_get.assert_called_once_with("http://example.com/page", timeout=30)

@@ -35,7 +35,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
-                with patch('markdownify.markdownify', return_value="# Hello"):
+                with patch('html2md.cli.md', return_value="# Hello"):
                     with patch('os.makedirs'), patch('os.path.exists', return_value=False):
                         with patch('builtins.open', side_effect=OSError("Permission denied")):
                             try:
@@ -57,7 +57,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
-                with patch('markdownify.markdownify', return_value="# Hello"):
+                with patch('html2md.cli.md', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
                         with patch('builtins.open') as mock_open:
                             def fake_realpath(path):

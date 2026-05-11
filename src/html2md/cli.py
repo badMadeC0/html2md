@@ -6,6 +6,15 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
+import requests  # type: ignore[import-untyped]
+from bs4 import BeautifulSoup  # type: ignore[import-untyped]
+from markdownify import markdownify as md  # type: ignore[import-untyped]
+from reportlab.lib.pagesizes import letter  # type: ignore[import-untyped]
+from reportlab.pdfgen import canvas  # type: ignore[import-untyped]
+
+# Keep argparse parser construction independent from locale catalog file access.
+argparse._ = lambda message: message  # type: ignore[attr-defined]  # pylint: disable=protected-access
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -16,6 +25,16 @@ def main(argv=None):
     ap.add_argument('--url', help='Input URL to convert')
     ap.add_argument('--batch', help='File containing URLs to process (one per line)')
     ap.add_argument('--outdir', help='Output directory to save the file')
+    ap.add_argument(
+        '--all-formats',
+        action='store_true',
+        help='Save Markdown, plain text, and PDF outputs when --outdir is used',
+    )
+    ap.add_argument(
+        '--main-content',
+        action='store_true',
+        help='Prefer the page main/article content instead of the full HTML document',
+    )
 
     args = ap.parse_args(argv)
 
@@ -24,14 +43,6 @@ def main(argv=None):
         return 0
 
     if args.url or args.batch:
-        try:
-            import requests  # type: ignore  # pylint: disable=import-outside-toplevel
-            from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
-        except ImportError as e:
-            print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
-            return 1
-
         session = requests.Session()
         session.headers.update({
             'User-Agent': (
@@ -54,6 +65,46 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        def extract_main_content(html_text: str) -> str:
+            """Return likely main content HTML when available."""
+            if not args.main_content:
+                return html_text
+
+            soup = BeautifulSoup(html_text, 'html.parser')
+            main_node = (
+                soup.find('main')
+                or soup.find('article')
+                or soup.find(attrs={'role': 'main'})
+                or soup.body
+            )
+            return str(main_node) if main_node else html_text
+
+        def write_all_formats(base_path: str, markdown_content: str, html_text: str) -> None:
+            """Write optional plain text and PDF outputs alongside Markdown."""
+            text_content = BeautifulSoup(html_text, 'html.parser').get_text('\n')
+
+            txt_path = f"{base_path}.txt"
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write(text_content)
+            print(f"Success! Saved to: {txt_path}")
+
+            pdf_path = f"{base_path}.pdf"
+            pdf = canvas.Canvas(pdf_path, pagesize=letter)
+            _width, height = letter
+            text = pdf.beginText(40, height - 40)
+            text.setFont('Helvetica', 10)
+            for line in text_content.splitlines():
+                for start in range(0, len(line), 95):
+                    text.textLine(line[start:start + 95])
+                    if text.getY() < 40:
+                        pdf.drawText(text)
+                        pdf.showPage()
+                        text = pdf.beginText(40, height - 40)
+                        text.setFont('Helvetica', 10)
+            pdf.drawText(text)
+            pdf.save()
+            print(f"Success! Saved to: {pdf_path}")
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -73,8 +124,10 @@ def main(argv=None):
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
+                html_content = extract_main_content(response.text)
+
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
@@ -91,17 +144,27 @@ def main(argv=None):
                         if base:
                             filename = f"{base}.md"
 
+                    stem = os.path.splitext(filename)[0]
                     out_path = os.path.join(args.outdir, filename)
-                    # Final safety check: ensure output stays within outdir
+                    base_path = os.path.join(args.outdir, stem)
+                    # Final safety check: ensure outputs stay within outdir
                     real_outdir = os.path.realpath(args.outdir)
-                    real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                    output_paths = [out_path]
+                    if args.all_formats:
+                        output_paths.extend([f"{base_path}.txt", f"{base_path}.pdf"])
+                    if any(
+                        os.path.commonpath([real_outdir, os.path.realpath(path)])
+                        != real_outdir
+                        for path in output_paths
+                    ):
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
+                    if args.all_formats:
+                        write_all_formats(base_path, md_content, html_content)
                 else:
                     print(md_content)
 
