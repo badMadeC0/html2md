@@ -10,16 +10,6 @@ from contextlib import contextmanager
 from urllib.parse import urljoin, urlparse, unquote
 
 
-def _is_restricted_address(ip_obj) -> bool:
-    """Return True when an IP address must not be fetched by the CLI."""
-    return (
-        not ip_obj.is_global
-        or ip_obj.is_multicast
-        or ip_obj.is_reserved
-        or getattr(ip_obj, "is_site_local", False)
-    )
-
-
 def _resolve_global_addrinfo(hostname: str, port: int):
     """Resolve a host and return addrinfo only when every answer is global."""
     addrinfo = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
@@ -33,7 +23,7 @@ def _resolve_global_addrinfo(hostname: str, port: int):
         except (IndexError, ValueError) as exc:
             raise ValueError("Invalid address info") from exc
 
-        if _is_restricted_address(ip_obj):
+        if _is_restricted_ip_address(ip_obj):
             return None
 
     return addrinfo
@@ -109,6 +99,18 @@ def _get_with_vetted_redirects(session, target_url: str, timeout: int, requests_
         current_url = urljoin(current_url, redirect_url)
 
     raise requests_module.TooManyRedirects("Exceeded 10 redirects.")
+
+
+def _is_restricted_ip_address(
+    ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address,
+) -> bool:
+    """Return True when an IP address is unsafe for URL fetching."""
+    return (
+        not ip_obj.is_global
+        or ip_obj.is_reserved
+        or ip_obj.is_multicast
+        or getattr(ip_obj, "is_site_local", False)
+    )
 
 
 def main(argv=None):

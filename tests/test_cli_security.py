@@ -103,17 +103,17 @@ def test_process_url_blocks_any_non_global_address(mock_get, capsys, tmp_path):
 @pytest.mark.parametrize(
     "url, resolved_ip",
     [
+        ("http://[64:ff9b::8.8.8.8]/", "64:ff9b::8.8.8.8"),
         ("http://224.0.0.1/", "224.0.0.1"),
         ("http://[ff02::1]/", "ff02::1"),
         ("http://[fec0::1]/", "fec0::1"),
-        ("http://[64:ff9b::808:808]/", "64:ff9b::808:808"),
     ],
 )
 @patch("requests.Session.get")
-def test_process_url_blocks_restricted_global_addresses(
-    mock_get, capsys, tmp_path, url, resolved_ip
+def test_process_url_blocks_global_restricted_addresses(
+    mock_get, capsys, tmp_path, url, resolved_ip,
 ):
-    """Global-flagged multicast, site-local, and reserved ranges are blocked."""
+    """Restricted IP predicates are enforced even when is_global is True."""
     with patch(
         "html2md.cli.socket.getaddrinfo",
         return_value=addrinfo(resolved_ip),
