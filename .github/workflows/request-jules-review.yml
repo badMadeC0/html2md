@@ -20,7 +20,6 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -29,57 +28,49 @@ jobs:
           import os
           import sys
           import urllib.error
-          import urllib.parse
           import urllib.request
 
           api_url = os.environ["GITHUB_API_URL"]
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
-          head_sha = os.environ["PR_HEAD_SHA"]
           token = os.environ["GITHUB_TOKEN"]
-          comments_url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
-          marker = f"<!-- jules-review-request: {head_sha} -->"
+          review_body = "@jules please review this pull request."
+
           headers = {
               "Accept": "application/vnd.github+json",
               "Authorization": f"Bearer {token}",
-              "X-GitHub-Api-Version": "2022-11-28",
+              "Content-Type": "application/json",
           }
 
-          def request_json(url: str) -> list[dict]:
-              request = urllib.request.Request(url=url, headers=headers, method="GET")
-              with urllib.request.urlopen(request) as response:
-                  return json.loads(response.read().decode("utf-8"))
+          # Check existing comments for a duplicate before posting.
+          page = 1
+          while True:
+              list_req = urllib.request.Request(
+                  url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
+                  headers=headers,
+                  method="GET",
+              )
+              with urllib.request.urlopen(list_req) as resp:
+                  comments = json.loads(resp.read().decode("utf-8"))
+              if any(c["body"].strip() == review_body for c in comments):
+                  print("Review already requested — skipping duplicate comment.")
+                  sys.exit(0)
+              if len(comments) < 100:
+                  break
+              page += 1
+
+          post_req = urllib.request.Request(
+              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
+              data=json.dumps({"body": review_body}).encode("utf-8"),
+              headers=headers,
+              method="POST",
+          )
 
           try:
-              for page in range(1, 101):
-                  url = comments_url + "?" + urllib.parse.urlencode(
-                      {"per_page": 100, "page": page}
-                  )
-                  comments = request_json(url)
-                  if any(marker in comment.get("body", "") for comment in comments):
-                      print(
-                          "Skipping: @google-labs-jules was already requested for "
-                          f"PR #{pr_number} at head {head_sha}."
-                      )
-                      sys.exit(0)
-                  if len(comments) < 100:
-                      break
-
-              body = (
-                  "@google-labs-jules please review this pull request.\n\n"
-                  f"{marker}"
-              )
-              post_headers = headers | {"Content-Type": "application/json"}
-              request = urllib.request.Request(
-                  url=comments_url,
-                  data=json.dumps({"body": body}).encode("utf-8"),
-                  headers=post_headers,
-                  method="POST",
-              )
-              with urllib.request.urlopen(request) as response:
+              with urllib.request.urlopen(post_req) as response:
                   print(
-                      "Requested review from @google-labs-jules via comment on "
-                      f"PR #{pr_number} at head {head_sha} (status {response.status})"
+                      "Requested review from @jules via comment on "
+                      f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
               if error.code == 403:
