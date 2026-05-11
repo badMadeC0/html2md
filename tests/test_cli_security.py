@@ -111,7 +111,7 @@ def test_process_url_blocks_any_non_global_address(mock_get, capsys, tmp_path):
 )
 @patch("requests.Session.get")
 def test_process_url_blocks_global_restricted_addresses(
-    mock_get, capsys, tmp_path, url, resolved_ip,
+    mock_get, capsys, tmp_path, url, resolved_ip
 ):
     """Restricted IP predicates are enforced even when is_global is True."""
     with patch(
