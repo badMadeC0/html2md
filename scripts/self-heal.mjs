@@ -4,6 +4,10 @@
 */
 import { execSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const shellQuote = (value) => `'${String(value).replaceAll("'", "'\"'\"'")}'`;
+const healthcheckScript = fileURLToPath(new URL("./healthcheck.mjs", import.meta.url));
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
@@ -24,7 +28,12 @@ const hasRootScript = (name) => {
   }
 };
 const passHealth = () => {
-  try { sh("node scripts/healthcheck.mjs"); return true; } catch { return false; }
+  try {
+    sh(`${shellQuote(process.execPath)} ${shellQuote(healthcheckScript)}`);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 let fixed = false;

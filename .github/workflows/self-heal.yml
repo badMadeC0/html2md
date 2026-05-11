@@ -8,12 +8,11 @@ on:
       - completed
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
 
 jobs:
-  self-heal:
+  repair:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure' &&
@@ -22,12 +21,34 @@ jobs:
        !startsWith(github.event.workflow_run.head_branch, 'self-heal-fixes-'))
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      has_changes: ${{ steps.diff.outputs.has_changes }}
+      target_sha: ${{ steps.target.outputs.sha }}
     steps:
+      - name: Resolve target revision
+        id: target
+        run: |
+          set -euo pipefail
+          echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout trusted workflow code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
       - name: Checkout failed revision
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ steps.target.outputs.sha }}
+          path: target
+          persist-credentials: false
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -45,6 +66,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install Python deps
+        working-directory: target
         run: |
           set -euxo pipefail
           python -m pip install --upgrade pip wheel setuptools
@@ -53,34 +75,39 @@ jobs:
 
       - name: Install Node deps (best-effort frozen)
         id: install_try_frozen
+        working-directory: target
         run: |
           set -euxo pipefail
-          pnpm install --frozen-lockfile || echo "FROZEN_FAILED=1" >> $GITHUB_OUTPUT
+          pnpm install --frozen-lockfile || echo "FROZEN_FAILED=1" >> "$GITHUB_OUTPUT"
 
       - name: Install Node deps (fallback non-frozen)
         if: steps.install_try_frozen.outputs.FROZEN_FAILED == '1'
+        working-directory: target
         run: |
           set -euxo pipefail
           pnpm install
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
+        working-directory: target
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-pre.txt
+          node ../trusted/scripts/healthcheck.mjs | tee ../selfheal-pre.txt
 
       - name: Attempt self-heal repairs
         continue-on-error: true
+        working-directory: target
         run: |
           set -o pipefail
-          node scripts/self-heal.mjs | tee selfheal-repair.txt
+          node ../trusted/scripts/self-heal.mjs | tee ../selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
+        working-directory: target
         run: |
           set -o pipefail
-          node scripts/healthcheck.mjs | tee selfheal-post.txt
+          node ../trusted/scripts/healthcheck.mjs | tee ../selfheal-post.txt
 
       - name: Collect logs
         if: always()
@@ -92,18 +119,66 @@ jobs:
             selfheal-repair.txt
             selfheal-post.txt
 
-      - name: Create PR with fixes
+      - name: Build sanitized patch
+        id: diff
         if: steps.post.outcome == 'success'
+        run: |
+          set -euo pipefail
+          git -C target diff --binary -- \
+            . \
+            ':(exclude)node_modules' \
+            ':(exclude)selfheal-*.txt' \
+            ':(exclude).github/workflows/**' \
+            > selfheal.patch
+          if [ -s selfheal.patch ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload sanitized patch
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-patch
+          path: selfheal.patch
+
+  create-pr:
+    needs: repair
+    if: needs.repair.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout failed revision without credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.repair.outputs.target_sha }}
+          persist-credentials: false
+
+      - name: Download sanitized patch
+        uses: actions/download-artifact@v4
+        with:
+          name: selfheal-patch
+
+      - name: Create PR with fixes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          rm -rf node_modules selfheal-*.txt
+          set -euo pipefail
+          git apply --check selfheal.patch
+          git apply selfheal.patch
+          rm selfheal.patch
           if [ -n "$(git status --porcelain)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b self-heal-fixes-${{ github.run_id }}
-            git add . ':!node_modules' ':!selfheal-*.txt'
+            branch="self-heal-fixes-${{ github.run_id }}"
+            git checkout -b "$branch"
+            git add .
             git commit -m "chore: self-heal auto-fixes"
-            git push origin self-heal-fixes-${{ github.run_id }}
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$branch"
             gh pr create --title "Self-heal auto-fixes" --body "Auto-generated PR from self-healing workflow. See job logs for details." --label "self-heal"
           fi
