@@ -64,6 +64,14 @@ jobs:
         # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
         # so wiping it is safe and removes the attack surface.
         run: rm -rf .gemini
+      - name: Install pinned Gemini code-review extension
+        env:
+          GEMINI_CODE_REVIEW_REF: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+        run: |
+          npx -y @google/gemini-cli@0.41.2 extensions install \
+            https://github.com/gemini-cli-extensions/code-review \
+            --ref "$GEMINI_CODE_REVIEW_REF" \
+            --consent
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -120,10 +128,6 @@ jobs:
                 ]
               }
             }
-          extensions: |
-            [
-              "https://github.com/gemini-cli-extensions/code-review@dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04"
-            ]
           prompt: "/pr-code-review"
       - name: Note Gemini API quota exhaustion
         if: >
