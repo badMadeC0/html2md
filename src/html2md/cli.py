@@ -79,10 +79,20 @@ def main(argv=None):
                     ip_obj.is_reserved or ip_obj.is_multicast)
 
         def _normalize_dns_hostname(hostname):
-            """Return a canonical IDNA DNS hostname for matching pinned lookups."""
+            """Return Requests-compatible IDNA DNS hostname for pinned lookups."""
+            import idna  # pylint: disable=import-outside-toplevel
+
             if isinstance(hostname, bytes):
                 hostname = hostname.decode('ascii')
-            return hostname.rstrip('.').encode('idna').decode('ascii').lower()
+            try:
+                ipaddress.ip_address(hostname)
+                return hostname.lower()
+            except ValueError:
+                pass
+            try:
+                return idna.encode(hostname, uts46=True).decode('ascii').lower()
+            except idna.IDNAError as e:
+                raise UnicodeError from e
 
         def validate_url(target_url: str):
             """Validate a URL and return the DNS answers approved for fetching it."""

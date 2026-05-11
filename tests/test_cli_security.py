@@ -128,8 +128,8 @@ def test_validated_dns_answer_is_pinned_during_fetch(mock_get, mock_getaddrinfo,
 
 @patch("socket.getaddrinfo")
 @patch("requests.Session.get")
-def test_idna_hostname_uses_pinned_validated_dns(mock_get, mock_getaddrinfo, capsys):
-    """Unicode hostnames are normalized before validation and pinned lookup matching."""
+def test_idna_hostname_uses_requests_uts46_pinned_dns(mock_get, mock_getaddrinfo, capsys):
+    """IDNA hostnames use Requests' UTS#46 form for validation and pinning."""
     public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
     rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
     mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
@@ -141,22 +141,58 @@ def test_idna_hostname_uses_pinned_validated_dns(mock_get, mock_getaddrinfo, cap
     response.raise_for_status.return_value = None
 
     def get_with_idna_hostname(*_args, **_kwargs):
-        resolved = socket.getaddrinfo("xn--tst-qla.example", 80, type=socket.SOCK_STREAM)
+        resolved = socket.getaddrinfo("xn--fa-hia.example", 80, type=socket.SOCK_STREAM)
         assert resolved == public_answer
         return response
 
     mock_get.side_effect = get_with_idna_hostname
 
-    cli.main(["--url", "http://täst.example/"])
+    cli.main(["--url", "http://faß.example/"])
 
     outerr = capsys.readouterr()
     assert "# IDNA pinned" in outerr.out
     assert "169.254.169.254" not in outerr.err
     mock_getaddrinfo.assert_called_once_with(
-        "xn--tst-qla.example", 80, type=socket.SOCK_STREAM
+        "xn--fa-hia.example", 80, type=socket.SOCK_STREAM
     )
     mock_get.assert_called_once_with(
-        "http://täst.example/", timeout=30, allow_redirects=False
+        "http://faß.example/", timeout=30, allow_redirects=False
+    )
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_trailing_dot_hostname_is_preserved_for_validation_and_pin(
+    mock_get, mock_getaddrinfo, capsys
+):
+    """Absolute DNS names keep their trailing dot during validation and pinning."""
+    public_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 80))]
+    rebound_answer = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("169.254.169.254", 80))]
+    mock_getaddrinfo.side_effect = [public_answer, rebound_answer]
+
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>Trailing dot pinned</h1>"
+    response.raise_for_status.return_value = None
+
+    def get_with_absolute_hostname(*_args, **_kwargs):
+        resolved = socket.getaddrinfo("service.example.", 80, type=socket.SOCK_STREAM)
+        assert resolved == public_answer
+        return response
+
+    mock_get.side_effect = get_with_absolute_hostname
+
+    cli.main(["--url", "http://service.example./"])
+
+    outerr = capsys.readouterr()
+    assert "# Trailing dot pinned" in outerr.out
+    assert "169.254.169.254" not in outerr.err
+    mock_getaddrinfo.assert_called_once_with(
+        "service.example.", 80, type=socket.SOCK_STREAM
+    )
+    mock_get.assert_called_once_with(
+        "http://service.example./", timeout=30, allow_redirects=False
     )
 
 
