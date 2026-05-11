@@ -24,8 +24,10 @@ jobs:
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '@gemini-code-assist'))
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out pull request head
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.event.pull_request.head.sha }}
       - name: Gemini Code Assist
         uses: google-gemini/code-assist-action@v1
