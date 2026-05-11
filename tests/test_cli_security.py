@@ -93,3 +93,31 @@ def test_default_url_conversion_omits_header_and_footer(mock_get, capsys):
     assert "Site Header" not in outerr.out
     assert "Main body" in outerr.out
     assert "Site Footer" not in outerr.out
+
+
+@patch("markdownify.markdownify", return_value="# Body")
+@patch("requests.Session.get")
+def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_path):
+    """GUI batch mode --whole-page should drive conversion behavior."""
+    batch_file = tmp_path / "urls.txt"
+    batch_file.write_text("https://example.com/article\n", encoding="utf-8")
+    outdir = tmp_path / "out"
+
+    response = MagicMock()
+    response.text = "<header>Header</header><main>Body</main><footer>Footer</footer>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    rc = cli.main([
+        "--batch", str(batch_file),
+        "--outdir", str(outdir),
+        "--whole-page",
+    ])
+
+    assert rc == 0
+    mock_get.assert_called_once_with("https://example.com/article", timeout=30)
+    mock_md.assert_called_once_with(
+        response.text,
+        heading_style="ATX",
+    )
+    assert (outdir / "article.md").read_text(encoding="utf-8") == "# Body"
