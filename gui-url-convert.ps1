@@ -375,11 +375,6 @@ $ConvertBtn.Add_Click({
         $safeOutDir = $outdir -replace "'", "''"
         $safeVenvExe = $venvExe -replace "'", "''"
         $safePyScript = $pyScript -replace "'", "''"
-        $wholePageArg = ""
-        if ($WholePageChk.IsChecked) {
-            $wholePageArg = " --whole-page"
-        }
-
         $wholePageArg = if ($WholePageChk.IsChecked) { " --whole-page" } else { "" }
 
         if (Test-Path -LiteralPath $venvExe) {

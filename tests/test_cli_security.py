@@ -97,8 +97,8 @@ def test_default_url_conversion_omits_header_and_footer(mock_get, capsys):
 
 @patch("markdownify.markdownify", return_value="# Body")
 @patch("requests.Session.get")
-def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_path):
-    """GUI batch mode --whole-page should drive conversion behavior."""
+def test_whole_page_option_controls_batch_conversion(mock_get, mock_md, tmp_path):
+    """CLI batch mode --whole-page should drive conversion behavior."""
     batch_file = tmp_path / "urls.txt"
     batch_file.write_text("https://example.com/article\n", encoding="utf-8")
     outdir = tmp_path / "out"
