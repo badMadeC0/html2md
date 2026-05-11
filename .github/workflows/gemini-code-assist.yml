@@ -2,6 +2,8 @@ name: Gemini Code Assist
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
   pull_request_review_comment:
     types: [created]
   issue_comment:
@@ -17,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
       ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
         (github.event.comment.author_association == 'MEMBER' ||
@@ -35,7 +39,7 @@ jobs:
         with:
           script: |
             let pr;
-            if (context.eventName === "pull_request_review_comment") {
+            if (context.eventName === "pull_request" || context.eventName === "pull_request_review_comment") {
               pr = context.payload.pull_request;
             } else if (context.eventName === "issue_comment" && context.payload.issue?.pull_request) {
               const response = await github.rest.pulls.get({
@@ -47,7 +51,7 @@ jobs:
             }
 
             if (!pr) {
-              core.setFailed("Could not resolve pull request from event payload. This workflow requires pull_request_review_comment or issue_comment on a pull request.");
+              core.setFailed("Could not resolve pull request from event payload. This workflow requires pull_request, pull_request_review_comment, or issue_comment on a pull request.");
               return;
             }
 
