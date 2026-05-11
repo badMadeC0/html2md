@@ -21,10 +21,18 @@ const passHealth = () => {
 };
 const readPackageJson = () => {
   if (!existsSync("package.json")) return {};
-  return JSON.parse(readFileSync("package.json", "utf8"));
+  const contents = readFileSync("package.json", "utf8").trim();
+  if (!contents) return {};
+  try {
+    return JSON.parse(contents);
+  } catch (error) {
+    console.warn(`Ignoring unreadable package.json: ${error.message}`);
+    return {};
+  }
 };
-const scripts = readPackageJson().scripts ?? {};
-const hasScript = (name) => Object.prototype.hasOwnProperty.call(scripts, name);
+const packageJson = readPackageJson();
+const scripts = packageJson.scripts && typeof packageJson.scripts === "object" ? packageJson.scripts : {};
+const hasScript = (name) => typeof scripts[name] === "string";
 const hasTypeScriptConfig = () => existsSync("tsconfig.json") || existsSync("jsconfig.json");
 
 let fixed = false;
@@ -54,8 +62,8 @@ if (!passHealth() && existsSync("pnpm-lock.yaml")) {
   // Try a clean install + re-resolve.
   trySh("pnpm install");
   if (!passHealth()) {
-    // Last resort: refresh lockfile (scoped to the root package).
-    trySh("pnpm up --latest --interactive=false");
+    // Last resort: conservatively refresh dependency versions allowed by package.json.
+    trySh("pnpm up --interactive=false");
   }
   if (passHealth()) fixed = fixed || changed();
 }

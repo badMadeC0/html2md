@@ -9,11 +9,18 @@ import { existsSync, readFileSync } from "node:fs";
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
 const readPackageJson = () => {
   if (!existsSync("package.json")) return {};
-  return JSON.parse(readFileSync("package.json", "utf8"));
+  const contents = readFileSync("package.json", "utf8").trim();
+  if (!contents) return {};
+  try {
+    return JSON.parse(contents);
+  } catch (error) {
+    console.warn(`Ignoring unreadable package.json: ${error.message}`);
+    return {};
+  }
 };
 const packageJson = readPackageJson();
-const scripts = packageJson.scripts ?? {};
-const hasScript = (name) => Object.prototype.hasOwnProperty.call(scripts, name);
+const scripts = packageJson.scripts && typeof packageJson.scripts === "object" ? packageJson.scripts : {};
+const hasScript = (name) => typeof scripts[name] === "string";
 const hasTypeScriptConfig = () => existsSync("tsconfig.json") || existsSync("jsconfig.json");
 
 const tryRun = (name, cmd) => {
@@ -30,8 +37,9 @@ try {
   tryRun("Unit tests", hasScript("test") ? "pnpm run test" : null);
   tryRun("Build", hasScript("build") ? "pnpm run build" : null);
 
-  // Native Python project checks.
-  tryRun("Python tests", existsSync("pyproject.toml") && existsSync("tests") ? "python3 -m pytest" : null);
+  // Native Python project checks. Invoke pytest through the configured Python
+  // interpreter and mirror the quiet pytest invocation used by CI.
+  tryRun("Python tests", existsSync("pyproject.toml") && existsSync("tests") ? "python -m pytest -q" : null);
 
   process.exit(0);
 } catch (e) {

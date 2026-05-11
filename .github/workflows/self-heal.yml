@@ -16,15 +16,35 @@ jobs:
   self-heal:
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'failure')
-    runs-on: ubuntu-latest
+      (github.event.workflow_run.conclusion == 'failure' &&
+       (github.event.workflow_run.event != 'pull_request' ||
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: windows-latest
     timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout
+      - name: Checkout trusted base
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Checkout failed workflow tree
+        if: github.event_name == 'workflow_run'
+        env:
+          WORKFLOW_EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          set -euxo pipefail
+          if [ "$WORKFLOW_EVENT" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
+            git fetch origin "+refs/pull/${PR_NUMBER}/merge:refs/remotes/origin/pull/${PR_NUMBER}/merge"
+            git checkout --detach "refs/remotes/origin/pull/${PR_NUMBER}/merge"
+          else
+            git fetch origin "$HEAD_SHA"
+            git checkout --detach "$HEAD_SHA"
+          fi
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -69,15 +89,21 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
+        run: |
+          set -o pipefail
+          node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
-        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+        run: |
+          set -o pipefail
+          node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
-        run: node scripts/healthcheck.mjs | tee selfheal-post.txt
+        run: |
+          set -o pipefail
+          node scripts/healthcheck.mjs | tee selfheal-post.txt
 
       - name: Collect logs
         if: always()
@@ -94,6 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euxo pipefail
           if [ -n "$(git status --porcelain)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
