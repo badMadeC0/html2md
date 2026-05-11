@@ -11,6 +11,8 @@ on:
         description: "Optional same-repository pull request number to check out and review."
         required: false
         type: number
+  pull_request:
+    types: [opened, synchronize, reopened]
   pull_request_review_comment:
     types: [created]
   issue_comment:
@@ -26,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
       ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
         (github.event.comment.author_association == 'MEMBER' ||
@@ -50,6 +54,8 @@ jobs:
                 pull_number: Number(context.payload.inputs.pr_number),
               });
               pr = response.data;
+            } else if (context.eventName === "pull_request") {
+              pr = context.payload.pull_request;
             } else if (context.eventName === "pull_request_review_comment") {
               pr = context.payload.pull_request;
             } else if (context.eventName === "issue_comment" && context.payload.issue?.pull_request) {
@@ -99,4 +105,4 @@ jobs:
             Use the GitHub CLI or GitHub API when you need pull request details, diffs, or to post feedback.
 
             Request:
-            ${{ github.event.comment.body || github.event.inputs.prompt }}
+            ${{ github.event.comment.body || github.event.inputs.prompt || 'Automatically review the checked-out pull request and post actionable feedback on the PR.' }}
