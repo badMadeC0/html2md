@@ -1,22 +1,63 @@
 """CLI entry point for html2md."""
 
 from __future__ import annotations
+
 import argparse
 import os
 import sys
-from urllib.parse import urlparse, unquote
+from pathlib import Path
+from urllib.parse import unquote, urlparse
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Create the command-line parser."""
+    parser = argparse.ArgumentParser(
+        prog="html2md",
+        description="Convert HTML URL to Markdown.",
+    )
+    parser.add_argument("--help-only", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--url", help="Input URL to convert")
+    parser.add_argument("--batch", help="File containing URLs to process (one per line)")
+    parser.add_argument("--outdir", help="Output directory to save the file")
+    return parser
+
+
+def _output_filename(target_url: str) -> str:
+    """Return a safe Markdown filename derived from a URL path."""
+    parsed = urlparse(target_url)
+    base = os.path.basename(unquote(parsed.path.rstrip("/")))
+    base = base.replace("/", "_").replace("\\", "_").strip(". ")
+    return f"{base}.md" if base else "conversion_result.md"
+
+
+def _contained_output_path(outdir: str, target_url: str) -> Path | None:
+    """Return an output path only when it remains inside outdir.
+
+    Args:
+        outdir: Directory requested by the user for generated Markdown.
+        target_url: Source URL used to derive the destination filename.
+
+    Returns:
+        A contained output path, or ``None`` when the resolved path escapes
+        the requested output directory.
+
+    Side Effects:
+        Creates ``outdir`` and missing parents when needed.
+    """
+    output_dir = Path(outdir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = output_dir / _output_filename(target_url)
+    real_outdir = output_dir.resolve()
+    real_output_path = output_path.resolve(strict=False)
+    if os.path.commonpath([str(real_outdir), str(real_output_path)]) != str(real_outdir):
+        return None
+    return output_path
+
 
 def main(argv=None):
     """Run the CLI."""
-    ap = argparse.ArgumentParser(
-        prog='html2md',
-        description='Convert HTML URL to Markdown.'
-    )
-    ap.add_argument('--help-only', action='store_true', help=argparse.SUPPRESS)
-    ap.add_argument('--url', help='Input URL to convert')
-    ap.add_argument('--batch', help='File containing URLs to process (one per line)')
-    ap.add_argument('--outdir', help='Output directory to save the file')
-
+    ap = _build_parser()
     args = ap.parse_args(argv)
 
     if args.help_only:
@@ -98,29 +139,12 @@ def main(argv=None):
                 md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
-                    # Create a safe filename based on the URL
-                    filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(unquote(url_path))
-                        # Sanitize to prevent path traversal
-                        base = base.replace('/', '_').replace('\\', '_')
-                        base = base.strip('. ')
-                        if base:
-                            filename = f"{base}.md"
-
-                    out_path = os.path.join(args.outdir, filename)
-                    # Final safety check: ensure output stays within outdir
-                    real_outdir = os.path.realpath(args.outdir)
-                    real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                    out_path = _contained_output_path(args.outdir, target_url)
+                    if out_path is None:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return
-                    with open(out_path, 'w', encoding='utf-8') as f:
+                    with out_path.open('w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
@@ -137,10 +161,11 @@ def main(argv=None):
             process_url(args.url)
 
         if args.batch:
-            if not os.path.exists(args.batch):
+            batch_path = Path(args.batch)
+            if not batch_path.exists():
                 print(f"Error: Batch file not found: {args.batch}", file=sys.stderr)
                 return 1
-            with open(args.batch, 'r', encoding='utf-8') as f:
+            with batch_path.open('r', encoding='utf-8') as f:
                 for line in f:
                     u = line.strip()
                     if u:
