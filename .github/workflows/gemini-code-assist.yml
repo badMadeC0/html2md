@@ -2,6 +2,8 @@ name: Gemini Code Assist
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
   pull_request_review_comment:
     types: [created]
   issue_comment:
@@ -16,7 +18,8 @@ jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
       ((github.event_name == 'pull_request_review_comment' ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request)) &&
         (github.event.comment.author_association == 'MEMBER' ||
@@ -35,7 +38,9 @@ jobs:
         with:
           script: |
             let pr;
-            if (context.eventName === "pull_request_review_comment") {
+            if (context.eventName === "pull_request") {
+              pr = context.payload.pull_request;
+            } else if (context.eventName === "pull_request_review_comment") {
               pr = context.payload.pull_request;
             } else if (context.eventName === "issue_comment" && context.payload.issue?.pull_request) {
               const response = await github.rest.pulls.get({
@@ -47,22 +52,30 @@ jobs:
             }
 
             if (!pr) {
-              core.setFailed("Could not resolve pull request from event payload. This workflow requires pull_request_review_comment or issue_comment on a pull request.");
+              core.setFailed("Could not resolve pull request from event payload. This workflow requires a pull_request event, pull_request_review_comment, or issue_comment on a pull request.");
               return;
             }
 
             const sameRepo = pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("is_same_repo", String(sameRepo));
+            core.setOutput("number", String(pr.number));
 
       - uses: actions/checkout@v6
         if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || steps.pr_head.outputs.head_sha }}
+
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
         uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           gemini_model: gemini-2.0-flash
+          github_pr_number: ${{ github.event_name == 'workflow_dispatch' && '' || steps.pr_head.outputs.number }}
+          prompt: |
+            ${{ github.event_name == 'pull_request' && '/pr-code-review' || github.event_name == 'workflow_dispatch' && 'Run Gemini Code Assist for this repository.' || format('A trusted collaborator requested Gemini Code Assist on pull request #{0} with this comment: {1}', steps.pr_head.outputs.number, github.event.comment.body) }}
