@@ -148,7 +148,7 @@ def test_hook_fails_closed_on_bad_json():
     """Malformed non-empty payloads are rejected because safety cannot be verified."""
     result = run_hook_raw("{not valid json")
 
-    assert result.returncode == 1
+    assert result.returncode == 2
     assert "bad JSON payload" in result.stderr
 
 
@@ -157,6 +157,6 @@ def test_hook_fails_closed_when_stdin_read_fails(capsys):
     hook = load_hook_module()
 
     with patch.object(hook.sys.stdin, "read", side_effect=OSError("boom")):
-        assert hook.main() == 1
+        assert hook.main() == 2
 
     assert "failed to read stdin" in capsys.readouterr().err

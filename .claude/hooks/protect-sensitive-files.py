@@ -85,7 +85,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"protect-sensitive-files: failed to read stdin: {exc}",
             file=sys.stderr,
         )
-        return 1
+        return 2
 
     if not payload_raw.strip():
         return 0
@@ -97,7 +97,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"protect-sensitive-files: bad JSON payload: {exc}",
             file=sys.stderr,
         )
-        return 1
+        return 2
 
     tool_name = payload.get("tool_name") or ""
     if tool_name not in PROTECTED_TOOLS:
