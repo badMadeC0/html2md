@@ -56,10 +56,14 @@ jobs:
             core.setOutput("is_same_repo", String(sameRepo));
 
       - uses: actions/checkout@v6
-        if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
+        if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || steps.pr_head.outputs.head_sha }}
+      - name: Skip Gemini Code Assist without API key
+        if: env.GEMINI_API_KEY == ''
+        run: echo 'GEMINI_API_KEY is not configured; skipping Gemini Code Assist.'
+
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != '' && (github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true')
         uses: google-github-actions/run-gemini-cli@v0
