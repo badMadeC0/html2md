@@ -412,7 +412,7 @@ $ConvertBtn.Add_Click({
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
-        $singleUrlScript = Join-Path $env:TEMP ("html2md-" + [System.Guid]::NewGuid().ToString() + ".ps1")
+        $singleUrlScript = Join-Path ([System.IO.Path]::GetTempPath()) ("html2md-" + [System.Guid]::NewGuid().ToString() + ".ps1")
         $urlLiteral = ConvertTo-PowerShellSingleQuotedLiteral $url
         $outDirLiteral = ConvertTo-PowerShellSingleQuotedLiteral $outdir
         $optArgs = @()
@@ -445,7 +445,7 @@ $ConvertBtn.Add_Click({
             $launchLines[0] += " " + ($optArgs -join " ")
         }
         # Self-delete at end of wrapper so the temp script is cleaned up after the tool runs
-        $launchLines += "Remove-Item -LiteralPath `$MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue"
+        $launchLines += "try { Remove-Item -LiteralPath `$MyInvocation.MyCommand.Path -Force -ErrorAction Stop } catch { Write-Warning `"Could not delete temporary script: `$_`" }"
         $launchLines | Set-Content -LiteralPath $singleUrlScript -Encoding UTF8
         $safeSingleUrlScript = "`"$singleUrlScript`""
         $psi.Arguments = "-NoExit -NoProfile -ExecutionPolicy Bypass -File $safeSingleUrlScript"
