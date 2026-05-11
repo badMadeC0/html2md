@@ -54,6 +54,29 @@ jobs:
             const sameRepo = pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`;
             core.setOutput("head_sha", pr.head.sha);
             core.setOutput("is_same_repo", String(sameRepo));
+            core.setOutput("number", String(pr.number));
+
+      - name: Build Gemini prompt
+        id: gemini_prompt
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === "pull_request_review_comment" || context.eventName === "issue_comment") {
+              const commentBody = context.payload.comment?.body || "";
+              const prNumber = context.payload.pull_request?.number || context.payload.issue?.number || "unknown";
+              const prompt = [
+                `A trusted maintainer requested Gemini Code Assist on pull request #${prNumber}.`,
+                "",
+                "Maintainer request:",
+                commentBody,
+                "",
+                "Act on the maintainer's request in the context of this pull request. If the request asks for review or feedback, inspect the checked-out pull request code and provide concise, actionable feedback. If the request asks for a fix or investigation, explain the relevant findings and recommended changes.",
+              ].join("\n");
+              core.setOutput("prompt", prompt);
+              return;
+            }
+
+            core.setOutput("prompt", `Review the checked-out repository changes and provide concise, actionable Gemini Code Assist feedback.`);
 
       - uses: actions/checkout@v6
         if: github.event_name == 'workflow_dispatch' || steps.pr_head.outputs.is_same_repo == 'true'
@@ -66,3 +89,5 @@ jobs:
         with:
           gemini_api_key: ${{ env.GEMINI_API_KEY }}
           gemini_model: gemini-2.0-flash
+          github_pr_number: ${{ steps.pr_head.outputs.number }}
+          prompt: ${{ steps.gemini_prompt.outputs.prompt }}
