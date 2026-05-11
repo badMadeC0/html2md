@@ -31,7 +31,7 @@ try {
   tryRun("Build", hasScript("build") ? "pnpm run build" : null);
 
   // Native Python project checks.
-  tryRun("Python tests", existsSync("pyproject.toml") && existsSync("tests") ? "python3 -m pytest" : null);
+  tryRun("Python tests", existsSync("pyproject.toml") && existsSync("tests") ? "python -m pytest -q" : null);
 
   process.exit(0);
 } catch (e) {

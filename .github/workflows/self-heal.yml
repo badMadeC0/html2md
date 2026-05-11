@@ -17,8 +17,11 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'failure')
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,15 +72,21 @@ jobs:
 
       - name: Run healthcheck (pre-repair)
         continue-on-error: true
-        run: node scripts/healthcheck.mjs | tee selfheal-pre.txt
+        run: |
+          set -o pipefail
+          node scripts/healthcheck.mjs | tee selfheal-pre.txt
 
       - name: Attempt self-heal repairs
-        run: node scripts/self-heal.mjs | tee selfheal-repair.txt
+        run: |
+          set -o pipefail
+          node scripts/self-heal.mjs | tee selfheal-repair.txt
 
       - name: Run healthcheck (post-repair)
         id: post
         continue-on-error: true
-        run: node scripts/healthcheck.mjs | tee selfheal-post.txt
+        run: |
+          set -o pipefail
+          node scripts/healthcheck.mjs | tee selfheal-post.txt
 
       - name: Collect logs
         if: always()
