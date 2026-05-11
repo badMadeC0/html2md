@@ -1,6 +1,5 @@
 """Tests for the Flask application module."""
 
-import os
 import pytest
 
 # Skip all tests in this module if flask is not installed
