@@ -34,7 +34,7 @@ def _is_allowed_public_ip(ip: str) -> bool:
 
 def _normalize_hostname_for_dns_pin(hostname: str) -> str:
     """Normalize hostnames to the IDNA form used by urllib3 before connecting."""
-    return str(hostname).rstrip('.').lower().encode('idna').decode('ascii').lower()
+    return str(hostname).rstrip('.').lower().encode('idna').decode('ascii')
 
 
 def _resolve_vetted_addresses(hostname: str, port: int):

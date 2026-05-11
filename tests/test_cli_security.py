@@ -180,8 +180,8 @@ def test_process_url_pins_idna_normalized_hostname(mock_get, capsys, tmp_path):
         assert url == "http://éxample.com/"
         assert timeout == 30
         assert allow_redirects is False
-        # The global resolver is not monkey-patched; adapter-level pinning keeps
-        # DNS binding scoped to the request transport only.
+        # The global resolver is not monkey-patched; in this deterministic
+        # rebinding stub, the second lookup returns the rebound address.
         assert cli.socket.getaddrinfo("xn--xample-9ua.com", 80) == [rebound_addrinfo]
         response = MagicMock()
         response.text = "<h1>safe</h1>"
