@@ -1,4 +1,5 @@
 """Tests for html2md CLI error-handling paths."""
+import socket
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
@@ -10,6 +11,8 @@ import requests  # type: ignore[import-untyped]
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
+
+_PUBLIC_ADDRINFO = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ("93.184.216.34", 0))]
 
 
 class TestCliError(unittest.TestCase):
@@ -32,12 +35,13 @@ class TestCliError(unittest.TestCase):
         # Capture stderr
         captured_stderr = io.StringIO()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+        with patch('socket.getaddrinfo', return_value=_PUBLIC_ADDRINFO):
+            with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+                with patch('sys.stderr', captured_stderr):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         self.assertIn("Network error", output)
@@ -53,6 +57,9 @@ class TestCliError(unittest.TestCase):
         mock_requests.Session.return_value = mock_session
         mock_response = MagicMock()
         mock_response.text = "<html></html>"
+        mock_response.status_code = 200
+        mock_response.headers = {}
+        mock_response.iter_content.return_value = iter([b"<html></html>"])
         mock_session.get.return_value = mock_response
 
         mock_markdownify = MagicMock()
@@ -61,12 +68,13 @@ class TestCliError(unittest.TestCase):
 
         captured_stderr = io.StringIO()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+        with patch('socket.getaddrinfo', return_value=_PUBLIC_ADDRINFO):
+            with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+                with patch('sys.stderr', captured_stderr):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         # The code catches Exception and prints "Conversion failed: {e}"

@@ -2,9 +2,38 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
+
+
+def _check_ssrf(hostname: str) -> None:
+    """Resolve *hostname* and block any non-globally-routable address.
+
+    Uses ``socket.getaddrinfo`` so that every returned address (IPv4 and IPv6)
+    is validated, preventing SSRF via dual-stack hosts or unexpected AAAA records.
+
+    Raises ``ValueError`` if the hostname cannot be resolved or any resolved
+    address is private, loopback, link-local, or multicast.
+    """
+    try:
+        results = socket.getaddrinfo(hostname, None)
+    except OSError as exc:
+        raise ValueError(f"Could not resolve hostname '{hostname}'") from exc
+    if not results:
+        raise ValueError(f"No addresses found for hostname '{hostname}'")
+    for _family, _type, _proto, _canon, sockaddr in results:
+        ip_str = sockaddr[0].split('%')[0]  # strip IPv6 scope-id (e.g. fe80::1%eth0)
+        try:
+            ip_obj = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        if not ip_obj.is_global or ip_obj.is_multicast:
+            raise ValueError(
+                f"SSRF blocked: '{hostname}' resolves to non-public address {ip_obj}"
+            )
 
 def main(argv=None):
     """Run the CLI."""
@@ -70,10 +99,46 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
+                # Security: SSRF protection + manual redirect handling
+                # Validate all resolved IPs (IPv4 & IPv6) at every redirect hop.
+                _MAX_REDIRECTS = 10
+                current_url = target_url
+                response = None
+                for _ in range(_MAX_REDIRECTS + 1):
+                    hop_parsed = urlparse(current_url)
+                    hop_host = hop_parsed.hostname
+                    if not hop_host:
+                        print("Error: Invalid URL - missing hostname.", file=sys.stderr)
+                        return
+                    if hop_parsed.scheme not in ('http', 'https'):
+                        print(
+                            f"Error: Redirect to unsupported scheme '{hop_parsed.scheme}'.",
+                            file=sys.stderr,
+                        )
+                        return
+                    try:
+                        _check_ssrf(hop_host)
+                    except ValueError as ssrf_err:
+                        print(f"Error: {ssrf_err}", file=sys.stderr)
+                        return
+                    response = session.get(
+                        current_url, timeout=30, stream=True, allow_redirects=False
+                    )
+                    if response.status_code in (301, 302, 303, 307, 308):
+                        location = response.headers.get('Location', '')
+                        if not location:
+                            break
+                        current_url = urljoin(current_url, location)
+                        response.close()
+                        continue
+                    break
+                else:
+                    print("Error: Too many redirects.", file=sys.stderr)
+                    return
+
                 response.raise_for_status()
 
+                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
                 max_size = 10 * 1024 * 1024
                 try:
                     if int(response.headers.get('Content-Length', 0)) > max_size:
