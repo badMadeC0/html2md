@@ -210,9 +210,9 @@ jobs:
               escaped_error_message="${escaped_error_message//$'\n'/'%0A'}"
               echo "::error title=Gemini CLI execution failed::${escaped_error_message}"
             fi
-            echo "::: Start Gemini CLI STDERR :::"
+            echo "::group::Gemini CLI STDERR"
             cat "${temp_stderr}"
-            echo "::: End Gemini CLI STDERR :::"
+            echo "::endgroup::"
             exit 1
           fi
       - name: Note Gemini API quota exhaustion
