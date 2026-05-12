@@ -22,44 +22,53 @@ def convert_html(html: str) -> str:
     return md(html, heading_style="ATX")
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import sys
+
     markdown_content = convert_html(SAMPLE_HTML)
     print("Converted Markdown:\n")
     print(markdown_content)
 
     client = anthropic.Anthropic()
 
-    with client.messages.stream(
-        model=MODEL,
-        max_tokens=256,
-        system=[
-            {
-                "type": "text",
-                "text": "You are a helpful assistant that analyzes Markdown documents.",
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    "Summarize the following Markdown content in one sentence:\n\n"
-                    + markdown_content
-                ),
-            }
-        ],
-    ) as stream:
-        print("Claude's summary:\n")
-        for text in stream.text_stream:
-            print(text, end="", flush=True)
-        print()
+    try:
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=256,
+            system=[
+                {
+                    "type": "text",
+                    "text": "You are a helpful assistant that analyzes Markdown documents.",
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "Summarize the following Markdown content in one sentence:\n\n"
+                        + markdown_content
+                    ),
+                }
+            ],
+        ) as stream:
+            print("Claude's summary:\n")
+            for text in stream.text_stream:
+                print(text, end="", flush=True)
+            print()
 
-        final = stream.get_final_message()
-        usage = final.usage
-        print(
-            f"\n[tokens: input={usage.input_tokens} output={usage.output_tokens}"
-            f" cache_read={getattr(usage, 'cache_read_input_tokens', 0)}]"
-        )
+            final = stream.get_final_message()
+            usage = final.usage
+            print(
+                f"\n[tokens: input={usage.input_tokens} output={usage.output_tokens}"
+                f" cache_read={getattr(usage, 'cache_read_input_tokens', 0)}]"
+            )
+    except anthropic.AuthenticationError:
+        print("Error: invalid or missing ANTHROPIC_API_KEY.", file=sys.stderr)
+        return 1
+    except anthropic.APIError as exc:
+        print(f"API error: {exc}", file=sys.stderr)
+        return 1
 
     return 0
 
