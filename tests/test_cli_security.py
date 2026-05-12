@@ -153,6 +153,46 @@ def test_process_url_pins_idna_normalized_hostname(mock_get, capsys, tmp_path):
 
 
 @patch("requests.Session.get")
+def test_process_url_resolves_idna2008_hostname_for_validation(mock_get, capsys, tmp_path):
+    """Validation resolves the same IDNA 2008 hostname urllib3 uses to connect."""
+    public_addrinfo = _addrinfo("93.184.216.34")
+    rebound_addrinfo = _addrinfo("127.0.0.1")
+    real_getaddrinfo = cli.socket.getaddrinfo
+    resolved_unicode_form = False
+
+    def rebinding_getaddrinfo(host, port, *args, **kwargs):
+        nonlocal resolved_unicode_form
+        if host == "faß.de":
+            resolved_unicode_form = True
+            return [public_addrinfo]
+        if host == "xn--fa-hia.de":
+            return [rebound_addrinfo] if resolved_unicode_form else [public_addrinfo]
+        return real_getaddrinfo(host, port, *args, **kwargs)
+
+    def request_side_effect(url, timeout, allow_redirects):
+        assert url == "http://faß.de/"
+        assert timeout == 30
+        assert allow_redirects is False
+        # urllib3 uses IDNA 2008 for this hostname (xn--fa-hia.de), while the
+        # stdlib idna codec maps it to fass.de. The vetted IDNA 2008 answer
+        # must remain pinned for the actual connection hostname.
+        assert cli.socket.getaddrinfo("xn--fa-hia.de", 80) == [public_addrinfo]
+        response = MagicMock()
+        response.text = "<h1>safe</h1>"
+        response.is_redirect = False
+        response.raise_for_status.return_value = None
+        return response
+
+    mock_get.side_effect = request_side_effect
+
+    with patch("html2md.cli.socket.getaddrinfo", side_effect=rebinding_getaddrinfo):
+        cli.main(["--url", "http://faß.de/", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+
+
+@patch("requests.Session.get")
 def test_process_url_validates_redirect_targets(mock_get, capsys, tmp_path):
     """Redirect locations are revalidated before following them."""
     redirect_response = MagicMock()

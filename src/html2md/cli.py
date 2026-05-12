@@ -6,6 +6,7 @@ import os
 import sys
 import socket
 import ipaddress
+import idna
 from urllib.parse import urljoin, urlparse, unquote
 
 _RESTRICTED_ADDRESS_ERROR = "Error: URL resolves to a restricted/private network address."
@@ -33,7 +34,12 @@ def _is_allowed_public_ip(ip: str) -> bool:
 
 def _normalize_hostname_for_dns_pin(hostname: str) -> str:
     """Normalize hostnames to the IDNA form used by urllib3 before connecting."""
-    return str(hostname).rstrip('.').lower().encode('idna').decode('ascii').lower()
+    normalized = str(hostname).rstrip('.').lower()
+    try:
+        ipaddress.ip_address(normalized)
+    except ValueError:
+        return idna.encode(normalized, strict=True, std3_rules=True).decode('ascii')
+    return normalized
 
 
 def _resolve_vetted_addresses(hostname: str, port: int):
@@ -73,7 +79,8 @@ def _validate_url_target(target_url: str):
         port = parsed.port or (443 if parsed.scheme == 'https' else 80)
     except ValueError as exc:
         raise _UrlValidationError("Error: URL contains an invalid port.") from exc
-    return parsed, _resolve_vetted_addresses(hostname, port)
+    normalized_hostname = _normalize_hostname_for_dns_pin(hostname)
+    return parsed, _resolve_vetted_addresses(normalized_hostname, port)
 
 
 def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, timeout: int):
