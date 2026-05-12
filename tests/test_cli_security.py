@@ -149,6 +149,57 @@ def test_process_url_reports_dns_resolution_failure(mock_get, capsys, tmp_path):
 
 
 @patch("requests.Session.get")
+def test_process_url_reports_idna_resolution_failure(mock_get, capsys, tmp_path):
+    """Hostname IDNA encoding failures use the URL validation error path."""
+    overlong_label = "a" * 64
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        side_effect=UnicodeError("encoding with 'idna' codec failed"),
+    ):
+        cli.main([
+            "--url",
+            f"https://{overlong_label}.example",
+            "--outdir",
+            str(tmp_path),
+        ])
+
+    outerr = capsys.readouterr()
+    assert "Error: Could not resolve hostname to a valid IP." in outerr.err
+    mock_get.assert_not_called()
+
+
+def test_batch_continues_after_idna_resolution_failure(capsys, tmp_path):
+    """Malformed hostnames do not abort later batch entries."""
+    batch_file = tmp_path / "urls.txt"
+    batch_file.write_text(
+        "https://bad-host.example\nhttps://example.com/page.html\n",
+        encoding="utf-8",
+    )
+    response = MagicMock()
+    response.is_redirect = False
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+
+    with patch(
+        "html2md.cli.socket.getaddrinfo",
+        side_effect=[
+            UnicodeError("encoding with 'idna' codec failed"),
+            addrinfo("93.184.216.34"),
+            addrinfo("93.184.216.34"),
+        ],
+    ), patch("requests.Session.get", return_value=response) as mock_get:
+        cli.main(["--batch", str(batch_file), "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: Could not resolve hostname to a valid IP." in outerr.err
+    assert "Success!" in outerr.out
+    mock_get.assert_called_once_with(
+        "https://example.com/page.html", timeout=30, allow_redirects=False
+    )
+
+
+@patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
