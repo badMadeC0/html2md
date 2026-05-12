@@ -1,8 +1,8 @@
 ---
-applyTo: "**/*.py"
+applyTo: "**/*.py,**/pyproject.toml"
 ---
 
-# Python instructions (path-scoped, loaded for *.py)
+# Python instructions (path-scoped, loaded for *.py and pyproject.toml)
 
 Authoritative source: [`pr-rules/python.md`](../../pr-rules/python.md).
 Repo-local overrides: [`pr-rules/python.local.md`](../../pr-rules/python.local.md).

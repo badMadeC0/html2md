@@ -6,16 +6,20 @@ rule. Use whichever invocation Codex CLI supports for prompt files.
 
 ## Inputs
 
-- Current branch (PR open against `main`).
+- Current PR — base may be `main` or any release branch. Use the actual
+  base captured from `gh pr view` rather than assuming `main`.
 - Rule sets:
   - `pr-rules/common.md` (always)
-  - `pr-rules/python.md` and `pr-rules/python.local.md` (if any `*.py` files changed)
+  - `pr-rules/python.md` and `pr-rules/python.local.md` (if any `*.py`
+    files OR `pyproject.toml` changed — both are in scope for Python rules)
   - `pr-rules/service-html2md.md` (always — service-specific)
   - `pr-rules/edge-cases.md` (consult to avoid duplicate edge cases)
 
 ## Steps
 
-1. Read PR title and body via `gh pr view --json number,title,body`.
+1. Read PR metadata via
+   `gh pr view --json number,title,body,baseRefName,isDraft`. Capture
+   title, body, baseRefName, and isDraft.
    - If the PR is AI-authored or substantially AI-edited, the title MUST
      start with `[AI-Assisted]`; otherwise, do not require or report that
      marker.
@@ -26,10 +30,14 @@ rule. Use whichever invocation Codex CLI supports for prompt files.
      `https://claude.ai/code/session_<id>`,
      `https://cursor.com/share/<id>`,
      `https://chatgpt.com/codex/<id>`, or
-     `https://jules.google.com/task/<id>`. Warn on the literal
-     placeholder `<CLAUDE_CHAT_URL>`. For non-AI PRs, do NOT report
-     the missing transcript link as a violation.
-2. List changed files via `git diff --name-only origin/main...HEAD`.
+     `https://jules.google.com/task/<id>`. Flag the literal placeholder
+     `<CLAUDE_CHAT_URL>` as a violation ONLY when `isDraft` is false —
+     drafts may keep the placeholder while the transcript is not ready.
+     For non-AI PRs, do NOT report the missing transcript link as a
+     violation.
+2. List changed files via `git diff --name-only origin/${baseRefName}...HEAD`
+   using the captured `baseRefName`. Fall back to
+   `gh pr diff <number> --name-only` if the local ref is missing.
 3. Read each rule file in order; for every rule, scan the diff and the
    changed files for violations. Format violations as:
    `path:line — <ruleset> rule N: <one-line summary>`.

@@ -42,8 +42,9 @@ the baseline rule set. Read-only — do not edit files.
 3. Read `pr-rules/common.md`. For each rule, scan the diff and the changed
    files for violations. Report each violation as:
    `path:line — rule N from <ruleset>: <one-line summary>`.
-4. If any changed file matches `*.py`, repeat step 3 for `pr-rules/python.md`
-   then `pr-rules/python.local.md`.
+4. If any changed file matches `*.py` OR is `pyproject.toml`, repeat
+   step 3 for `pr-rules/python.md` then `pr-rules/python.local.md`.
+   The Python rules apply to packaging metadata as well as source.
 5. Repeat step 3 for `pr-rules/service-html2md.md`.
 6. Run `scripts/check_agents_consistency.sh`. If non-zero, copy its output
    into the report under "Baseline consistency".
