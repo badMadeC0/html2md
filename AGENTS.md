@@ -1,8 +1,9 @@
 # AGENTS.md
 
 Authoritative guidance for AI coding agents (Claude, Cursor, Copilot, Codex,
-Jules, Gemini Code Assist) working in this repository. `CLAUDE.md` is a
-symbolic link to this file.
+Jules, Gemini Code Assist) working in this repository. `CLAUDE.md` may be
+a symbolic link to this file, or on checkouts without symlink support a
+regular file containing `AGENTS.md`.
 
 <!-- BEGIN BASELINE -->
 ## AI-PR-Review baseline
