@@ -205,7 +205,10 @@ jobs:
           if [ "${failed}" = true ]; then
             if [ -n "${error_json}" ]; then
               error_message="$(jq -r '.message // .' <<< "${error_json}")"
-              echo "::error title=Gemini CLI execution failed::${error_message}"
+              escaped_error_message="${error_message//'%'/'%25'}"
+              escaped_error_message="${escaped_error_message//$'\r'/'%0D'}"
+              escaped_error_message="${escaped_error_message//$'\n'/'%0A'}"
+              echo "::error title=Gemini CLI execution failed::${escaped_error_message}"
             fi
             echo "::: Start Gemini CLI STDERR :::"
             cat "${temp_stderr}"
