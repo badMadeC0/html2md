@@ -60,13 +60,14 @@ jobs:
           persist-credentials: false
       - name: Remove PR-local Gemini configuration
         # Gemini CLI loads project-local configuration and .env files from the
-        # checked-out .gemini tree. A PR could use those files to override CLI
-        # behavior or telemetry settings before the pinned review extension runs,
-        # so remove the entire checkout-provided tree before invoking Gemini.
+        # checked-out .gemini tree. A PR could use those files, including
+        # symlinked settings.json targets, to override CLI behavior or corrupt
+        # files before the pinned review extension runs, so remove the entire
+        # checkout-provided tree before invoking Gemini.
         run: |
-          rm -rf .gemini
-          if [ -e .gemini ]; then
-            echo "::error::PR-local Gemini configuration is still present."
+          rm -rf -- .gemini
+          if [ -e .gemini ] || [ -L .gemini ]; then
+            echo "::error::PR-local Gemini configuration or symlink is still present."
             exit 1
           fi
       - name: Gemini Code Assist
