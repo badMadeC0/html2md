@@ -56,10 +56,17 @@ def test_blocks_all_dotenv_variants() -> None:
 
 def test_blocks_windows_separator_paths() -> None:
     """Backslash-separated paths are normalized before matching."""
-    result = run_hook(hook_payload("Write", r"C:\repo\credentials.json"))
+    paths = (
+        r"C:\repo\credentials.json",
+        r"config\.env.production",
+        r"C:\repo\id_rsa",
+    )
 
-    assert result.returncode == 2
-    assert "credentials.json" in result.stderr
+    for path in paths:
+        result = run_hook(hook_payload("Write", path))
+
+        assert result.returncode == 2
+        assert path in result.stderr
 
 
 def test_blocks_sensitive_multiedit_paths() -> None:

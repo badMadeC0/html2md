@@ -10,6 +10,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import posixpath
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -41,7 +42,7 @@ def is_sensitive(path: str) -> bool:
         return False
 
     normalized_path = path.replace("\\", "/").lower()
-    normalized_base = os.path.basename(normalized_path).lower()
+    normalized_base = posixpath.basename(normalized_path).lower()
 
     for pattern in SENSITIVE_BASENAME_PATTERNS:
         normalized_pattern = pattern.lower()
