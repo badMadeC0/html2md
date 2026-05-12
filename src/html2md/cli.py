@@ -161,6 +161,10 @@ def main(argv=None):
             return 1
 
         session = requests.Session()
+        # Do not trust HTTP_PROXY/HTTPS_PROXY/ALL_PROXY from the environment for
+        # security-sensitive URL fetches; targets must resolve through the
+        # validated and pinned DNS path in this process.
+        session.trust_env = False
         session.headers.update({
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '

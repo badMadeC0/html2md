@@ -150,6 +150,32 @@ def test_redirect_fetch_pins_validated_dns_result(capsys, tmp_path):
     assert resolve_counts == {"example.com": 1, "redirect.example": 1}
 
 
+def test_url_fetch_session_disables_environment_proxies(capsys, tmp_path):
+    """URL fetching must ignore ambient proxy settings to keep DNS pinned."""
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.text = "<h1>proxied</h1>"
+    response.raise_for_status.return_value = None
+
+    session = MagicMock()
+    session.headers = {}
+    session.get.return_value = response
+
+    with patch("requests.Session", return_value=session), patch(
+        "html2md.cli.socket.getaddrinfo",
+        return_value=_addrinfo_for("93.184.216.34"),
+    ):
+        cli.main(["--url", "https://example.com/proxy", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+    assert session.trust_env is False
+    session.get.assert_called_once_with(
+        "https://example.com/proxy", timeout=30, allow_redirects=False
+    )
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
