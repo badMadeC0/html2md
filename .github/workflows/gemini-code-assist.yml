@@ -36,9 +36,12 @@ jobs:
       # the PR's head lives. The job-level author_association check rejects
       # untrusted commenters, but a trusted collaborator commenting on a
       # fork PR would still feed the fork's diff to a --yolo run with
-      # write-capable MCP tools and GEMINI_API_KEY in scope. Verify the PR
-      # head repo before any secret-using step runs.
+      # write-capable MCP tools and GEMINI_API_KEY in scope. Resolve the PR
+      # head repo first and gate the secret-using steps below on the result,
+      # so a fork skip looks like a clean "skipped" rather than a red
+      # failure while still keeping secrets off-runner.
       - name: Verify PR head is not a fork (comment-triggered runs)
+        id: forkcheck
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,8 +51,10 @@ jobs:
           set -euo pipefail
           head_repo=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.head.repo.full_name')
           if [ "${head_repo}" != "${REPO}" ]; then
-            echo "Refusing to run secret-backed Gemini review on fork PR (head=${head_repo})" >&2
-            exit 1
+            echo "Skipping: PR head is a fork (${head_repo}); not exposing review secrets."
+            echo "fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fork=false" >> "$GITHUB_OUTPUT"
           fi
       # Install the code-review extension from a pinned commit by cloning
       # locally and passing the path to the action's `extensions:` input.
@@ -57,7 +62,7 @@ jobs:
       # this avoids the floating default-branch install while still letting
       # `gemini extensions install` set up the manifest.
       - name: Clone gemini code-review extension at pinned commit
-        if: env.GEMINI_API_KEY != ''
+        if: env.GEMINI_API_KEY != '' && steps.forkcheck.outputs.fork != 'true'
         env:
           EXTENSION_REF: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
         run: |
@@ -67,7 +72,7 @@ jobs:
             "${RUNNER_TEMP}/gemini-code-review-ext"
           git -C "${RUNNER_TEMP}/gemini-code-review-ext" checkout "${EXTENSION_REF}"
       - name: Gemini Code Assist
-        if: env.GEMINI_API_KEY != ''
+        if: env.GEMINI_API_KEY != '' && steps.forkcheck.outputs.fork != 'true'
         continue-on-error: true
         uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
         env:
