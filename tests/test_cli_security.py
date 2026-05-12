@@ -98,6 +98,45 @@ def test_process_url_blocks_redirect_to_private_address(mock_get, capsys, tmp_pa
     )
 
 
+@patch("requests.Session.get")
+def test_process_url_blocks_redirect_with_backslash_authority_confusion(
+    mock_get, capsys, tmp_path
+):
+    """Redirect locations with backslashes are rejected before refetching."""
+    redirect_response = MagicMock()
+    redirect_response.status_code = 302
+    redirect_response.headers = {"Location": "http://127.0.0.1\\@public.example/"}
+    mock_get.return_value = redirect_response
+
+    with patch("html2md.cli.socket.getaddrinfo", return_value=addrinfo("93.184.216.34")):
+        cli.main(["--url", "http://public.example/start", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: URL contains unsafe characters." in outerr.err
+    mock_get.assert_called_once_with(
+        "http://public.example/start", timeout=30, allow_redirects=False
+    )
+    redirect_response.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "http://public.example\\@127.0.0.1/",
+        "http://public.example/has\\backslash",
+        "http://public.example/has\ttab",
+        "http://public.example/has\x7fdelete",
+    ],
+)
+def test_validate_fetch_url_rejects_parser_ambiguous_characters(target_url):
+    """Unsafe raw URL characters are rejected before DNS resolution."""
+    with patch("html2md.cli.socket.getaddrinfo") as mock_getaddrinfo:
+        with pytest.raises(ValueError, match="URL contains unsafe characters"):
+            cli._validate_fetch_url(target_url)
+
+    mock_getaddrinfo.assert_not_called()
+
+
 def test_process_url_uses_requests_connection_module_for_rebinding_guard(capsys):
     """The CLI patches the create_connection symbol requests/urllib3 calls."""
     fake_requests = types.ModuleType("requests")

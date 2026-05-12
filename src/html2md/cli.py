@@ -27,6 +27,11 @@ def _is_restricted_ip(ip: str) -> bool:
     )
 
 
+def _has_unsafe_url_characters(target_url: str) -> bool:
+    """Return whether a URL contains characters that parsers disagree on."""
+    return any(char == '\\' or ord(char) < 32 or ord(char) == 127 for char in target_url)
+
+
 def _validate_fetch_url(target_url: str) -> None:
     """Validate that a URL is safe to fetch over the network.
 
@@ -35,6 +40,9 @@ def _validate_fetch_url(target_url: str) -> None:
         PermissionError: If any resolved address is restricted/private.
         socket.gaierror: If the hostname cannot be resolved.
     """
+    if _has_unsafe_url_characters(target_url):
+        raise ValueError("URL contains unsafe characters.")
+
     parsed = urlparse(target_url)
     if parsed.scheme not in ('http', 'https'):
         raise ValueError(
