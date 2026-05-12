@@ -20,8 +20,13 @@ Repo-local overrides go in `pr-rules/python.local.md` (loaded after this).
   `pyproject.toml`) and inside tests.
 - Use `argparse.ArgumentParser` for CLI parsing — no click, typer, fire,
   or other frameworks.
-- Use `pathlib.Path` for filesystem operations — no `os.path` joins, no
-  string concatenation of path components.
+- For **new code or modules being substantially edited**, use
+  `pathlib.Path` for filesystem operations — no `os.path` joins, no
+  string concatenation of path components. The existing `src/html2md/cli.py`
+  uses `os.path.*` / `os.makedirs()` and is grandfathered until it's
+  migrated in a dedicated refactor PR — drive-by `os.path` → `pathlib`
+  conversions inside cli.py are not required (and not in scope of an
+  unrelated bug fix).
 - Pass `encoding="utf-8"` explicitly on every `open()` and `Path.open()`.
 - Group imports as stdlib → third-party → local with one blank line
   between groups.

@@ -27,24 +27,35 @@ WF=".github/workflows/ai-assisted-pr-guard.yml"
 [ -f "$WF" ] || fail "workflow not found: $WF"
 
 # Prefer pyyaml-based parse; fall back to grep checks.
-# Probe candidates and pick the first one that satisfies >= 3.8.
-# Try absolute system paths FIRST so a broken/slow pyenv shim resolved
-# from the `python3` shell name never blocks the lint. Without this
-# ordering the lint can silently downgrade to the weaker grep-only path
-# when the shim hangs.
+# Probe candidates and pick:
+#   1. An interpreter >= 3.8 that can `import yaml` (preferred — full
+#      structural YAML validation).
+#   2. Otherwise, any interpreter >= 3.8 (lets the script run the
+#      awk-based structural check; pyyaml not available).
+# Try `python3` / `python` from PATH first so an activated virtualenv
+# (which often has pyyaml installed) wins over the bare system Python.
+# Fall back to absolute system paths if PATH-resolved interpreters fail
+# or hang (e.g. broken pyenv shim).
 have_yaml=0
 PYTHON_BIN=""
-for candidate in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3 python3 python; do
+PYTHON_NO_YAML=""
+for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
   if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
     if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
-      PYTHON_BIN="$candidate"
-      break
+      if "$candidate" -c "import yaml" >/dev/null 2>&1; then
+        PYTHON_BIN="$candidate"
+        have_yaml=1
+        break
+      elif [ -z "$PYTHON_NO_YAML" ]; then
+        PYTHON_NO_YAML="$candidate"
+      fi
     fi
   fi
 done
-
-if [ -n "$PYTHON_BIN" ] && "$PYTHON_BIN" -c "import yaml" >/dev/null 2>&1; then
-  have_yaml=1
+# If no candidate had yaml, fall back to whichever passed the version
+# check so the awk-based structural check can still run.
+if [ -z "$PYTHON_BIN" ]; then
+  PYTHON_BIN="$PYTHON_NO_YAML"
 fi
 
 if [ "$have_yaml" -eq 1 ]; then
