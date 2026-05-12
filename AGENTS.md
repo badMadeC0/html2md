@@ -1,10 +1,11 @@
 # AGENTS.md
 
-Jules, Gemini Code Assist) working in this repository. `CLAUDE.md` is a
-symbolic link to this file on POSIX checkouts; on Windows checkouts
-without symlink support it may be materialized as a regular file
-containing the string `AGENTS.md` (the consistency check accepts either
-form — see `pr-rules/service-html2md.md` §4).
+Guidance for AI agents (including Claude, Codex, Jules, Gemini Code
+Assist) working in this repository. `CLAUDE.md` is a symbolic link to
+this file on POSIX checkouts; on Windows checkouts without symlink
+support it may be materialized as a regular file containing the string
+`AGENTS.md` (the consistency check accepts either form — see
+`pr-rules/service-html2md.md` §4).
 
 <!-- BEGIN BASELINE -->
 ## AI-PR-Review baseline
