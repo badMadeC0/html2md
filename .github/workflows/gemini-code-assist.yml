@@ -1,7 +1,14 @@
 name: Gemini Code Assist
 
+run-name: Gemini Code Assist for PR #${{ inputs.pr_number }}
+
 on:
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: number
 
 permissions:
   contents: read
@@ -11,10 +18,12 @@ permissions:
 jobs:
   gemini-code-assist:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: refs/pull/${{ inputs.pr_number }}/head
           fetch-depth: 0
       - name: Gemini Code Assist
         uses: google-gemini/code-assist-action@v1
+        with:
+          pr_number: ${{ inputs.pr_number }}
