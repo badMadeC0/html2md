@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import argparse
+import codecs
 from contextlib import nullcontext
 import os
 import sys
@@ -55,6 +56,29 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
+        def is_supported_encoding(encoding) -> bool:
+            """Return whether encoding names a codec Python can decode with."""
+            if not isinstance(encoding, str) or not encoding:
+                return False
+            try:
+                codecs.lookup(encoding)
+            except LookupError:
+                return False
+            return True
+
+        def get_valid_encoding(response) -> str:
+            """Return a Requests-compatible fallback encoding for streamed bytes."""
+            encoding = getattr(response, "encoding", None)
+            if is_supported_encoding(encoding):
+                return encoding
+
+            if not isinstance(encoding, str) or not encoding:
+                apparent_encoding = getattr(response, "apparent_encoding", None)
+                if is_supported_encoding(apparent_encoding):
+                    return apparent_encoding
+
+            return "utf-8"
+
         def process_url(target_url: str) -> None:
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
@@ -105,10 +129,9 @@ def main(argv=None):
                                 )
                                 return
 
-                        encoding = getattr(response, "encoding", None)
-                        if not isinstance(encoding, str) or not encoding:
-                            encoding = "utf-8"
-                        html_content = content_bytes.decode(encoding, errors="replace")
+                        html_content = content_bytes.decode(
+                            get_valid_encoding(response), errors="replace"
+                        )
 
                 md_content = md(html_content, heading_style="ATX")
 

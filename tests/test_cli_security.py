@@ -10,13 +10,20 @@ from html2md import cli
 class StreamingResponse(requests.Response):
     """requests.Response test double that fails if .text is used."""
 
-    def __init__(self, chunks, status_error=None):
+    def __init__(
+        self, chunks, status_error=None, encoding="utf-8", apparent_encoding=None
+    ):
         super().__init__()
         self.status_code = 200
-        self.encoding = "utf-8"
+        self.encoding = encoding
+        self._apparent_encoding = apparent_encoding
         self._chunks = chunks
         self._status_error = status_error
         self.closed = False
+
+    @property
+    def apparent_encoding(self):
+        return self._apparent_encoding or super().apparent_encoding
 
     @property
     def text(self):
@@ -50,6 +57,36 @@ def test_real_response_streaming_enforces_download_cap(mock_get, capsys):
     )
     assert response.closed
     markdownify.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_real_response_invalid_encoding_falls_back_to_utf8(mock_get, capsys):
+    """Invalid server charsets must not abort streamed response conversion."""
+    response = StreamingResponse(["<h1>Café</h1>".encode()], encoding="not-a-codec")
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/bad-charset"])
+
+    outerr = capsys.readouterr()
+    assert "Conversion failed" not in outerr.err
+    assert "# Café" in outerr.out
+    assert response.closed
+
+
+@patch("requests.Session.get")
+def test_real_response_uses_apparent_encoding_when_charset_missing(mock_get, capsys):
+    """Streamed responses should preserve Requests' detected encoding fallback."""
+    response = StreamingResponse(
+        [b"<h1>Caf\xe9</h1>"], encoding=None, apparent_encoding="windows-1252"
+    )
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/no-charset"])
+
+    outerr = capsys.readouterr()
+    assert "Conversion failed" not in outerr.err
+    assert "# Café" in outerr.out
+    assert response.closed
 
 
 @patch("requests.Session.get")
