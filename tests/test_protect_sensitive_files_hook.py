@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
-import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -37,6 +37,14 @@ def run_hook_raw(payload_raw, monkeypatch, capsys):
 
 def run_hook(payload, monkeypatch, capsys):
     return run_hook_raw(json.dumps(payload), monkeypatch, capsys)
+
+
+def script_path_from_registered_command(command: str, project_dir: Path) -> Path:
+    quoted_project_hook = (
+        '"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-sensitive-files.py"'
+    )
+    assert command == quoted_project_hook
+    return project_dir / ".claude" / "hooks" / "protect-sensitive-files.py"
 
 
 @pytest.mark.parametrize(
@@ -173,13 +181,13 @@ def test_registered_hook_command_blocks_sensitive_file():
         {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
     )
 
+    script_path = script_path_from_registered_command(command, repo_root)
+
     result = subprocess.run(
-        command,
+        [sys.executable, str(script_path)],
         input=payload,
         text=True,
         capture_output=True,
-        shell=True,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(repo_root)},
         check=False,
     )
 
@@ -190,23 +198,23 @@ def test_registered_hook_command_blocks_sensitive_file():
 
 def test_registered_hook_command_handles_project_dir_with_spaces(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
-    linked_repo = tmp_path / "repo with spaces"
-    linked_repo.symlink_to(repo_root, target_is_directory=True)
+    spaced_repo = tmp_path / "repo with spaces"
+    shutil.copytree(repo_root / ".claude", spaced_repo / ".claude")
     settings = json.loads(
-        (repo_root / ".claude" / "settings.json").read_text(encoding="utf-8")
+        (spaced_repo / ".claude" / "settings.json").read_text(encoding="utf-8")
     )
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
     payload = json.dumps(
         {"tool_name": "Write", "tool_input": {"file_path": "secrets/.env"}}
     )
 
+    script_path = script_path_from_registered_command(command, spaced_repo)
+
     result = subprocess.run(
-        command,
+        [sys.executable, str(script_path)],
         input=payload,
         text=True,
         capture_output=True,
-        shell=True,
-        env={**os.environ, "CLAUDE_PROJECT_DIR": str(linked_repo)},
         check=False,
     )
 
