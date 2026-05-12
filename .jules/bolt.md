@@ -1,3 +1,9 @@
+## 2024-05-18 - [Python Hot Loop Optimizations]
+
+**Learning:** In a hot loop (like CSV exporting where 100k+ records are processed), replacing `isinstance(val, type)` with `type(val) is type` yields measurable speedups due to avoiding inheritance checks. Similarly, string searching (`c in "=+-@"`) is significantly faster than tuple containment checks (`c in ('=', '+', '-', '@')`) for 1-character length strings.
+
+**Action:** When working in performance critical inner loops in Python, consider `type() is` for simple base types and string containment checks over tuples. Always benchmark to prove the improvement.
+
 # 2024-05-24 - Python Fast Path Optimizations for CSV/JSON Export Loop
 
 **Learning:** Optimizing a hot loop parsing JSON to CSV in Python yielded ~40% throughput increase through several specific optimizations:
