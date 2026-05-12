@@ -6,21 +6,29 @@ import os
 import sys
 from urllib.parse import urlparse, unquote
 
-def main(argv=None):
-    """Run the CLI."""
-    ap = argparse.ArgumentParser(
+
+def _build_parser() -> argparse.ArgumentParser:
+    """Create the CLI argument parser."""
+    parser = argparse.ArgumentParser(
         prog='html2md',
         description='Convert HTML URL to Markdown.'
     )
-    ap.add_argument('--help-only', action='store_true', help=argparse.SUPPRESS)
-    ap.add_argument('--url', help='Input URL to convert')
-    ap.add_argument('--batch', help='File containing URLs to process (one per line)')
-    ap.add_argument('--outdir', help='Output directory to save the file')
+    parser.add_argument('--help-only', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--url', help='Input URL to convert')
+    parser.add_argument('--batch', help='File containing URLs to process (one per line)')
+    parser.add_argument('--outdir', help='Output directory to save the file')
+    return parser
 
-    args = ap.parse_args(argv)
+
+_PARSER = _build_parser()
+
+
+def main(argv=None):
+    """Run the CLI."""
+    args = _PARSER.parse_args(argv)
 
     if args.help_only:
-        ap.print_help()
+        _PARSER.print_help()
         return 0
 
     if args.url or args.batch:
@@ -148,5 +156,5 @@ def main(argv=None):
 
         return 0
 
-    ap.print_help()
+    _PARSER.print_help()
     return 0
