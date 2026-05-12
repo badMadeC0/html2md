@@ -38,7 +38,7 @@ done
 
 BAD=$("$PYTHON_BIN" - "$SETTINGS" <<'PY'
 import json, sys, re
-with open(sys.argv[1]) as f:
+with open(sys.argv[1], encoding="utf-8") as f:
     data = json.load(f)
 allow = data.get("permissions", {}).get("allow", [])
 # Match `Bash(git branch ... :*)`. The `:*` suffix in Claude permission

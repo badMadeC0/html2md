@@ -55,7 +55,7 @@ This repo follows the [AI-PR-Review baseline](AGENTS.md). Before any AI
 agent (Claude, Cursor, Copilot, Codex, Jules, Gemini Code Assist) proposes
 a change, it should read:
 
-- [`AGENTS.md`](AGENTS.md) — authoritative guidance. `CLAUDE.md` is a symlink to this file.
+- [`AGENTS.md`](AGENTS.md) — authoritative guidance. `CLAUDE.md` is a symlink to this file on POSIX checkouts; on Windows checkouts without symlink support it may appear as a regular file containing `AGENTS.md` (the baseline consistency check accepts either form).
 - [`pr-rules/`](pr-rules/) — review rule sets (`common.md`, `python.md`, `service-html2md.md`, plus the append-only `edge-cases.md` ledger). Treat these as review guidance, and cross-check any architecture or runtime-boundary claims against the current source tree before relying on them.
 - [`adr/`](adr/) — architecture decision records; use these together with the current codebase to confirm how the repository is actually structured.
 
