@@ -115,34 +115,48 @@ def test_process_url_pins_request_to_vetted_dns_answer(mock_get, capsys, tmp_pat
     assert "Success!" in outerr.out
 
 
-@patch("requests.Session.get")
-def test_process_url_disables_ambient_proxies_during_pinned_fetch(mock_get, monkeypatch):
-    """Environment-configured proxies are ignored while pinned DNS is active."""
+def test_safe_get_disables_proxies_without_disabling_trusted_environment(
+    monkeypatch, tmp_path
+):
+    """Pinned fetches avoid proxies while preserving other trusted env settings."""
+    ca_bundle = tmp_path / "ca.pem"
+    ca_bundle.write_text("test CA bundle", encoding="utf-8")
     monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:8080")
+    monkeypatch.setenv("REQUESTS_CA_BUNDLE", str(ca_bundle))
+    monkeypatch.setenv("NO_PROXY", "proxy-bypass.example")
+
     session = requests.Session()
     session.trust_env = True
+    session.proxies = {"http": "http://10.0.0.1:3128"}
+    original_merge_environment_settings = session.merge_environment_settings
+
     response = MagicMock()
     response.text = "<h1>safe</h1>"
     response.is_redirect = False
     response.raise_for_status.return_value = None
 
-    def request_side_effect(url, timeout, allow_redirects):
-        assert url == "http://proxy-bypass.example/"
-        assert timeout == 30
-        assert allow_redirects is False
-        assert session.trust_env is False
+    def send_side_effect(request, **kwargs):
+        assert request.url == "http://proxy-bypass.example/"
+        assert kwargs["timeout"] == 30
+        assert kwargs["allow_redirects"] is False
+        assert kwargs["proxies"] == {}
+        assert kwargs["verify"] == str(ca_bundle)
+        assert session.trust_env is True
+        assert session.proxies == {"http": "http://10.0.0.1:3128"}
         return response
 
-    mock_get.side_effect = request_side_effect
-
-    with patch("html2md.cli.socket.getaddrinfo", return_value=[_addrinfo("93.184.216.34")]):
-        result = cli._safe_get(session, "http://proxy-bypass.example/")
+    with patch.object(session, "send", side_effect=send_side_effect) as mock_send:
+        with patch(
+            "html2md.cli.socket.getaddrinfo",
+            return_value=[_addrinfo("93.184.216.34")],
+        ):
+            result = cli._safe_get(session, "http://proxy-bypass.example/")
 
     assert result is response
     assert session.trust_env is True
-    mock_get.assert_called_once_with(
-        "http://proxy-bypass.example/", timeout=30, allow_redirects=False
-    )
+    assert session.proxies == {"http": "http://10.0.0.1:3128"}
+    assert session.merge_environment_settings == original_merge_environment_settings
+    mock_send.assert_called_once()
 
 
 @patch("requests.Session.get")

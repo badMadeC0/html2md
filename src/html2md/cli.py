@@ -99,13 +99,28 @@ def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, tim
             ]
         return original_getaddrinfo(host, request_port, family, type, proto, flags)
 
-    socket.getaddrinfo = pinned_getaddrinfo
-    original_trust_env = getattr(session, "trust_env", True)
-    session.trust_env = False
+    original_merge_environment_settings = None
+    merge_environment_settings_overridden = False
+
     try:
+        original_merge_environment_settings = session.merge_environment_settings
+
+        def merge_environment_settings_without_proxies(
+            url, proxies, stream, verify, cert
+        ):
+            settings = original_merge_environment_settings(
+                url, proxies, stream, verify, cert
+            )
+            settings["proxies"] = {}
+            return settings
+
+        socket.getaddrinfo = pinned_getaddrinfo
+        session.merge_environment_settings = merge_environment_settings_without_proxies
+        merge_environment_settings_overridden = True
         return session.get(target_url, timeout=timeout, allow_redirects=False)
     finally:
-        session.trust_env = original_trust_env
+        if merge_environment_settings_overridden:
+            session.merge_environment_settings = original_merge_environment_settings
         socket.getaddrinfo = original_getaddrinfo
 
 
