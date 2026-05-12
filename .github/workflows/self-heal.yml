@@ -58,8 +58,9 @@ jobs:
       - name: Attempt self-heal repairs
         shell: bash
         run: |
-          set -o pipefail
           node scripts/self-heal.mjs | tee selfheal-repair.txt
+          repair_status=${PIPESTATUS[0]}
+          exit "$repair_status"
 
       - name: Run healthcheck (post-repair)
         id: post
