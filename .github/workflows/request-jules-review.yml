@@ -2,7 +2,7 @@ name: Request Jules Review
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize]
 
 permissions:
   issues: write
@@ -20,6 +20,7 @@ jobs:
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           python - <<'PY'
           from __future__ import annotations
@@ -33,26 +34,59 @@ jobs:
           api_url = os.environ["GITHUB_API_URL"]
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
+          head_sha = os.environ["HEAD_SHA"]
           token = os.environ["GITHUB_TOKEN"]
-
-          request = urllib.request.Request(
-              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
-              method="POST",
+          comments_url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+          marker = f"<!-- jules-review-request: {head_sha} -->"
+          body = (
+              "@google-labs-jules please review this pull request.\n\n"
+              f"{marker}"
           )
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          }
+
+          def request_json(url: str) -> tuple[list[dict], str]:
+              request = urllib.request.Request(url=url, headers=headers, method="GET")
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response), response.headers.get("Link", "")
+
+          def next_link(link_header: str) -> str | None:
+              for link in link_header.split(","):
+                  link = link.strip()
+                  if 'rel="next"' not in link:
+                      continue
+                  url, _ = link.split(";", 1)
+                  return url.strip("<>")
+              return None
 
           try:
+              url = f"{comments_url}?per_page=100"
+              while url:
+                  comments, link_header = request_json(url)
+                  for comment in comments:
+                      if marker in comment.get("body", ""):
+                          print(
+                              "Skipping: @google-labs-jules was already requested "
+                              f"for head SHA {head_sha} on PR #{pr_number}."
+                          )
+                          sys.exit(0)
+                  url = next_link(link_header)
+
+              request = urllib.request.Request(
+                  url=comments_url,
+                  data=json.dumps({"body": body}).encode("utf-8"),
+                  headers=headers,
+                  method="POST",
+              )
+
               with urllib.request.urlopen(request) as response:
                   print(
                       "Requested review from @google-labs-jules via comment on "
-                      f"PR #{pr_number} (status {response.status})"
+                      f"PR #{pr_number} at head SHA {head_sha} "
+                      f"(status {response.status})"
                   )
           except urllib.error.HTTPError as error:
               if error.code == 403:
