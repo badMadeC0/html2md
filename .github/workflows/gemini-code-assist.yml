@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # Use the published Gemini CLI action. The google-gemini/code-assist-action@v1
+      # repository is not a resolvable GitHub Action and fails during action resolution.
       - name: Gemini Code Assist
         if: env.GEMINI_API_KEY != ''
         continue-on-error: true
