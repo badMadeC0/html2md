@@ -50,7 +50,12 @@ jobs:
           # Require `https://` literally (not `https?://`). The PR template
           # and the docs only advertise the secure form; allowing plain
           # http would let an insecure link silently satisfy the guard.
-          transcript_regex='(^|[[:space:]<>(])https://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]|claude\.ai/code/session_[a-zA-Z0-9_-]|cursor\.com/share/[a-zA-Z0-9_-]|chatgpt\.com/codex/[a-zA-Z0-9_-]|jules\.google\.com/task/[a-zA-Z0-9_-])'
+          # Use `+` after the ID class so the regex documents that one or
+          # more ID characters must follow each transcript prefix. (Note:
+          # functionally equivalent to a single ID character followed by
+          # arbitrary trailing chars, since `grep -E` matches a substring;
+          # the explicit `+` makes the intent clear to future readers.)
+          transcript_regex='(^|[[:space:]<>(])https://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]+|claude\.ai/code/session_[a-zA-Z0-9_-]+|cursor\.com/share/[a-zA-Z0-9_-]+|chatgpt\.com/codex/[a-zA-Z0-9_-]+|jules\.google\.com/task/[a-zA-Z0-9_-]+)'
 
           has_placeholder=false
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then
