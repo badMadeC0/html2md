@@ -84,6 +84,11 @@ jobs:
           # The first two populate github.event.pull_request.number; the
           # last populates github.event.issue.number.
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          # Keep tools.core to repo-scoped built-ins only. Do not add
+          # run_shell_command(cat|grep|head|tail): Gemini CLI treats those
+          # as shell-command prefixes, so PR-controlled prompts could add
+          # redirections, mutate the workspace, or read absolute paths
+          # outside the checkout.
           settings: |-
             {
               "model": {
