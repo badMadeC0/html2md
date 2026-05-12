@@ -260,11 +260,15 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
-        $ClearBtn.IsEnabled = $false
-        $ClearBtn.ToolTip = "URL list is already empty"
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+    }
+
+    if ([string]::IsNullOrEmpty($UrlBox.Text)) {
+        $ClearBtn.IsEnabled = $false
+        $ClearBtn.ToolTip = "URL list is already empty"
+    } else {
         $ClearBtn.IsEnabled = $true
         $ClearBtn.ToolTip = "Clear URL list"
     }
