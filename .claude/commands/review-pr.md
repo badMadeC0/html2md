@@ -16,8 +16,8 @@ the baseline rule set. Read-only — do not edit files.
 
 ## Steps
 
-1. Run `gh pr view --json number,title,body,headRefName,baseRefName` and
-   capture the title and body. Then:
+1. Run `gh pr view --json number,title,body,headRefName,baseRefName,isDraft`
+   and capture title, body, baseRefName, and isDraft. Then:
    - If the title starts with `[AI-Assisted]`, confirm the body contains
      an originating agent transcript URL from one of the accepted forms
      (matches `.github/workflows/ai-assisted-pr-guard.yml` and
@@ -28,12 +28,17 @@ the baseline rule set. Read-only — do not edit files.
      - `https://cursor.com/share/<id>`
      - `https://chatgpt.com/codex/<id>`
      - `https://jules.google.com/task/<id>`
-     Flag the literal placeholder `<CLAUDE_CHAT_URL>` if still present in
-     a non-draft PR.
+     If the body still contains the literal placeholder
+     `<CLAUDE_CHAT_URL>`, flag it as a violation ONLY when `isDraft` is
+     false. Drafts may keep the placeholder while the transcript is not
+     ready yet.
    - If the title does not start with `[AI-Assisted]`, treat the PR as
      non-AI-authored for this check and do not report the missing marker
      or missing transcript URL as a violation.
-2. Run `git diff --name-only origin/main...HEAD` to enumerate changed files.
+2. Enumerate changed files via `git diff --name-only origin/${baseRefName}...HEAD`
+   using the `baseRefName` captured above (the PR may target a release
+   branch, not `main`). If `origin/${baseRefName}` is missing locally,
+   fall back to `gh pr diff <number> --name-only`.
 3. Read `pr-rules/common.md`. For each rule, scan the diff and the changed
    files for violations. Report each violation as:
    `path:line — rule N from <ruleset>: <one-line summary>`.

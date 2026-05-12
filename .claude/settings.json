@@ -51,6 +51,9 @@
       "Read(**/*_credentials)",
       "Read(**/*-credentials.*)",
       "Read(**/*_credentials.*)",
+      "Read(**/secrets/**)",
+      "Read(**/secret/**)",
+      "Read(**/credentials/**)",
       "Edit(**/.env*)",
       "Edit(**/*.pem)",
       "Edit(**/*.key)",
@@ -75,6 +78,9 @@
       "Edit(**/*_credentials)",
       "Edit(**/*-credentials.*)",
       "Edit(**/*_credentials.*)",
+      "Edit(**/secrets/**)",
+      "Edit(**/secret/**)",
+      "Edit(**/credentials/**)",
       "Write(**/.env*)",
       "Write(**/*.pem)",
       "Write(**/*.key)",
@@ -98,7 +104,10 @@
       "Write(**/*-credentials)",
       "Write(**/*_credentials)",
       "Write(**/*-credentials.*)",
-      "Write(**/*_credentials.*)"
+      "Write(**/*_credentials.*)",
+      "Write(**/secrets/**)",
+      "Write(**/secret/**)",
+      "Write(**/credentials/**)"
     ]
   },
   "hooks": {
@@ -108,7 +117,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HOOK=\"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/protect-sensitive-files.py\"; if command -v python3 >/dev/null 2>&1; then exec python3 \"$HOOK\"; elif [ -x /usr/bin/python3 ]; then exec /usr/bin/python3 \"$HOOK\"; elif command -v python >/dev/null 2>&1; then exec python \"$HOOK\"; else echo 'protect-sensitive-files: BLOCKED — no python interpreter' >&2; exit 2; fi"
+            "command": "HOOK=\"${CLAUDE_PROJECT_DIR:-$PWD}/.claude/hooks/protect-sensitive-files.py\"; if [ -x /usr/bin/python3 ]; then exec /usr/bin/python3 \"$HOOK\"; elif [ -x /opt/homebrew/bin/python3 ]; then exec /opt/homebrew/bin/python3 \"$HOOK\"; elif command -v python3 >/dev/null 2>&1; then exec python3 \"$HOOK\"; elif command -v python >/dev/null 2>&1; then exec python \"$HOOK\"; else echo 'protect-sensitive-files: BLOCKED — no python interpreter' >&2; exit 2; fi"
           }
         ]
       }

@@ -47,7 +47,10 @@ jobs:
           # non-`?`" rejects `claude.ai/chat/)` or `claude.ai/chat/#` where
           # the immediate trailing character is closing punctuation or a
           # fragment marker.
-          transcript_regex='(^|[[:space:]<>(])https?://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]|claude\.ai/code/session_[a-zA-Z0-9_-]|cursor\.com/share/[a-zA-Z0-9_-]|chatgpt\.com/codex/[a-zA-Z0-9_-]|jules\.google\.com/task/[a-zA-Z0-9_-])'
+          # Require `https://` literally (not `https?://`). The PR template
+          # and the docs only advertise the secure form; allowing plain
+          # http would let an insecure link silently satisfy the guard.
+          transcript_regex='(^|[[:space:]<>(])https://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]|claude\.ai/code/session_[a-zA-Z0-9_-]|cursor\.com/share/[a-zA-Z0-9_-]|chatgpt\.com/codex/[a-zA-Z0-9_-]|jules\.google\.com/task/[a-zA-Z0-9_-])'
 
           has_placeholder=false
           if printf '%s' "$body" | grep -qF '<CLAUDE_CHAT_URL>'; then

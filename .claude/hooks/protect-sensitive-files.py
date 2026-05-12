@@ -55,12 +55,28 @@ SENSITIVE_BASENAME_PATTERNS = (
 )
 PATH_KEYS = {"file_path", "path", "notebook_path"}
 
+# Directory names whose contents are uniformly sensitive. Any path whose
+# segments include one of these (e.g. `secrets/prod.json`,
+# `config/credentials/token.yaml`) is treated as sensitive regardless of
+# the leaf basename. Matched against lower-cased path segments.
+SENSITIVE_DIR_SEGMENTS = frozenset({
+    "secrets",
+    "secret",
+    "credentials",
+})
+
 
 def is_sensitive(path: str) -> bool:
     if not path:
         return False
     normalized_path = path.replace("\\", "/").lower()
-    normalized_base = normalized_path.rsplit("/", 1)[-1]
+    segments = normalized_path.split("/")
+    normalized_base = segments[-1]
+    # Any path component that names a sensitive directory taints
+    # everything below it. The basename-only check would otherwise miss
+    # files like `secrets/prod.json` whose leaf is just `prod.json`.
+    if any(seg in SENSITIVE_DIR_SEGMENTS for seg in segments[:-1]):
+        return True
     for pat in SENSITIVE_BASENAME_PATTERNS:
         normalized_pat = pat.lower()
         if fnmatch.fnmatchcase(normalized_base, normalized_pat):

@@ -28,13 +28,12 @@ HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
 # Probe candidates and pick the first one that satisfies >= 3.8.
-# `python3`/`python` come first so the test runs in a developer's normal
-# shell environment. The absolute system paths come next so the test still
-# runs when the repo's `.python-version` pins a pyenv version that isn't
-# installed (the pyenv shim would otherwise fail before reaching a usable
-# interpreter).
+# Try absolute system paths FIRST. The `python3`/`python` shell names
+# can resolve to a pyenv shim pinned to an uninstalled version, which
+# may hang or fail before the probe times out. Putting known-good
+# absolute paths first means a broken shim never blocks the test.
 PYTHON_BIN=""
-for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
+for candidate in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3 python3 python; do
   if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
     if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
       PYTHON_BIN="$candidate"
@@ -42,7 +41,7 @@ for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/
     fi
   fi
 done
-[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python, /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3)"
+[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3, python3, python)"
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
@@ -80,7 +79,10 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
             "credentials.yaml" "credentials.yml" "credentials.toml" \
             "secrets" "secret" "credentials" \
             "config/secrets" "vault/credentials" \
-            "prod-credentials" "prod_credentials"; do
+            "prod-credentials" "prod_credentials" \
+            "secrets/prod.json" "secrets/anything.yaml" \
+            "credentials/token.json" "config/credentials/cert.pem" \
+            "secret/foo.txt" "deep/path/to/secrets/file.dat"; do
   if run_hook "Write" "$path" >/dev/null 2>&1; then
     fail "hook should BLOCK Write to '$path' but allowed it"
   fi
