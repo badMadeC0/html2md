@@ -40,8 +40,11 @@ Hard rules — no AI agent may override:
    blocks Edit/Write attempts for this full set; see `pr-rules/common.md`
    §3 for the canonical list.
 3. Every AI-assisted PR title MUST start with `[AI-Assisted]` and the
-   body MUST include the originating Claude chat URL; draft PRs may use
-   the `<CLAUDE_CHAT_URL>` placeholder until the real URL is added.
+   body MUST include a link to the originating Claude chat or other
+   agent transcript (e.g. `claude.ai/chat`, `claude.ai/share`,
+   `claude.ai/code/session_`, `cursor.com/share`, `chatgpt.com/codex`,
+   `jules.google.com/task`); draft PRs may use the `<CLAUDE_CHAT_URL>`
+   placeholder until the real URL is added.
 4. Append new edge cases to `pr-rules/edge-cases.md`; never delete rows.
 <!-- END BASELINE -->
 

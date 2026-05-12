@@ -66,4 +66,16 @@ ver=$(tr -d ' \t\r\n' < BASELINE_VERSION)
 echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
   || fail "BASELINE_VERSION must contain MAJOR.MINOR.PATCH (got '$ver')"
 
+
+# 7. AGENTS.md baseline rule for PR body URL must reference the broader
+# "agent transcript" wording. The workflow at
+# .github/workflows/ai-assisted-pr-guard.yml accepts agent transcripts
+# from cursor/codex/jules in addition to claude.ai chats, and
+# pr-rules/common.md §1 already says "Claude chat or other agent
+# transcript". Keep AGENTS.md aligned so non-Claude AI PRs aren't
+# rewritten unnecessarily by agents who read AGENTS.md first.
+baseline_block=$(sed -n "${begin_line},${end_line}p" AGENTS.md)
+echo "$baseline_block" | grep -qiE "agent[[:space:]]+transcript" \
+  || fail "AGENTS.md baseline rule for PR body URL must mention 'agent transcript' (not solely 'Claude chat URL'). See pr-rules/common.md §1 and .github/workflows/ai-assisted-pr-guard.yml accepted hosts."
+
 echo "OK: AGENTS.md ($agents_lines lines), $claude_ref, BASELINE_VERSION=$ver"
