@@ -65,6 +65,9 @@ def main(argv=None):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
                 return
+            if not parsed.netloc:
+                print("Error: Invalid URL. Missing network location.", file=sys.stderr)
+                return
 
             print(f"Processing URL: {target_url}")
 
