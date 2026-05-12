@@ -119,7 +119,7 @@ jobs:
         # removal is safe and eliminates all three attack surfaces.
         run: |
           rm -rf .gemini
-          find . \( -type f -o -type l \) -name 'GEMINI.md' -delete
+          find . -name 'GEMINI.md' -exec rm -rf -- {} +
           find . \( -type f -o -type l \) -name '.env' -delete
       - name: Pin code-review extension
         # run-gemini-cli@v0.1.22 invokes `gemini extensions install
