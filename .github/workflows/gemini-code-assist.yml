@@ -149,21 +149,24 @@ jobs:
             echo "::warning::Gemini CLI stderr was not valid JSON"
           fi
 
+          response_delim="GEMINI_RESPONSE_${$}_$(date +%s)_${RANDOM}"
+          error_delim="GEMINI_ERRORS_${$}_$(date +%s)_${RANDOM}"
+
           {
-            echo "gemini_response<<EOF"
+            echo "gemini_response<<${response_delim}"
             if [ -n "${response}" ]; then
               echo "${response}"
             else
               cat "${temp_stdout}"
             fi
-            echo "EOF"
-            echo "gemini_errors<<EOF"
+            echo "${response_delim}"
+            echo "gemini_errors<<${error_delim}"
             if [ -n "${error_json}" ]; then
               echo "${error_json}"
             else
               cat "${temp_stderr}"
             fi
-            echo "EOF"
+            echo "${error_delim}"
           } >> "${GITHUB_OUTPUT}"
 
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
