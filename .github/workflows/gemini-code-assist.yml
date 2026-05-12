@@ -85,6 +85,9 @@ jobs:
           gemini_cli_version: '0.41.2'
           extensions: |
             ["${{ runner.temp }}/gemini-code-review-ext"]
+          # Keep the MCP allowlist scoped to the exact tools used by
+          # /pr-code-review's pending-review flow; do not expose broader
+          # aggregate review-write tools to the --yolo reviewer.
           settings: |-
             {
               "tools": {
