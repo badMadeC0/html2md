@@ -179,8 +179,18 @@ def _get_with_pinned_dns(session, target_url: str, parsed, vetted_addrinfos, tim
     pinned_session.trust_env = False
     pinned_session.headers.update(session.headers)
     pinned_session.cookies.update(session.cookies)
-    pinned_session.mount(f"{parsed.scheme}://", _build_pinned_dns_adapter(vetted_addrinfos))
-    return pinned_session.get(target_url, timeout=timeout, allow_redirects=False)
+    pinned_session.mount(
+        f"{parsed.scheme}://", _build_pinned_dns_adapter(vetted_addrinfos)
+    )
+    try:
+        response = pinned_session.get(
+            target_url, timeout=timeout, allow_redirects=False
+        )
+    except requests.RequestException:
+        pinned_session.close()
+        raise
+    session.cookies.update(pinned_session.cookies)
+    return response
 
 
 def _safe_get(session, target_url: str, timeout: int = 30):

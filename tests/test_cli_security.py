@@ -244,6 +244,45 @@ def test_redirect_response_is_closed_before_next_hop(mock_get):
     redirect_response.close.assert_called_once_with()
 
 
+@patch("requests.Session.get", autospec=True)
+def test_redirect_set_cookie_is_preserved_for_next_hop(mock_get):
+    """Cookies learned from redirect responses are available to later hops."""
+    import requests
+
+    redirect_response = MagicMock()
+    redirect_response.is_redirect = True
+    redirect_response.headers = {"Location": "http://next.example/"}
+
+    final_response = MagicMock()
+    final_response.is_redirect = False
+    final_response.headers = {}
+
+    def request_side_effect(pinned_session, url, timeout, allow_redirects):
+        assert timeout == 30
+        assert allow_redirects is False
+        if url == "http://public.example/":
+            assert pinned_session.cookies.get("redirect_token") is None
+            pinned_session.cookies.set("redirect_token", "secret")
+            return redirect_response
+        if url == "http://next.example/":
+            assert pinned_session.cookies.get("redirect_token") == "secret"
+            return final_response
+        raise AssertionError(f"unexpected URL: {url}")
+
+    mock_get.side_effect = request_side_effect
+
+    def resolver(host, port, *args, **kwargs):
+        if host in {"public.example", "next.example"}:
+            return [_addrinfo("93.184.216.34", port=port)]
+        raise socket.gaierror(host)
+
+    session = requests.Session()
+    with patch("html2md.cli.socket.getaddrinfo", side_effect=resolver):
+        assert cli._safe_get(session, "http://public.example/") is final_response
+
+    assert session.cookies.get("redirect_token") == "secret"
+
+
 @patch("requests.Session.get")
 def test_empty_dns_answer_reports_resolution_error(mock_get, capsys, tmp_path):
     """An empty DNS response is reported as a resolution failure, not SSRF."""
