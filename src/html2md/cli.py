@@ -2,9 +2,43 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
 from urllib.parse import urlparse, unquote
+
+
+def is_safe_url(url: str) -> bool:
+    """Check if the URL points to an internal/private network to prevent SSRF."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        if hostname.lower() in ('localhost', '127.0.0.1', '::1', '0.0.0.0', '[::]'):
+            return False
+
+        try:
+            # Handle both IPv4 and IPv6 resolution
+            addr_info = socket.getaddrinfo(hostname, None)
+            for res in addr_info:
+                af, socktype, proto, canonname, sa = res
+                ip = sa[0]
+                # If it's IPv6, remove the scope ID if present (e.g. fe80::1%eth0)
+                if "%" in ip:
+                    ip = ip.split("%")[0]
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local:
+                    return False
+        except socket.gaierror:
+            pass
+
+        return True
+    except Exception:
+        return False
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -64,6 +98,10 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
+                return
+
+            if not is_safe_url(target_url):
+                print("Error: Access to internal or private networks is not allowed.", file=sys.stderr)
                 return
 
             print(f"Processing URL: {target_url}")

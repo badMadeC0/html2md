@@ -23,6 +23,25 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost:8080/admin",
+        "http://127.0.0.1/server-status",
+        "https://10.0.0.5/api/keys",
+        "http://192.168.1.1/config",
+        "http://[::1]/",
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_ssrf_prevention(mock_get, capsys, tmp_path, url):
+    """Internal and private URLs are rejected before any network call."""
+    cli.main(["--url", url, "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+    assert "Error: Access to internal or private networks is not allowed." in outerr.err
+    mock_get.assert_not_called()
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
