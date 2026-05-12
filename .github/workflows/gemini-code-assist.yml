@@ -15,7 +15,10 @@ permissions:
 
 concurrency:
   group: gemini-code-assist-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
+  # Do not cancel an in-flight review after it has opened a pending GitHub
+  # review. Canceling at that point can leave stale comments in the pending
+  # review, which a later run may reuse and submit against a newer PR revision.
+  cancel-in-progress: false
 
 jobs:
   preflight:
