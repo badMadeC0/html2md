@@ -45,6 +45,8 @@ jobs:
        contains(github.event.comment.body, '@gemini-code-assist'))
     outputs:
       enabled: ${{ steps.gate.outputs.enabled }}
+      pull_request_number: ${{ steps.gate.outputs.pull_request_number }}
+      checkout_ref: ${{ steps.gate.outputs.checkout_ref }}
     steps:
       - name: Gate on fork status and Gemini API key
         id: gate
@@ -68,6 +70,15 @@ jobs:
               head_repo=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq .head.repo.full_name)
               ;;
           esac
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Gemini Code Assist: could not determine the pull request number for this event."
+            exit 0
+          fi
+
+          echo "pull_request_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "checkout_ref=refs/pull/$PR_NUMBER/merge" >> "$GITHUB_OUTPUT"
 
           if [ -n "$head_repo" ] && [ "$head_repo" != "$REPO" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -98,8 +109,9 @@ jobs:
           # pull_request_review_comment runs default to the workflow ref
           # (the base branch's tip), which would make local read tools
           # like read_file/glob inspect base-branch code instead of the
-          # PR under review.
-          ref: refs/pull/${{ github.event.pull_request.number || github.event.issue.number }}/merge
+          # PR under review. The preflight job resolves this from
+          # github.event.issue.number for issue_comment triggers.
+          ref: ${{ needs.preflight.outputs.checkout_ref }}
           fetch-depth: 0
           persist-credentials: false
       - name: Strip PR-supplied Gemini config
@@ -145,15 +157,14 @@ jobs:
           # Consumed by the code-review extension's /pr-code-review prompt
           # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
           REPOSITORY: ${{ github.repository }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          PULL_REQUEST_NUMBER: ${{ needs.preflight.outputs.pull_request_number }}
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           gemini_cli_version: "0.41.2"
-          # Resolves the PR number across all three supported triggers:
-          # pull_request, pull_request_review_comment, and issue_comment.
-          # The first two populate github.event.pull_request.number; the
-          # last populates github.event.issue.number.
-          github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          # Use the PR number resolved by preflight across all supported
+          # triggers, including top-level PR comments where GitHub exposes
+          # it as github.event.issue.number instead of pull_request.number.
+          github_pr_number: ${{ needs.preflight.outputs.pull_request_number }}
           settings: |-
             {
               "model": {
