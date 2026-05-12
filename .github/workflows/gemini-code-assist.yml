@@ -149,8 +149,8 @@ jobs:
             echo "::warning::Gemini CLI stderr was not valid JSON"
           fi
 
-          response_delim="GEMINI_RESPONSE_${$}_$(date +%s)_${RANDOM}"
-          error_delim="GEMINI_ERRORS_${$}_$(date +%s)_${RANDOM}"
+          response_delim="GEMINI_RESPONSE_$$_$(date +%s)_${RANDOM}"
+          error_delim="GEMINI_ERRORS_$$_$(date +%s)_${RANDOM}"
 
           {
             echo "gemini_response<<${response_delim}"
