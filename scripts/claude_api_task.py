@@ -1,9 +1,10 @@
 """Use Claude to summarize a sample html2md conversion result."""
 from __future__ import annotations
 
-import sys
-
 import anthropic
+from markdownify import markdownify as md  # type: ignore
+
+MODEL = "claude-opus-4-7"
 
 SAMPLE_HTML = """
 <h1>html2md Tool Overview</h1>
@@ -18,11 +19,6 @@ SAMPLE_HTML = """
 
 
 def convert_html(html: str) -> str:
-    try:
-        from markdownify import markdownify as md  # type: ignore
-    except ImportError:
-        print("Error: markdownify not installed. Run: pip install markdownify", file=sys.stderr)
-        sys.exit(1)
     return md(html, heading_style="ATX")
 
 
@@ -34,7 +30,7 @@ def main() -> int:
     client = anthropic.Anthropic()
 
     with client.messages.stream(
-        model="claude-opus-4-7",
+        model=MODEL,
         max_tokens=256,
         system=[
             {
