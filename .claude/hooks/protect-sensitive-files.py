@@ -6,9 +6,15 @@ diagnostic on stderr when the targeted path matches a sensitive pattern.
 Stdlib only.
 
 Sensitive patterns (matched against the file's basename and against the
-full path) — covers the named patterns in pr-rules/common.md §3 plus
-common secret-naming conventions (`secrets.*`, `*.secret(s).*`,
-`*api[-_]token*`, `*-credentials.*`).
+full path) — see `SENSITIVE_BASENAME_PATTERNS` below for the canonical
+list. Covers every pattern in pr-rules/common.md §3 (`.env*`, `*.pem`,
+`*.key`, `*.crt`, `credentials.json`, `id_{rsa,ed25519,ecdsa,dsa}*`) plus
+the broader secret-naming conventions called out by §3's "any file
+matching a sensible secret naming convention" clause: bare `secrets`/
+`secret`/`credentials`, `secrets.*`/`secret.*`/`credentials.*`,
+`*.secret(s)(.*)`, `*api[-_]token*`, and `*[-_]credentials(.*)`. Files
+inside a `secrets/`, `secret/`, or `credentials/` directory are also
+treated as sensitive via `SENSITIVE_DIR_SEGMENTS`.
 """
 from __future__ import annotations
 

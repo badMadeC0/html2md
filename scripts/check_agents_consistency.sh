@@ -78,4 +78,27 @@ baseline_block=$(sed -n "${begin_line},${end_line}p" AGENTS.md)
 echo "$baseline_block" | grep -qiE "agent[[:space:]]+transcript" \
   || fail "AGENTS.md baseline rule for PR body URL must mention 'agent transcript' (not solely 'Claude chat URL'). See pr-rules/common.md §1 and .github/workflows/ai-assisted-pr-guard.yml accepted hosts."
 
+
+# 8. Inline Python heredocs inside scripts/*.sh must specify an explicit
+# encoding when opening text files. JSON is UTF-8 by definition (RFC
+# 8259) and the repo's Python guidance emphasizes explicit UTF-8 — the
+# platform default (cp1252 on Windows, etc.) can corrupt non-ASCII bytes
+# or fail outright. Catch the easy case: any `open(...)` call inside a
+# scripts/*.sh heredoc that lacks `encoding=`.
+bad_open=$(
+  awk '
+    FNR==1 { in_heredoc=0 }
+    /<<.?[A-Za-z_]+/ { in_heredoc=1; next }
+    in_heredoc && /^[A-Za-z_]+$/ { in_heredoc=0; next }
+    in_heredoc && /open[[:space:]]*\(/ && !/encoding[[:space:]]*=/ {
+      print FILENAME ":" FNR ": " $0
+    }
+  ' scripts/*.sh
+)
+if [ -n "$bad_open" ]; then
+  echo "FAIL: inline Python in scripts/*.sh has open(...) without encoding=:" >&2
+  echo "$bad_open" >&2
+  fail "JSON/text reads must specify an explicit encoding (e.g. encoding='utf-8'); Windows default is cp1252"
+fi
+
 echo "OK: AGENTS.md ($agents_lines lines), $claude_ref, BASELINE_VERSION=$ver"
