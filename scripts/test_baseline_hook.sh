@@ -3,8 +3,12 @@
 # Smoke test for .claude/hooks/protect-sensitive-files.py.
 #
 # The hook reads a Claude Code PreToolUse JSON payload on stdin and must:
-#   - Exit non-zero (block) when the tool would Edit/Write a sensitive path
-#     (.env, .env.*, *.pem, *.key, credentials.json, *.crt, id_rsa*).
+#   - Exit non-zero (block) when the tool would Edit/Write a sensitive path.
+#     The canonical pattern set is documented in pr-rules/common.md §3 and
+#     enforced by .claude/hooks/protect-sensitive-files.py's
+#     SENSITIVE_BASENAME_PATTERNS — covers .env*, *.pem, *.key, *.crt,
+#     id_{rsa,ed25519,ecdsa,dsa}*, credentials.*, secret.*/secrets.*,
+#     *.secret(s).*, *api[-_]token*, *[-_]credentials.* and more.
 #   - Exit zero (allow) for normal source paths.
 #
 # Usage: scripts/test_baseline_hook.sh

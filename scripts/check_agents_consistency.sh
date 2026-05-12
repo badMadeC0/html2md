@@ -52,16 +52,17 @@ else
   fail "CLAUDE.md missing (expected symlink to AGENTS.md or materialized file)"
 fi
 
-# 6. BASELINE_VERSION exists and is a SINGLE semver line.
-# Enforce literally: must be exactly one non-empty line that matches
-# MAJOR.MINOR.PATCH, plus an optional trailing newline. Multi-line files
-# or files with non-version content are rejected so the file's role as
-# the canonical single-source-of-truth version cannot drift.
+# 6. BASELINE_VERSION exists and is EXACTLY one line containing a
+# MAJOR.MINOR.PATCH semver, optionally followed by a single trailing
+# newline. Use `wc -l` (counts newlines) so a file like "0.1.0\n\n" is
+# rejected — a stray blank line would otherwise be allowed by a
+# non-blank-only check. This keeps the file's role as the canonical
+# single-source-of-truth version unambiguous.
 [ -f BASELINE_VERSION ] || fail "BASELINE_VERSION missing"
-nonblank_count=$(grep -c '[^[:space:]]' BASELINE_VERSION || true)
-[ "$nonblank_count" -eq 1 ] \
-  || fail "BASELINE_VERSION must be a single non-blank line (got $nonblank_count non-blank lines)"
-ver=$(grep -m1 '[^[:space:]]' BASELINE_VERSION | tr -d ' \t\r')
+line_count=$(wc -l < BASELINE_VERSION | tr -d ' ')
+[ "$line_count" -eq 1 ] \
+  || fail "BASELINE_VERSION must be exactly one line plus trailing newline (got $line_count newlines)"
+ver=$(tr -d ' \t\r\n' < BASELINE_VERSION)
 echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
   || fail "BASELINE_VERSION must contain MAJOR.MINOR.PATCH (got '$ver')"
 
