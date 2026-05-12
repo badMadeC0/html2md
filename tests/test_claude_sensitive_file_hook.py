@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -30,12 +29,11 @@ def test_configured_hook_command_uses_project_root_from_subdirectory() -> None:
     settings_path = repo_root / ".claude" / "settings.json"
     settings = json.loads(settings_path.read_text(encoding="utf-8"))
     command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-    command_parts = shlex.split(command)
 
-    assert command_parts[:2] == [
-        "python3",
-        "$CLAUDE_PROJECT_DIR/.claude/hooks/protect_sensitive_files.py",
-    ]
+    assert command.startswith('python -c "')
+    assert "$CLAUDE_PROJECT_DIR" not in command
+    assert "%CLAUDE_PROJECT_DIR%" not in command
+    assert "os.environ['CLAUDE_PROJECT_DIR']" in command
 
     result = subprocess.run(
         command,
