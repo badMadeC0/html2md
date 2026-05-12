@@ -6,18 +6,14 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage, [string]$Url, [string]$OutDir, [switch]$WholePage)
+param([string]$BatchFile, [string]$BatchOutDir, [switch]$BatchWholePage, [string]$Url, [string]$OutDir, [switch]$WholePage, [switch]$DeleteBatchFile)
 
 if ($BatchFile -or $Url) {
     if ($BatchFile -and -not (Test-Path -LiteralPath $BatchFile)) {
         Write-Error "Batch file not found: $BatchFile"
         exit 1
     }
-    
-    # Check if this is a temp file created by the GUI (temp files are in %TEMP%)
-    # Check if this is a temp file created by the GUI (temp files are in %TEMP% and follow our naming pattern)
-    $isTempFile = $BatchFile -and ($BatchFile -like "$env:TEMP\html2md_batch_*")
-    
+
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
@@ -63,14 +59,8 @@ if ($BatchFile -or $Url) {
             }
         }
     } finally {
-        # Clean up temp file if it was created by the GUI
-        if ($isTempFile -and (Test-Path -LiteralPath $BatchFile)) {
-            try {
-                Remove-Item -LiteralPath $BatchFile -Force -ErrorAction SilentlyContinue
-                Write-Host "Cleaned up temporary batch file: $BatchFile"
-            } catch {
-                Write-Warning "Could not delete temporary file: $BatchFile"
-            }
+        if ($DeleteBatchFile) {
+            Remove-Item -LiteralPath $BatchFile -ErrorAction SilentlyContinue
         }
     }
     exit
@@ -396,6 +386,7 @@ $ConvertBtn.Add_Click({
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
         }
+        $psi.Arguments += " -DeleteBatchFile"
     } else {
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
