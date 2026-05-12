@@ -1,0 +1,71 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e . pytest black
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-pre.txt
+
+      - name: Attempt self-heal repairs
+        run: python scripts/self-heal.py | tee selfheal-repair.txt
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-post.txt
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH_NAME="self-heal-${{ github.run_id }}"
+          git checkout -b $BRANCH_NAME
+          git commit -am "chore: self-healing repairs" || echo "No changes to commit"
+          git push origin $BRANCH_NAME
+          gh pr create --label "self-heal" --title "chore: Self-healing repairs" --body "Automated fixes applied by self-heal workflow." --head $BRANCH_NAME --base main
