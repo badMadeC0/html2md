@@ -1,0 +1,245 @@
+name: Auto-merge when ready
+
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  status: {}
+
+permissions:
+  pull-requests: write
+  issues: write
+  checks: read
+  statuses: read
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    if: >-
+      ${{
+        github.event_name != 'pull_request_target' ||
+        github.event.pull_request.head.repo.full_name == github.repository ||
+        contains(fromJson('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target PR numbers
+        id: prs
+        uses: actions/github-script@v7
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          script: |
+            const prs = new Set();
+            const ev = context.eventName;
+            const p = context.payload;
+
+            if (p.pull_request) {
+              prs.add(p.pull_request.number);
+            } else if (ev === 'workflow_run' && p.workflow_run) {
+              for (const pr of p.workflow_run.pull_requests || []) prs.add(pr.number);
+            } else if (ev === 'status') {
+              const { data } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: p.sha,
+              });
+              for (const pr of data) if (pr.state === 'open') prs.add(pr.number);
+            } else if (ev === 'schedule' || ev === 'workflow_dispatch') {
+              const data = await github.paginate(github.rest.pulls.list, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100,
+              });
+              for (const pr of data) prs.add(pr.number);
+            }
+
+            const numbers = [...prs];
+            core.info(`Target PRs: ${JSON.stringify(numbers)}`);
+            core.setOutput('numbers', JSON.stringify(numbers));
+
+      - name: Evaluate criteria & enable auto-merge
+        if: steps.prs.outputs.numbers != '[]'
+        uses: actions/github-script@v7
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          script: |
+            const LABEL = 'auto-merge';
+            const MERGE_METHOD = 'SQUASH'; // SQUASH | MERGE | REBASE
+            const { owner, repo } = context.repo;
+            const numbers = JSON.parse('${{ steps.prs.outputs.numbers }}');
+
+            async function ensureLabel() {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: LABEL });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+                await github.rest.issues.createLabel({
+                  owner, repo, name: LABEL, color: '0E8A16',
+                  description: 'PR queued for auto-merge — all criteria satisfied',
+                });
+              }
+            }
+
+            // Some PR fields (mergeable) need to be computed by GitHub; poll briefly.
+            async function getPrWithMergeable(num) {
+              for (let i = 0; i < 5; i++) {
+                const { data } = await github.rest.pulls.get({ owner, repo, pull_number: num });
+                if (data.mergeable !== null || data.state !== 'open') return data;
+                await new Promise(r => setTimeout(r, 2000));
+              }
+              const { data } = await github.rest.pulls.get({ owner, repo, pull_number: num });
+              return data;
+            }
+
+            async function allThreadsResolved(num) {
+              let cursor = null;
+              while (true) {
+                const q = `
+                  query($owner:String!, $repo:String!, $num:Int!, $cursor:String) {
+                    repository(owner:$owner, name:$repo) {
+                      pullRequest(number:$num) {
+                        reviewThreads(first: 100, after: $cursor) {
+                          pageInfo { hasNextPage endCursor }
+                          nodes { isResolved isOutdated }
+                        }
+                      }
+                    }
+                  }`;
+                const r = await github.graphql(q, { owner, repo, num, cursor });
+                const t = r.repository.pullRequest.reviewThreads;
+                for (const node of t.nodes) {
+                  // Outdated threads (line no longer present) are treated as resolved.
+                  if (!node.isResolved && !node.isOutdated) return false;
+                }
+                if (!t.pageInfo.hasNextPage) return true;
+                cursor = t.pageInfo.endCursor;
+              }
+            }
+
+            async function isApproved(num) {
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                owner, repo, pull_number: num, per_page: 100,
+              });
+              const latest = new Map();
+              for (const r of reviews) {
+                if (!r.user || !['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state)) continue;
+                const cur = latest.get(r.user.login);
+                if (!cur || new Date(r.submitted_at) > new Date(cur.submitted_at)) {
+                  latest.set(r.user.login, r);
+                }
+              }
+              let approved = false;
+              for (const r of latest.values()) {
+                if (r.state === 'CHANGES_REQUESTED') return false;
+                if (r.state === 'APPROVED') approved = true;
+              }
+              return approved;
+            }
+
+            async function checksPassing(sha) {
+              const runs = await github.paginate(
+                github.rest.checks.listForRef,
+                { owner, repo, ref: sha, per_page: 100, filter: 'latest' },
+                (response) => response.data.check_runs
+              );
+              const currentRunId = process.env.GITHUB_RUN_ID;
+              let observedGreenSignal = false;
+              for (const c of runs) {
+                if (!c) continue;
+                // Skip this workflow's own currently running check to avoid self-deadlock.
+                if (
+                  currentRunId &&
+                  c.app && c.app.slug === 'github-actions' &&
+                  c.details_url &&
+                  c.details_url.includes(`/actions/runs/${currentRunId}`)
+                ) continue;
+                observedGreenSignal = true;
+                if (c.status !== 'completed') return { ok: false, reason: `check "${c.name}" status=${c.status}` };
+                if (!['success', 'neutral', 'skipped'].includes(c.conclusion)) {
+                  return { ok: false, reason: `check "${c.name}" conclusion=${c.conclusion}` };
+                }
+              }
+              const { data: combined } = await github.rest.repos.getCombinedStatusForRef({
+                owner, repo, ref: sha,
+              });
+              if (combined.statuses.length > 0) {
+                observedGreenSignal = true;
+                if (combined.state !== 'success') {
+                  return { ok: false, reason: `combined status state=${combined.state}` };
+                }
+              }
+              if (!observedGreenSignal) {
+                return { ok: false, reason: 'no check runs or commit statuses found for head SHA yet' };
+              }
+              return { ok: true };
+            }
+
+            async function enableAutoMerge(prNodeId) {
+              await github.graphql(`
+                mutation($id:ID!, $method:PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: $method }) {
+                    pullRequest { autoMergeRequest { enabledAt mergeMethod } }
+                  }
+                }`, { id: prNodeId, method: MERGE_METHOD });
+            }
+
+            await ensureLabel();
+
+            for (const num of numbers) {
+              const pr = await getPrWithMergeable(num);
+
+              if (pr.state !== 'open' || pr.draft || pr.merged) {
+                core.info(`PR #${num}: skip (state=${pr.state}, draft=${pr.draft}, merged=${pr.merged}).`);
+                continue;
+              }
+              if (pr.mergeable === false || pr.mergeable_state === 'dirty') {
+                core.info(`PR #${num}: merge conflicts (mergeable_state=${pr.mergeable_state}).`);
+                continue;
+              }
+              if (!(await allThreadsResolved(num))) {
+                core.info(`PR #${num}: unresolved review threads.`);
+                continue;
+              }
+              if (!(await isApproved(num))) {
+                core.info(`PR #${num}: not approved (or changes requested).`);
+                continue;
+              }
+              const checks = await checksPassing(pr.head.sha);
+              if (!checks.ok) {
+                core.info(`PR #${num}: checks not green — ${checks.reason}`);
+                continue;
+              }
+
+              if (!pr.labels.some(l => l.name === LABEL)) {
+                await github.rest.issues.addLabels({
+                  owner, repo, issue_number: num, labels: [LABEL],
+                });
+                core.info(`PR #${num}: labeled "${LABEL}".`);
+              }
+
+              if (pr.auto_merge) {
+                core.info(`PR #${num}: auto-merge already enabled.`);
+                continue;
+              }
+              try {
+                await enableAutoMerge(pr.node_id);
+                core.info(`PR #${num}: auto-merge enabled (${MERGE_METHOD}).`);
+              } catch (e) {
+                core.warning(`PR #${num}: failed to enable auto-merge — ${e.message}`);
+              }
+            }
