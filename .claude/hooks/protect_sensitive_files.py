@@ -99,7 +99,10 @@ def _target_paths(tool_input: Any) -> List[str]:
     if isinstance(tool_input, dict):
         for key, value in tool_input.items():
             if key in PATH_KEYS and isinstance(value, str) and value:
-                candidates.append(os.path.realpath(value))
+                candidates.append(value)
+                real_path = os.path.realpath(value)
+                if real_path != value:
+                    candidates.append(real_path)
             elif isinstance(value, (dict, list)):
                 candidates.extend(_target_paths(value))
     elif isinstance(tool_input, list):

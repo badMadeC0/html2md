@@ -80,6 +80,19 @@ def test_blocks_sensitive_multiedit_paths() -> None:
     assert "id_rsa_backup" in result.stderr
 
 
+def test_blocks_sensitive_symlink_name_before_realpath(tmp_path: Path) -> None:
+    """Sensitive requested symlink names are checked before realpath resolution."""
+    target = tmp_path / "non_sensitive_target"
+    target.write_text("safe", encoding="utf-8")
+    sensitive_link = tmp_path / ".env"
+    sensitive_link.symlink_to(target)
+
+    result = run_hook(hook_payload("Write", str(sensitive_link)))
+
+    assert result.returncode == 2
+    assert str(sensitive_link) in result.stderr
+
+
 def test_allows_non_sensitive_edit_paths() -> None:
     """Non-sensitive paths are allowed for protected editing tools."""
     result = run_hook(hook_payload("Edit", "src/html2md/cli.py"))
