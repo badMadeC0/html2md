@@ -84,6 +84,9 @@ jobs:
           # The first two populate github.event.pull_request.number; the
           # last populates github.event.issue.number.
           github_pr_number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          # Keep context gathering constrained to Gemini CLI's repo-scoped
+          # file/search tools. Do not allow raw run_shell_command(...) entries
+          # here: shell commands can read absolute paths outside the checkout.
           settings: |-
             {
               "model": {
