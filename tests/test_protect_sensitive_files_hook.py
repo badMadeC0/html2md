@@ -123,19 +123,19 @@ def test_blocks_notebook_edit_sensitive_notebook_path() -> None:
 def test_bad_json_payload_fails_closed() -> None:
     result = run_hook_raw("{")
 
-    assert result.returncode == 1
+    assert result.returncode == 2
     assert "bad JSON payload" in result.stderr
 
 
 def test_empty_payload_fails_closed() -> None:
     result = run_hook_raw("")
 
-    assert result.returncode == 1
+    assert result.returncode == 2
     assert "empty hook payload" in result.stderr
 
 
 def test_non_object_json_payload_fails_closed() -> None:
     result = run_hook_raw("[]")
 
-    assert result.returncode == 1
+    assert result.returncode == 2
     assert "hook payload must be a JSON object" in result.stderr

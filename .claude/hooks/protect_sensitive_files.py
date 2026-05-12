@@ -81,14 +81,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"protect-sensitive-files: failed to read stdin: {exc}",
             file=sys.stderr,
         )
-        return 1
+        return 2
 
     if not payload_raw.strip():
         print(
             "protect-sensitive-files: empty hook payload",
             file=sys.stderr,
         )
-        return 1
+        return 2
 
     try:
         payload = json.loads(payload_raw)
@@ -97,14 +97,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             f"protect-sensitive-files: bad JSON payload: {exc}",
             file=sys.stderr,
         )
-        return 1
+        return 2
 
     if not isinstance(payload, dict):
         print(
             "protect-sensitive-files: hook payload must be a JSON object",
             file=sys.stderr,
         )
-        return 1
+        return 2
 
     tool_name = payload.get("tool_name") or ""
     if tool_name not in PROTECTED_TOOLS:
