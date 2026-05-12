@@ -30,10 +30,12 @@ def main(argv=None):
     if args.url or args.batch:
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
+            from bs4 import BeautifulSoup  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests beautifulsoup4 markdownify",
+                  file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -78,12 +80,14 @@ def main(argv=None):
                 response.raise_for_status()
 
                 print("Converting to Markdown...")
-                tags_to_strip = None if args.whole_page else ["header", "footer"]
-                md_content = md(
-                    response.text,
-                    heading_style="ATX",
-                    strip=tags_to_strip,
-                )
+                html_content = response.text
+                if not args.whole_page:
+                    soup = BeautifulSoup(html_content, "html.parser")
+                    for element in soup.find_all(["header", "footer"]):
+                        element.decompose()
+                    html_content = str(soup)
+
+                md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):

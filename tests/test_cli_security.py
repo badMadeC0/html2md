@@ -53,9 +53,17 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert not (tmp_path / "secret.txt.md").exists()
 
 
-@patch("markdownify.markdownify", return_value="# Body")
+@pytest.mark.parametrize(
+    "args, expected_text, unexpected_text",
+    [
+        ([], "Body", "Header"),
+        (["--whole-page"], "Header", None),
+    ],
+)
 @patch("requests.Session.get")
-def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_path):
+def test_whole_page_option_controls_gui_batch_conversion(
+    mock_get, tmp_path, args, expected_text, unexpected_text
+):
     """GUI batch mode --whole-page should drive conversion behavior."""
     batch_file = tmp_path / "urls.txt"
     batch_file.write_text("https://example.com/article\n", encoding="utf-8")
@@ -69,14 +77,13 @@ def test_whole_page_option_controls_gui_batch_conversion(mock_get, mock_md, tmp_
     rc = cli.main([
         "--batch", str(batch_file),
         "--outdir", str(outdir),
-        "--whole-page",
+        *args,
     ])
 
     assert rc == 0
     mock_get.assert_called_once_with("https://example.com/article", timeout=30)
-    mock_md.assert_called_once_with(
-        response.text,
-        heading_style="ATX",
-        strip=None,
-    )
-    assert (outdir / "article.md").read_text(encoding="utf-8") == "# Body"
+    output = (outdir / "article.md").read_text(encoding="utf-8")
+    assert expected_text in output
+    if unexpected_text is not None:
+        assert unexpected_text not in output
+        assert "Footer" not in output
