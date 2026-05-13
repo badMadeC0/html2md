@@ -57,11 +57,13 @@ else
 fi
 
 # 6. BASELINE_VERSION exists and is EXACTLY one line containing a
-# MAJOR.MINOR.PATCH semver, optionally followed by a single trailing
-# newline. Use `wc -l` (counts newlines) so a file like "0.1.0\n\n" is
-# rejected — a stray blank line would otherwise be allowed by a
-# non-blank-only check. This keeps the file's role as the canonical
-# single-source-of-truth version unambiguous.
+# MAJOR.MINOR.PATCH semver, terminated by a single trailing newline.
+# `wc -l` counts newlines (not lines), so a value of 1 requires exactly
+# one `\n` — meaning the file is `0.1.0\n` (the canonical form).
+# Files like `0.1.0` (no terminator) fail with wc -l == 0; files like
+# `0.1.0\n\n` (stray blank line) fail with wc -l == 2. Either rejection
+# preserves the file's role as the canonical single-source-of-truth
+# version.
 [ -f BASELINE_VERSION ] || fail "BASELINE_VERSION missing"
 line_count=$(wc -l < BASELINE_VERSION | tr -d ' ')
 [ "$line_count" -eq 1 ] \
