@@ -73,44 +73,22 @@ def main(argv=None):
                 response = session.get(target_url, timeout=30)
                 response.raise_for_status()
 
-                print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
-
-                if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-                    out_path = os.path.join(args.outdir, f"{parsed.netloc}_{parsed.path.replace('/', '_')}.md")
-                    real_outdir = os.path.realpath(args.outdir)
-                    real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
-                        print("Error: Output path escapes output directory.",
-                              file=sys.stderr)
-                        return False
-                    with open(out_path, 'w', encoding='utf-8') as f:
-                        f.write(md_content)
-                    print(f"Success! Saved to: {out_path}")
-                else:
-                    print(md_content)
-                return True
-
-            except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
-            except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
-            return False
-
-            print(f"Processing URL: {target_url}")
-
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
-                response.raise_for_status()
+                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
+                with session.get(target_url, timeout=30, stream=True) as response:
+                    response.raise_for_status()
+                    max_size = 10 * 1024 * 1024
+                    content_bytes = b""
+                    for chunk in response.iter_content(chunk_size=8192):
+                        content_bytes += chunk
+                        if len(content_bytes) > max_size:
+                            print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                            return
 
-                print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
-
+                    print("Converting to Markdown...")
+                    encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
+                    md_content = md(content_bytes.decode(encoding, errors="replace"), heading_style="ATX")
                 if args.outdir:
                     if not os.path.exists(args.outdir):
                         os.makedirs(args.outdir)
