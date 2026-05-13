@@ -13,7 +13,7 @@ VULNERABLE_URI_CAST_PATTERN = re.compile(
     re.IGNORECASE,
 )
 SAFE_URI_CAST_PATTERN = re.compile(
-    r"(?m)^\s*\$uriObj\s*=\s*\[System\.Uri\]\s*\$u\b",
+    r"\\[System\\.Uri\\]\\s*\\$u\\b",
     re.IGNORECASE,
 )
 
