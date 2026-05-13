@@ -106,13 +106,39 @@ jobs:
           JSON
       - name: Install Gemini CLI
         run: npm install --silent --no-audit --prefer-offline --global @google/gemini-cli@0.41.2
-      - name: Install Gemini code-review extension
+      - name: Vendor the code-review extension as a project-local extension
+        # `gemini extensions install <url> --ref <SHA>` does NOT skip the
+        # release-tag lookup — Gemini CLI 0.41.2's installer
+        # (packages/cli/src/config/extensions/github.ts) still queries
+        # GET /repos/<o>/<r>/releases/tags/<ref> first, and only falls back
+        # to "install via git clone instead?" via an interactive consent
+        # prompt. The `echo Y` trick is unreliable: the workspace-trust
+        # prompt fires first and consumes the single Y, so the consent
+        # prompt then blocks the runner. Empirically this still 404s on
+        # PR #614.
+        #
+        # Bypass it entirely by vendoring as a project-local extension at
+        # .gemini/extensions/<name>/. Gemini CLI auto-loads these at startup
+        # with no release lookup, no consent prompt, and a deterministic
+        # ref. When upstream begins publishing releases this step can be
+        # replaced with the standard `gemini extensions install` path.
         env:
-          GEMINI_CODE_REVIEW_REF: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+          # Pin to a known-good main HEAD. Bump intentionally; do not pin
+          # to a moving branch ref (defeats supply-chain auditability).
+          EXT_SHA: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
         run: |
-          # Install manually so the pinned commit is passed as Gemini CLI's
-          # --ref option rather than appended to the repository URL.
-          echo "Y" | gemini extensions install https://github.com/gemini-cli-extensions/code-review --ref "${GEMINI_CODE_REVIEW_REF}"
+          set -euo pipefail
+          mkdir -p .gemini/extensions
+          git clone --depth 1 https://github.com/gemini-cli-extensions/code-review.git \
+            .gemini/extensions/code-review
+          cd .gemini/extensions/code-review
+          git fetch --depth 1 origin "$EXT_SHA"
+          git checkout "$EXT_SHA"
+          # Sanity-check the extension manifest before we hand control to
+          # the CLI; if the upstream repo restructures, fail loudly here
+          # rather than with an opaque "command not found" at /pr-code-review.
+          test -f gemini-extension.json \
+            || { echo "::error::gemini-extension.json missing in pinned ref $EXT_SHA"; exit 1; }
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
