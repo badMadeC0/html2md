@@ -59,7 +59,7 @@ if ($BatchFile -or $Url) {
             }
         }
     } finally {
-        if ($DeleteBatchFile) {
+        if ($DeleteBatchFile -and $BatchFile -and (Test-Path -LiteralPath $BatchFile)) {
             Remove-Item -LiteralPath $BatchFile -Force -ErrorAction SilentlyContinue
         }
     }
