@@ -31,7 +31,7 @@ Add `mypy --strict` and use strong `TypedDict` instead of `object` / raw dicts.
 Use `ThreadPoolExecutor` for concurrent batch fetching in `cli.py`.
 
 ## 8. Security & Robustness
-SSRF validation is highly necessary. Error catching must be explicitly targeted.
+SSRF validation is highly necessary. Error catching must be explicitly targeted. Additionally, fix the undefined $bat variable in gui-url-convert.ps1 and prefer [System.Uri]::TryCreate for URL validation.
 
 ## 9. CI/CD & Tooling
 Introduce standard formatting and security tools to GitHub Actions, and run on macOS/Linux targets.
