@@ -15,7 +15,8 @@ if ($BatchFile -or $Url) {
     }
     
     # Check if this is a temp file created by the GUI (temp files are in %TEMP%)
-    $isTempFile = $BatchFile -and ($BatchFile -like "$env:TEMP\*")
+    # Check if this is a temp file created by the GUI (temp files are in %TEMP% and follow our naming pattern)
+    $isTempFile = $BatchFile -and ($BatchFile -like "$env:TEMP\html2md_batch_*")
     
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
