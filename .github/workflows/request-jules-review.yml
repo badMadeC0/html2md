@@ -21,7 +21,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           from __future__ import annotations
 
           import json
