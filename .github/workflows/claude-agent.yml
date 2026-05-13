@@ -9,6 +9,7 @@ on:
 
 jobs:
   run-claude-agent:
+    # Restrict to PR-related comments for security.
     if: >
       github.event_name == 'workflow_dispatch' ||
       ((github.event_name == 'issue_comment' && github.event.issue.pull_request) || github.event_name == 'pull_request_review_comment') &&
