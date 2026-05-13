@@ -51,7 +51,8 @@ This document lists four scoped follow-up tasks discovered during a repository s
 
 **Locations**
 - `README.md`
-- `src/html2md/cli.py`
+**Location**
+- `README.md`
 
 **Proposed task**
 - Rewrite README sections that call the CLI a placeholder so documentation matches implemented behavior and constraints.
