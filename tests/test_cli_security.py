@@ -95,10 +95,10 @@ def test_is_safe_path_security(mock_normcase, mock_realpath):
     # Windows path separator logic: os.sep is '/' on linux, so we need to patch os.sep for the test to truly simulate Windows,
     # or just test the logic directly. The logic in is_safe_path relies on os.sep.
 
-    with patch("html2md.cli.os.sep", "\\\\"):
-        assert not is_safe_path("C:\\\\foo", "D:\\\\foo\\\\file.md")
-        assert is_safe_path("C:\\\\foo", "C:\\\\foo\\\\file.md")
+    with patch("html2md.cli.os.sep", "\\"):
+        assert not is_safe_path("C:\\foo", "D:\\foo\\file.md")
+        assert is_safe_path("C:\\foo", "C:\\foo\\file.md")
         assert is_safe_path(
-            "C:\\\\foo", "c:\\\\foo\\\\file.md"
+            "C:\\foo", "c:\\foo\\file.md"
         )  # normcase makes it match
-        assert not is_safe_path("C:\\\\foo", "C:\\\\foobar\\\\file.md")
+        assert not is_safe_path("C:\\foo", "C:\\foobar\\file.md")
