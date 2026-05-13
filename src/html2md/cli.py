@@ -76,7 +76,7 @@ def _validate_url_for_fetch(target_url: str):
     port = parsed.port or (443 if parsed.scheme == 'https' else 80)
     try:
         addrinfo = _resolve_global_addrinfo(hostname, port)
-    except (socket.gaierror, UnicodeError, ValueError):
+    except (socket.gaierror, UnicodeEncodeError, ValueError):
         return parsed, None, "Error: Could not resolve hostname to a valid IP."
 
     if addrinfo is None:
