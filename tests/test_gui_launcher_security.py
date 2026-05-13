@@ -22,3 +22,20 @@ def test_gui_script_avoids_command_relaunch() -> None:
     for line in active_arguments:
         assert "-Command" not in line
         assert "-File" in line
+
+
+def test_batch_mode_passes_delete_batch_file_switch() -> None:
+    gui_script = (ROOT / "gui-url-convert.ps1").read_text(encoding="utf-8")
+
+    # Batch mode must append -DeleteBatchFile so the subprocess cleans up
+    # the GUI-created temp file.
+    assert '$psi.Arguments += " -DeleteBatchFile"' in gui_script
+
+
+def test_delete_batch_file_guarded_by_batch_file_param() -> None:
+    gui_script = (ROOT / "gui-url-convert.ps1").read_text(encoding="utf-8")
+
+    # The finally cleanup must check $BatchFile is non-empty before calling
+    # Remove-Item, so passing -DeleteBatchFile with only -Url does not cause
+    # a parameter-binding error.
+    assert "$DeleteBatchFile -and $BatchFile" in gui_script
