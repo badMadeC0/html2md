@@ -367,7 +367,7 @@ $ConvertBtn.Add_Click({
     # Use a robust way to launch the process:
     # 1. Revert to ProcessStartInfo for precise control over the command line.
     # 2. Use powershell.exe with -NoProfile to avoid side effects and keep the window open with -NoExit.
-    # 3. Use -File for batch mode and -Command with proper quoting for single URL mode.
+    # 3. Use -File for batch mode and env vars for single URL mode (avoids -Command string interpolation).
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $powershellPath = Join-Path $PSHOME "powershell.exe"
     if (-not (Test-Path -LiteralPath $powershellPath)) { $powershellPath = "powershell.exe" }
@@ -408,21 +408,23 @@ $ConvertBtn.Add_Click({
         # If Whole Page is unchecked, we add the flag to ignore headers/footers
         $optArg = if (-not $WholePageChk.IsChecked) { " --main-content" } else { "" }
 
-        # Sanitize inputs for PowerShell -Command interpolation.
-        # We use double quotes around arguments and escape internal double quotes, dollar signs,
-        # and backticks with the PowerShell escape character (backtick) to prevent subexpression execution.
-        $safeUrl = $url -replace '["$`]', '`$0'
-        $safeOutDir = $outdir -replace '["$`]', '`$0'
-        $safeVenvExe = $venvExe -replace '["$`]', '`$0'
-        $safePyScript = $pyScript -replace '["$`]', '`$0'
+        # Pass user-controlled values via environment variables so -Command only contains
+        # hardcoded env-var names, not user data. The child process inherits these at
+        # creation time; they are cleared from the parent immediately after Start().
+        [Environment]::SetEnvironmentVariable("HTML2MD_URL",    $url,    "Process")
+        [Environment]::SetEnvironmentVariable("HTML2MD_OUTDIR", $outdir, "Process")
 
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $psi.Arguments = "-NoExit -NoProfile -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
+            [Environment]::SetEnvironmentVariable("HTML2MD_EXE", $venvExe, "Process")
+            # $optArg is a hardcoded flag (" --main-content" or ""), not user data — safe to interpolate.
+            $psi.Arguments = "-NoExit -NoProfile -Command `"& `$env:HTML2MD_EXE --url `$env:HTML2MD_URL --outdir `$env:HTML2MD_OUTDIR --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -NoProfile -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
+            [Environment]::SetEnvironmentVariable("HTML2MD_PY_SCRIPT", $pyScript, "Process")
+            # $pyCmd is "python" or "python3" (hardcoded); $optArg is a hardcoded flag — both safe to interpolate.
+            $psi.Arguments = "-NoExit -NoProfile -Command `"& $pyCmd `$env:HTML2MD_PY_SCRIPT --url `$env:HTML2MD_URL --outdir `$env:HTML2MD_OUTDIR --all-formats$optArg`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
@@ -430,12 +432,21 @@ $ConvertBtn.Add_Click({
             $LogBox.AppendText("ERROR: Could not find .venv\Scripts\html2md.exe or html2md.py in $scriptDir`r`n")
             $LogBox.AppendText("Have you run setup-html2md.ps1?`r`n")
             $ProgressBar.IsIndeterminate = $false
+            [Environment]::SetEnvironmentVariable("HTML2MD_URL",    $null, "Process")
+            [Environment]::SetEnvironmentVariable("HTML2MD_OUTDIR", $null, "Process")
             return
         }
     }
     
     $LogBox.AppendText("Executing process...`r`n")
     [Diagnostics.Process]::Start($psi) | Out-Null
+
+    # Clear single-URL-mode env vars from the parent process now that the child
+    # has inherited its own copy of the environment.
+    [Environment]::SetEnvironmentVariable("HTML2MD_URL",       $null, "Process")
+    [Environment]::SetEnvironmentVariable("HTML2MD_OUTDIR",    $null, "Process")
+    [Environment]::SetEnvironmentVariable("HTML2MD_EXE",       $null, "Process")
+    [Environment]::SetEnvironmentVariable("HTML2MD_PY_SCRIPT", $null, "Process")
 
     $StatusText.Text = "Conversion started in a new console."
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
