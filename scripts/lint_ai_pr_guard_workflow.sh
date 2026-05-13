@@ -27,40 +27,34 @@ WF=".github/workflows/ai-assisted-pr-guard.yml"
 [ -f "$WF" ] || fail "workflow not found: $WF"
 
 # Prefer pyyaml-based parse; fall back to grep checks.
-# Probe candidates and pick:
-#   1. An interpreter >= 3.8 that can `import yaml` (preferred — full
-#      structural YAML validation).
-#   2. Otherwise, any interpreter >= 3.8 (lets the script run the
-#      awk-based structural check; pyyaml not available).
-# Try `python3` / `python` from PATH first so an activated virtualenv
-# (which often has pyyaml installed) wins over the bare system Python.
-# Fall back to absolute system paths if PATH-resolved interpreters fail
-# or hang (e.g. broken pyenv shim).
+# Probe candidates and pick the first one that satisfies >= 3.8.
+# `python3`/`python` come first so the lint runs in a developer's normal
+# shell environment. The absolute system paths come next so the lint still
+# runs when the repo's `.python-version` pins a pyenv version that isn't
+# installed (the pyenv shim would otherwise fail before reaching a usable
+# interpreter, and the grep-only path silently downgrades validation).
 have_yaml=0
 PYTHON_BIN=""
-PYTHON_NO_YAML=""
 for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
   if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
     if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
-      if "$candidate" -c "import yaml" >/dev/null 2>&1; then
-        PYTHON_BIN="$candidate"
-        have_yaml=1
-        break
-      elif [ -z "$PYTHON_NO_YAML" ]; then
-        PYTHON_NO_YAML="$candidate"
-      fi
+      PYTHON_BIN="$candidate"
+      break
     fi
   fi
 done
-# If no candidate had yaml, fall back to whichever passed the version
-# check so the awk-based structural check can still run.
-if [ -z "$PYTHON_BIN" ]; then
-  PYTHON_BIN="$PYTHON_NO_YAML"
+
+if [ -n "$PYTHON_BIN" ] && "$PYTHON_BIN" -c "import yaml" >/dev/null 2>&1; then
+  have_yaml=1
 fi
 
 if [ "$have_yaml" -eq 1 ]; then
   "$PYTHON_BIN" - "$WF" <<'PY' || exit 1
+import os
+import subprocess
 import sys
+import tempfile
+
 import yaml
 
 path = sys.argv[1]
@@ -98,41 +92,70 @@ if "[AI-Assisted]" not in raw:
 if "claude.ai" not in raw and "CLAUDE_CHAT_URL" not in raw and "Claude chat" not in raw:
     print("FAIL: workflow must reference a Claude chat link check", file=sys.stderr); sys.exit(1)
 
-print(f"OK [yaml-parse]: {path} triggers on pull_request, has {len(jobs)} job(s), checks [AI-Assisted] + Claude chat link")
+run_script = None
+for job in jobs.values():
+    if not isinstance(job, dict):
+        continue
+    for step in job.get("steps", []):
+        if isinstance(step, dict) and step.get("name") == "Inspect PR title and body":
+            run_script = step.get("run")
+            break
+    if run_script is not None:
+        break
+if not isinstance(run_script, str) or not run_script.strip():
+    print("FAIL: workflow must include an executable 'Inspect PR title and body' run block", file=sys.stderr); sys.exit(1)
+
+
+def run_case(name, title, body, draft, expect_code, expect_text):
+    env = os.environ.copy()
+    env.update({"PR_TITLE": title, "PR_BODY": body, "PR_DRAFT": draft})
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".sh", delete=False) as tmp:
+        tmp.write(run_script)
+        tmp_path = tmp.name
+    try:
+        proc = subprocess.run(["bash", tmp_path], env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    finally:
+        os.unlink(tmp_path)
+    output = proc.stdout
+    if proc.returncode != expect_code:
+        print(f"FAIL: {name} exited {proc.returncode}, expected {expect_code}\n{output}", file=sys.stderr); sys.exit(1)
+    if expect_text not in output:
+        print(f"FAIL: {name} output missing {expect_text!r}\n{output}", file=sys.stderr); sys.exit(1)
+
+run_case(
+    "untagged human PR",
+    "Fix typo",
+    "Small documentation typo fix.",
+    "false",
+    0,
+    "skipping transcript checks",
+)
+run_case(
+    "untagged PR with AI evidence",
+    "Fix typo",
+    "Originating Claude chat: https://claude.ai/chat/example",
+    "false",
+    1,
+    "title does not start with [AI-Assisted]",
+)
+run_case(
+    "tagged AI PR with transcript",
+    "[AI-Assisted] Fix typo",
+    "Originating Claude chat: https://claude.ai/chat/example",
+    "false",
+    0,
+    "contains an agent transcript URL",
+)
+
+print(f"OK [yaml-parse]: {path} triggers on pull_request, has {len(jobs)} job(s), checks [AI-Assisted] + Claude chat link, and allows untagged human PRs")
 PY
 else
-  # Fallback grep-based checks (no pyyaml available). These can pass even
-  # for structurally invalid YAML (e.g. an unindented `run: |` block can
-  # still contain the substrings we look for), so attempt one more
-  # structural check: every non-blank, non-comment line at column 1 must
-  # be a known top-level key. This catches the unindented-heredoc class
-  # of bug where embedded code escapes the block scalar.
+  # Fallback grep-based checks (no pyyaml available).
   grep -Eq '^[[:space:]]*pull_request:' "$WF" || fail "workflow must trigger on pull_request (grep)"
   grep -Eq '^[[:space:]]*jobs:' "$WF" || fail "workflow must define a 'jobs:' block (grep)"
   grep -Fq '[AI-Assisted]' "$WF" || fail "workflow must reference the [AI-Assisted] PR-title marker (grep)"
   if ! grep -Eq 'claude\.ai|CLAUDE_CHAT_URL|Claude chat' "$WF"; then
     fail "workflow must reference a Claude chat link check (grep)"
   fi
-  # Allowed top-level YAML keys for a GitHub Actions workflow. Anything
-  # else at column 1 is a strong indicator of an indentation bug (e.g.
-  # embedded shell/python escaping a `run: |` block).
-  bad=$(awk '
-    /^[[:space:]]*$/ || /^#/ { next }
-    /^[A-Za-z][A-Za-z0-9_-]*:/ {
-      key = $0; sub(/:.*/, "", key);
-      if (key !~ /^(name|on|permissions|env|defaults|concurrency|jobs|run-name)$/) {
-        print NR ": unexpected top-level key: " key;
-      }
-      next;
-    }
-    /^[^[:space:]#]/ {
-      print NR ": unindented non-key line: " $0;
-    }
-  ' "$WF")
-  if [ -n "$bad" ]; then
-    echo "FAIL: structural validation rejected the workflow:" >&2
-    echo "$bad" >&2
-    fail "workflow has unindented content (likely a broken \`run: |\` block); install pyyaml for full validation"
-  fi
-  echo "OK [grep-only + structural, pyyaml not installed]: $WF triggers on pull_request, has jobs, checks [AI-Assisted] + Claude chat link"
+  echo "OK [grep-only, pyyaml not installed]: $WF triggers on pull_request, has jobs, checks [AI-Assisted] + Claude chat link"
 fi

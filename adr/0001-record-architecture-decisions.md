@@ -6,12 +6,11 @@
 
 ## Context
 
-`html2md-cli` accumulates non-trivial design choices: the in-repo
-CLI/runtime boundary, the JSONL log-export field contract, the
-Windows-first CI runner, the symlinked `CLAUDE.md`, and the
-AI-PR-Review baseline itself. Without a written record, future
-contributors (human or AI) re-litigate settled decisions or, worse,
-silently reverse them.
+`html2md-cli` accumulates non-trivial design choices: the CLI placeholder
+boundary, the JSONL log-export field contract, the Windows-first CI
+runner, the symlinked `CLAUDE.md`, and the AI-PR-Review baseline itself.
+Without a written record, future contributors (human or AI) re-litigate
+settled decisions or, worse, silently reverse them.
 
 ## Decision
 

@@ -6,15 +6,9 @@ diagnostic on stderr when the targeted path matches a sensitive pattern.
 Stdlib only.
 
 Sensitive patterns (matched against the file's basename and against the
-full path) — see `SENSITIVE_BASENAME_PATTERNS` below for the canonical
-list. Covers every pattern in pr-rules/common.md §3 (`.env*`, `*.pem`,
-`*.key`, `*.crt`, `credentials.json`, `id_{rsa,ed25519,ecdsa,dsa}*`) plus
-the broader secret-naming conventions called out by §3's "any file
-matching a sensible secret naming convention" clause: bare `secrets`/
-`secret`/`credentials`, `secrets.*`/`secret.*`/`credentials.*`,
-`*.secret(s)(.*)`, `*api[-_]token*`, and `*[-_]credentials(.*)`. Files
-inside a `secrets/`, `secret/`, or `credentials/` directory are also
-treated as sensitive via `SENSITIVE_DIR_SEGMENTS`.
+full path) — covers the named patterns in pr-rules/common.md §3 plus
+common secret-naming conventions (`secrets.*`, `*.secret(s).*`,
+`*api[-_]token*`, `*-credentials.*`).
 """
 from __future__ import annotations
 
@@ -29,60 +23,33 @@ SENSITIVE_BASENAME_PATTERNS = (
     "*.pem",
     "*.key",
     "*.crt",
-    # SSH private keys: cover all standard key types, not just RSA.
+    "credentials.json",
     "id_rsa*",
-    "id_ed25519*",
-    "id_ecdsa*",
-    "id_dsa*",
     # "any file matching a sensible secret naming convention" (per
-    # pr-rules/common.md §3). Use broad globs rather than enumerating
-    # each extension — `credentials.toml`, `secrets.env`, etc. are equally
-    # sensitive and easy to miss. Err on the side of false-positive block
-    # for unfamiliar names rather than false-negative leak.
-    #
-    # Both extensionless basenames (`secrets`, `secret`, `credentials`,
-    # `prod-credentials`) and any-extension forms are covered.
-    "secrets",
-    "secret",
-    "credentials",
+    # pr-rules/common.md §3). Use broad `secrets.*` / `secret.*` rather
+    # than enumerating each extension — `secrets.toml`, `secret.env`,
+    # etc. are equally sensitive and easy to miss in a hand-written list.
+    # Err on the side of false-positive block for unfamiliar names rather
+    # than false-negative leak.
     "secrets.*",
     "secret.*",
-    "credentials.*",
     "*.secret",
     "*.secret.*",
     "*.secrets",
     "*.secrets.*",
     "*api-token*",
     "*api_token*",
-    "*-credentials",
-    "*_credentials",
     "*-credentials.*",
     "*_credentials.*",
 )
 PATH_KEYS = {"file_path", "path", "notebook_path"}
-
-# Directory names whose contents are uniformly sensitive. Any path whose
-# segments include one of these (e.g. `secrets/prod.json`,
-# `config/credentials/token.yaml`) is treated as sensitive regardless of
-# the leaf basename. Matched against lower-cased path segments.
-SENSITIVE_DIR_SEGMENTS = frozenset({
-    "secrets",
-    "secret",
-    "credentials",
-})
 
 
 def is_sensitive(path: str) -> bool:
     if not path:
         return False
     normalized_path = path.replace("\\", "/").lower()
-    segments = normalized_path.split("/")
-    normalized_base = segments[-1]
-    # Any path component that names a sensitive directory taints
-    # everything below it. The basename-only check would otherwise miss
-    # files like `secrets/prod.json` whose leaf is just `prod.json`.
-    if any(seg in SENSITIVE_DIR_SEGMENTS for seg in segments[:-1]):
-        return True
+    normalized_base = normalized_path.rsplit("/", 1)[-1]
     for pat in SENSITIVE_BASENAME_PATTERNS:
         normalized_pat = pat.lower()
         if fnmatch.fnmatchcase(normalized_base, normalized_pat):

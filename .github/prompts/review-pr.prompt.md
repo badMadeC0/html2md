@@ -10,41 +10,27 @@ prompt-file flows.
 
 ## Inputs
 
-- The currently open PR
-  (`gh pr view --json number,title,body,baseRefName,isDraft`).
+- The currently open PR (`gh pr view --json number,title,body`).
 - Rule files: `pr-rules/common.md`, `pr-rules/python.md`,
   `pr-rules/python.local.md`, `pr-rules/service-html2md.md`,
   `pr-rules/edge-cases.md`.
 
 ## Procedure
 
-1. Load PR metadata (title, body, baseRefName, isDraft). Determine whether
-   the PR is AI-authored or substantially AI-edited under
-   `pr-rules/common.md`. Check:
+1. Load PR title and body. Determine whether the PR is AI-authored or
+   substantially AI-edited under `pr-rules/common.md`. Check:
    - If it is AI-authored or substantially AI-edited, title starts with
      `[AI-Assisted]`.
-   - If it is AI-authored or substantially AI-edited, body contains an
-     originating agent transcript URL from one of the accepted forms
-     (matching `.github/workflows/ai-assisted-pr-guard.yml`):
-     - `https://claude.ai/chat/<id>`
-     - `https://claude.ai/share/<id>`
-     - `https://claude.ai/code/session_<id>`
-     - `https://cursor.com/share/<id>`
-     - `https://chatgpt.com/codex/<id>`
-     - `https://jules.google.com/task/<id>`
-     Flag the literal placeholder `<CLAUDE_CHAT_URL>` as a violation ONLY
-     when `isDraft` is false. Drafts may keep the placeholder while the
-     transcript is not yet ready.
+   - If it is AI-authored or substantially AI-edited, body contains a
+     Claude chat URL (warn on the literal placeholder
+     `<CLAUDE_CHAT_URL>`).
    - If it is not AI-authored or substantially AI-edited, do not flag the
-     absence of `[AI-Assisted]` or a transcript URL as a violation.
-2. Enumerate changed files with `git diff --name-only
-   origin/${baseRefName}...HEAD` using the `baseRefName` captured above.
-   If `origin/${baseRefName}` is not present locally, fall back to
-   `gh pr diff <number> --name-only`.
+     absence of `[AI-Assisted]` or a Claude chat URL as a violation.
+2. Enumerate changed files with `git diff --name-only origin/main...HEAD`.
 3. For each rule in `pr-rules/common.md`, search the diff for violations.
    Format each as `path:line — common.md rule N: <one-line summary>`.
-4. If any `*.py` files OR `pyproject.toml` changed, repeat step 3 against
-   `pr-rules/python.md` then `pr-rules/python.local.md`.
+4. If any `*.py` files changed, repeat step 3 against `pr-rules/python.md`
+   then `pr-rules/python.local.md`.
 5. Repeat step 3 against `pr-rules/service-html2md.md`.
 6. Run `scripts/check_agents_consistency.sh`. Embed its output in the
    "Baseline consistency" section of the report.

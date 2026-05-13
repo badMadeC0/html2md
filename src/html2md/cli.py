@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from pathlib import Path
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -55,22 +54,8 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        outdir_path = None
-        real_outdir = None
-        if args.outdir:
-            outdir_path = Path(args.outdir)
-            try:
-                if outdir_path.exists() and not outdir_path.is_dir():
-                    print(f"Error: --outdir must be a directory: {args.outdir}", file=sys.stderr)
-                    return 1
-                outdir_path.mkdir(parents=True, exist_ok=True)
-                real_outdir = outdir_path.resolve()
-            except OSError as e:
-                print(f"Error creating output directory '{args.outdir}': {e}", file=sys.stderr)
-                return 1
-
-        def process_url(target_url: str) -> int:
-            """Process a single URL. Returns 0 on success, 1 on error."""
+        def process_url(target_url: str) -> None:
+            """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
@@ -79,46 +64,22 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return 1
+                return
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
-                try:
-                    response.raise_for_status()
-
-                    max_size = 10 * 1024 * 1024
-                    try:
-                        if int(response.headers.get('Content-Length', 0)) > max_size:
-                            print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                            return 1
-                    except ValueError:
-                        # Invalid or non-numeric Content-Length: treat as unknown size.
-                        # The streaming loop below still enforces max_size.
-                        pass
-
-                    chunks = []
-                    total = 0
-                    for chunk in response.iter_content(chunk_size=8192):
-                        total += len(chunk)
-                        if total > max_size:
-                            print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                            return 1
-                        chunks.append(chunk)
-                    content_bytes = b"".join(chunks)
-                finally:
-                    response.close()
-
-                encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
-                html_content = content_bytes.decode(encoding, errors="replace")
+                response = session.get(target_url, timeout=30)
+                response.raise_for_status()
 
                 print("Converting to Markdown...")
-                md_content = md(html_content, heading_style="ATX")
+                md_content = md(response.text, heading_style="ATX")
 
                 if args.outdir:
+                    if not os.path.exists(args.outdir):
+                        os.makedirs(args.outdir)
+
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
@@ -130,17 +91,15 @@ def main(argv=None):
                         if base:
                             filename = f"{base}.md"
 
-                    out_path = (outdir_path or Path(args.outdir)) / filename
+                    out_path = os.path.join(args.outdir, filename)
                     # Final safety check: ensure output stays within outdir
-                    real_out_path = out_path.resolve()
-                    try:
-                        if real_outdir:
-                            real_out_path.relative_to(real_outdir)
-                    except ValueError:
+                    real_outdir = os.path.realpath(args.outdir)
+                    real_out_path = os.path.realpath(out_path)
+                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
-                        return 1
-                    with out_path.open('w', encoding='utf-8') as f:
+                        return
+                    with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
@@ -148,22 +107,13 @@ def main(argv=None):
 
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
-                return 1
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
-                return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
-                return 1
-
-            return 0
-
-        exit_code = 0
 
         if args.url:
-            code = process_url(args.url)
-            if code:
-                exit_code = code
+            process_url(args.url)
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -173,10 +123,9 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        code = process_url(u)
-                        exit_code |= code
+                        process_url(u)
 
-        return exit_code
+        return 0
 
     ap.print_help()
     return 0

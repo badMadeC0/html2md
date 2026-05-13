@@ -6,11 +6,9 @@
 
 <!--
   Replace with a text-mode or mermaid diagram. Suggested first version:
-  user → html2md (CLI; src/html2md/cli.py) → markdown output (.md)
-       ↘ html2md-log-export (CLI; src/html2md/log_export.py) → CSV
-       ↘ html2md-upload (CLI; src/html2md/upload.py) → upload target
-  The conversion runtime is in-repo (markdownify-based). Packaged builds
-  may extend it; document that here when applicable.
+  user → html2md (CLI) → packaged-runtime → output (md|pdf|txt)
+                       ↘ html2md-log-export (CLI) → CSV
+                       ↘ html2md-upload (CLI) → S3 / etc.
 -->
 
 ## Modules

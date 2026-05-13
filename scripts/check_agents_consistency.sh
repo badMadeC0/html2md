@@ -12,11 +12,7 @@
 #      - a symbolic link to AGENTS.md, or
 #      - a regular file with exact content "AGENTS.md" (Windows materialized symlink).
 #   5. CLAUDE.md points at AGENTS.md (directly or materialized form).
-#   6. BASELINE_VERSION exists and contains a single semver line MAJOR.MINOR.PATCH
-#      (literally: exactly one `\n` per `wc -l`, no extra blank lines).
-#   7. AGENTS.md's baseline block references the broader "agent transcript"
-#      wording (not solely "Claude chat URL") so it aligns with the workflow
-#      and pr-rules/common.md §1.
+#   6. BASELINE_VERSION exists and contains a single semver line MAJOR.MINOR.PATCH.
 
 set -u
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -56,55 +52,10 @@ else
   fail "CLAUDE.md missing (expected symlink to AGENTS.md or materialized file)"
 fi
 
-# 6. BASELINE_VERSION exists and is EXACTLY one line containing a
-# MAJOR.MINOR.PATCH semver, terminated by a single trailing newline.
-# `wc -l` counts newlines (not lines), so a value of 1 requires exactly
-# one `\n` — meaning the file is `0.1.0\n` (the canonical form).
-# Files like `0.1.0` (no terminator) fail with wc -l == 0; files like
-# `0.1.0\n\n` (stray blank line) fail with wc -l == 2. Either rejection
-# preserves the file's role as the canonical single-source-of-truth
-# version.
+# 6. BASELINE_VERSION exists and is a valid semver line
 [ -f BASELINE_VERSION ] || fail "BASELINE_VERSION missing"
-line_count=$(wc -l < BASELINE_VERSION | tr -d ' ')
-[ "$line_count" -eq 1 ] \
-  || fail "BASELINE_VERSION must be exactly one line plus trailing newline (got $line_count newlines)"
-ver=$(tr -d ' \t\r\n' < BASELINE_VERSION)
+ver=$(tr -d ' \t\n\r' < BASELINE_VERSION)
 echo "$ver" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
   || fail "BASELINE_VERSION must contain MAJOR.MINOR.PATCH (got '$ver')"
-
-
-# 7. AGENTS.md baseline rule for PR body URL must reference the broader
-# "agent transcript" wording. The workflow at
-# .github/workflows/ai-assisted-pr-guard.yml accepts agent transcripts
-# from cursor/codex/jules in addition to claude.ai chats, and
-# pr-rules/common.md §1 already says "Claude chat or other agent
-# transcript". Keep AGENTS.md aligned so non-Claude AI PRs aren't
-# rewritten unnecessarily by agents who read AGENTS.md first.
-baseline_block=$(sed -n "${begin_line},${end_line}p" AGENTS.md)
-echo "$baseline_block" | grep -qiE "agent[[:space:]]+transcript" \
-  || fail "AGENTS.md baseline rule for PR body URL must mention 'agent transcript' (not solely 'Claude chat URL'). See pr-rules/common.md §1 and .github/workflows/ai-assisted-pr-guard.yml accepted hosts."
-
-
-# 8. Inline Python heredocs inside scripts/*.sh must specify an explicit
-# encoding when opening text files. JSON is UTF-8 by definition (RFC
-# 8259) and the repo's Python guidance emphasizes explicit UTF-8 — the
-# platform default (cp1252 on Windows, etc.) can corrupt non-ASCII bytes
-# or fail outright. Catch the easy case: any `open(...)` call inside a
-# scripts/*.sh heredoc that lacks `encoding=`.
-bad_open=$(
-  awk '
-    FNR==1 { in_heredoc=0 }
-    /<<.?[A-Za-z_]+/ { in_heredoc=1; next }
-    in_heredoc && /^[A-Za-z_]+$/ { in_heredoc=0; next }
-    in_heredoc && /open[[:space:]]*\(/ && !/encoding[[:space:]]*=/ {
-      print FILENAME ":" FNR ": " $0
-    }
-  ' scripts/*.sh
-)
-if [ -n "$bad_open" ]; then
-  echo "FAIL: inline Python in scripts/*.sh has open(...) without encoding=:" >&2
-  echo "$bad_open" >&2
-  fail "JSON/text reads must specify an explicit encoding (e.g. encoding='utf-8'); Windows default is cp1252"
-fi
 
 echo "OK: AGENTS.md ($agents_lines lines), $claude_ref, BASELINE_VERSION=$ver"

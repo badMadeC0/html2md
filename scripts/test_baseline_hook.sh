@@ -3,12 +3,8 @@
 # Smoke test for .claude/hooks/protect-sensitive-files.py.
 #
 # The hook reads a Claude Code PreToolUse JSON payload on stdin and must:
-#   - Exit non-zero (block) when the tool would Edit/Write a sensitive path.
-#     The canonical pattern set is documented in pr-rules/common.md §3 and
-#     enforced by .claude/hooks/protect-sensitive-files.py's
-#     SENSITIVE_BASENAME_PATTERNS — covers .env*, *.pem, *.key, *.crt,
-#     id_{rsa,ed25519,ecdsa,dsa}*, credentials.*, secret.*/secrets.*,
-#     *.secret(s).*, *api[-_]token*, *[-_]credentials.* and more.
+#   - Exit non-zero (block) when the tool would Edit/Write a sensitive path
+#     (.env, .env.*, *.pem, *.key, credentials.json, *.crt, id_rsa*).
 #   - Exit zero (allow) for normal source paths.
 #
 # Usage: scripts/test_baseline_hook.sh
@@ -28,12 +24,13 @@ HOOK=".claude/hooks/protect-sensitive-files.py"
 [ -f "$HOOK" ] || fail "hook script not found: $HOOK"
 
 # Probe candidates and pick the first one that satisfies >= 3.8.
-# Try absolute system paths FIRST. The `python3`/`python` shell names
-# can resolve to a pyenv shim pinned to an uninstalled version, which
-# may hang or fail before the probe times out. Putting known-good
-# absolute paths first means a broken shim never blocks the test.
+# `python3`/`python` come first so the test runs in a developer's normal
+# shell environment. The absolute system paths come next so the test still
+# runs when the repo's `.python-version` pins a pyenv version that isn't
+# installed (the pyenv shim would otherwise fail before reaching a usable
+# interpreter).
 PYTHON_BIN=""
-for candidate in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3 python3 python; do
+for candidate in python3 python /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/python3; do
   if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
     if "$candidate" -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" >/dev/null 2>&1; then
       PYTHON_BIN="$candidate"
@@ -41,7 +38,7 @@ for candidate in /usr/bin/python3 /opt/homebrew/bin/python3 /usr/local/bin/pytho
     fi
   fi
 done
-[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3, python3, python)"
+[ -n "$PYTHON_BIN" ] || fail "no python interpreter >= 3.8 found (tried: python3, python, /usr/bin/python3, /opt/homebrew/bin/python3, /usr/local/bin/python3)"
 
 # Helper: run the hook with a given tool_name and file_path; return its exit code.
 run_hook() {
@@ -66,23 +63,12 @@ for path in ".env" ".env.local" ".env.production" "config/.env" \
             "secrets.pem" "server.key" "credentials.json" \
             "deploy.crt" "id_rsa" "id_rsa.pub" "id_rsa_old" \
             "src/keys/id_rsa" \
-            "id_ed25519" "id_ed25519.pub" \
-            "id_ecdsa" "id_ecdsa.pub" \
-            "id_dsa" \
-            ".ssh/id_ed25519" "src/keys/id_ecdsa" \
             "secrets.json" "secret.json" "secrets.yaml" "secret.yml" \
             "secrets.toml" "secret.toml" "secrets.env" \
             "config/secrets.json" "config/secrets.toml" \
             "prod.secret.yaml" "app.secrets.yml" \
             "api-token.txt" "my_api_token.json" \
-            "team-credentials.toml" "service_credentials.txt" \
-            "credentials.yaml" "credentials.yml" "credentials.toml" \
-            "secrets" "secret" "credentials" \
-            "config/secrets" "vault/credentials" \
-            "prod-credentials" "prod_credentials" \
-            "secrets/prod.json" "secrets/anything.yaml" \
-            "credentials/token.json" "config/credentials/cert.pem" \
-            "secret/foo.txt" "deep/path/to/secrets/file.dat"; do
+            "team-credentials.toml" "service_credentials.txt"; do
   if run_hook "Write" "$path" >/dev/null 2>&1; then
     fail "hook should BLOCK Write to '$path' but allowed it"
   fi

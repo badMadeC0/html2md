@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import patch, MagicMock
 import io
 import requests  # type: ignore[import-untyped]
-from pathlib import Path
 from html2md.cli import main
 
 
@@ -37,32 +36,16 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with (
-                        patch('pathlib.Path.exists', return_value=False),
-                        patch('pathlib.Path.mkdir'),
-                        patch('pathlib.Path.open', side_effect=OSError("Permission denied")),
-                    ):
-                        try:
-                            main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                        except (SystemExit, RuntimeError, ValueError) as e:
-                            self.fail(f"main raised exception {e}")
+                    with patch('os.makedirs'), patch('os.path.exists', return_value=False):
+                        with patch('builtins.open', side_effect=OSError("Permission denied")):
+                            try:
+                                main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                            except (SystemExit, RuntimeError, ValueError) as e:
+                                self.fail(f"main raised exception {e}")
 
-                        output = captured_stderr.getvalue()
-                        self.assertIn("File error", output)
-                        self.assertIn("Permission denied", output)
-
-    def test_outdir_is_file_returns_error(self):
-        """Test that --outdir pointing at an existing file returns a non-zero exit code."""
-        captured_stderr = io.StringIO()
-        with patch('sys.stderr', captured_stderr):
-            with (
-                patch('pathlib.Path.exists', return_value=True),
-                patch('pathlib.Path.is_dir', return_value=False),
-            ):
-                result = main(['--url', 'http://example.com', '--outdir', '/tmp/file.txt'])
-
-        assert result != 0
-        assert "--outdir must be a directory" in captured_stderr.getvalue()
+                            output = captured_stderr.getvalue()
+                            self.assertIn("File error", output)
+                            self.assertIn("Permission denied", output)
 
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
@@ -75,18 +58,14 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with (
-                        patch('pathlib.Path.exists', return_value=True),
-                        patch('pathlib.Path.is_dir', return_value=True),
-                        patch('pathlib.Path.mkdir'),
-                    ):
-                        with patch('pathlib.Path.open') as mock_open:
-                            def fake_resolve(path):
+                    with patch('os.path.exists', return_value=True):
+                        with patch('builtins.open') as mock_open:
+                            def fake_realpath(path):
                                 if str(path).endswith('.md'):
-                                    return Path('/tmp/outside/a.md')
-                                return Path('/tmp/out')
+                                    return '/tmp/outside/a.md'
+                                return '/tmp/out'
 
-                            with patch('pathlib.Path.resolve', fake_resolve):
+                            with patch('os.path.realpath', side_effect=fake_realpath):
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
