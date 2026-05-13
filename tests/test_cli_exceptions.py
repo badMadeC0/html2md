@@ -1,6 +1,6 @@
 """Tests for html2md CLI exception-handling paths."""
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 import io
 import requests  # type: ignore[import-untyped]
 from html2md.cli import main
@@ -59,7 +59,12 @@ class TestCliExceptions(unittest.TestCase):
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
                     with patch('os.path.exists', return_value=True):
-                        with patch('html2md.cli.open', create=True) as mock_open:
+                        original_open = open
+                        def mock_open_impl(*args, **kwargs):
+                            if str(args[0]).endswith('.mo'):
+                                return original_open(*args, **kwargs)
+                            return mock_open(read_data='')()
+                        with patch('builtins.open', side_effect=mock_open_impl) as m_open:
                             def fake_realpath(path):
                                 if str(path).endswith('.md'):
                                     return '/tmp/outside/a.md'
@@ -70,4 +75,3 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()

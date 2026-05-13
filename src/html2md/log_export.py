@@ -1,5 +1,4 @@
 """Export html2md JSONL logs to CSV."""
-from __future__ import annotations
 
 import argparse
 import csv
@@ -84,7 +83,7 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            # Accept dictionaries, including dict subclasses.
+            # Strict/fast dict check
             if not isinstance(rec, dict):
                 continue
 

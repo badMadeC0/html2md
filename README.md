@@ -1,16 +1,16 @@
 
 # html2md-cli (0.11.6) — Repository Snapshot
 
-This repository contains the current source snapshot: an active `html2md` CLI runtime, a working JSONL→CSV log export utility, Windows helper scripts, tests, and documentation.
+This repository contains the current source snapshot: a placeholder `html2md` CLI entry point, a working JSONL→CSV log export utility, Windows helper scripts, tests, and documentation.
 
 ## Purpose
 
 This repo currently provides:
 
-- A functional `html2md` CLI command for URL fetching and HTML→Markdown conversion flows.
+- A placeholder `html2md` CLI command that exposes parser/help behavior (`--help`/`--help-only`) and prints a runtime availability message.
 - A functional `html2md-log-export` utility for exporting JSONL logs to CSV.
 
-The primary runtime conversion workflow is embedded in this source tree under `src/html2md/cli.py`.
+The full runtime conversion workflow described in earlier packaging notes is **not embedded in this source tree**.
 
 ## Tech Stack
 
@@ -44,23 +44,7 @@ The primary runtime conversion workflow is embedded in this source tree under `s
 
 ## Features in this repository
 
-- `html2md` CLI runtime for URL fetching and HTML→Markdown conversion
+- `html2md` CLI placeholder command (`--help` and `--help-only` parsing)
 - JSONL-based log export to CSV via `html2md-log-export`
 - Package/module entry points and smoke tests
 - Windows bootstrap and launcher scripts (PowerShell + batch)
-
-## Working with AI agents
-
-This repo follows the [AI-PR-Review baseline](AGENTS.md). Before any AI
-agent (Claude, Cursor, Copilot, Codex, Jules, Gemini Code Assist) proposes
-a change, it should read:
-
-- [`AGENTS.md`](AGENTS.md) — authoritative guidance. `CLAUDE.md` is a symlink to this file on POSIX checkouts; on Windows checkouts without symlink support it may appear as a regular file containing `AGENTS.md` (the baseline consistency check accepts either form).
-- [`pr-rules/`](pr-rules/) — review rule sets (`common.md`, `python.md`, `service-html2md.md`, plus the append-only `edge-cases.md` ledger). Treat these as review guidance, and cross-check any architecture or runtime-boundary claims against the current source tree before relying on them.
-- [`adr/`](adr/) — architecture decision records; use these together with the current codebase to confirm how the repository is actually structured.
-
-PR conventions:
-
-- AI-assisted PRs should start with `[AI-Assisted]` and include the originating agent transcript URL in the body (for example, Claude, Cursor, Codex, or Jules). The workflow [`.github/workflows/ai-assisted-pr-guard.yml`](.github/workflows/ai-assisted-pr-guard.yml) allows untagged human-authored PRs, but fails PRs that include agent transcript metadata without the `[AI-Assisted]` title marker and enforces transcript-link requirements for tagged PRs.
-- The Claude slash command [`/review-pr`](.claude/commands/review-pr.md) walks an open PR against the rule sets.
-- Run [`scripts/check_agents_consistency.sh`](scripts/check_agents_consistency.sh) before opening a PR.

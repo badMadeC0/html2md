@@ -1,48 +1,55 @@
-# Copilot custom instructions — html2md-cli
+# Copilot Custom Instructions
 
-This file is a thin pointer. Authoritative guidance lives in
-[`AGENTS.md`](../AGENTS.md) and the rule sets under [`pr-rules/`](../pr-rules/).
+## Project Context
 
-## Read first
+html2md-cli is a Python CLI tool that converts HTML to Markdown, PDF, and TXT formats. The CLI module (`src/html2md/cli.py`) is a **placeholder stub** — the full runtime ships via a separate packaged build. Do not attempt to implement conversion logic in this repository.
 
-1. [`AGENTS.md`](../AGENTS.md) — baseline and project context.
-2. [`pr-rules/common.md`](../pr-rules/common.md) — cross-stack rules.
-3. [`pr-rules/python.md`](../pr-rules/python.md) — Python rules
-   (also mirrored as `.github/instructions/python.instructions.md` for
-   path-scoped Copilot loading).
-4. [`pr-rules/python.local.md`](../pr-rules/python.local.md) — repo-local
-   Python overrides (currently empty).
-5. [`pr-rules/service-html2md.md`](../pr-rules/service-html2md.md) —
-   service-specific rules (active `cli.py` runtime scope, JSONL log-export
-   contract, Windows CI runner, symlinked `CLAUDE.md`).
+## Language & Runtime
 
-## Hard rules
+- Python **>= 3.8** — do not use syntax or stdlib features added after 3.8 (e.g., `match` statements, `str.removeprefix`, `tomllib`).
+- For new or modified modules, include `from __future__ import annotations` at the top when practical.
 
-- Never push, open, merge, or close PRs.
-- Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
-  `*.crt`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, or any file matching a sensible secret naming
-  convention (e.g., `secrets.*`, `secret.*`, `*.secret.*`, `*.secrets.*`,
-  `*api-token*`, `*-credentials.*`). See
-  [`pr-rules/common.md`](../pr-rules/common.md) §3 for the canonical list.
-  The hook `.claude/hooks/protect-sensitive-files.py` enforces this for
-  Edit/Write.
-- Every AI-assisted PR title must start with `[AI-Assisted]`. The body must
-  link to the originating Claude / agent chat URL.
-- Append edge cases to [`pr-rules/edge-cases.md`](../pr-rules/edge-cases.md);
-  never delete rows.
+## Code Style
 
-## Quick checklist before suggesting code
+- Entry-point functions must follow the signature `main(argv=None)` so they work both as CLI commands and in tests.
+- Use `argparse.ArgumentParser` for CLI argument parsing — no click, typer, or other frameworks.
+- Use `pathlib.Path` for all filesystem operations — never raw `os.path` calls.
+- Use `encoding='utf-8'` explicitly on all `open()` / `Path.open()` calls.
+- Prefer grouped imports (stdlib, third-party, local) with one blank line between groups in new or modified modules.
+- Prefer concise code, but avoid packing unrelated statements on one line in new or modified modules.
 
-- Python 3.8 compatible? (no `match`, no `tomllib`, no `removeprefix`).
-- `from __future__ import annotations` present in new modules?
-- Entry-point signature `main(argv=None) -> int`?
-- `pathlib.Path` and explicit `encoding="utf-8"`?
-- No new runtime / build dependencies in `pyproject.toml`?
-- For new CLI utilities: a smoke test that asserts `--help` exits 0?
-- For changes to `src/html2md/cli.py`: keep behavior backward-compatible
-  unless an ADR and explicit approval cover a breaking change?
+## Dependencies
 
-## Review prompt
+Runtime dependencies are declared in `pyproject.toml`; avoid adding new runtime dependencies without discussion. The current set is:
+- `markdownify`, `beautifulsoup4`, `requests`, `reportlab`, `pillow`, `pyyaml`
 
-The detailed review workflow lives in
-[`.github/prompts/review-pr.prompt.md`](prompts/review-pr.prompt.md).
+Build-system requirements are defined in `pyproject.toml` (for example `setuptools`, `wheel`). Common local dev tools (not all declared in `pyproject.toml` or installed in CI) include `pytest` and `build`.
+
+## Project Layout
+
+- Source lives under `src/html2md/` (following the `src` layout convention).
+- Tests live under `tests/` and run with `pytest -q`.
+- Build config is entirely in `pyproject.toml` — there is no `setup.py` or `setup.cfg`.
+- Windows integration scripts (`*.bat`, `*.ps1`) are not part of the Python package.
+
+## Testing
+
+- All tests use **pytest** (no unittest subclasses).
+- Smoke tests call CLI entry points via `subprocess.run` and assert on return codes.
+- When adding a new module or entry point, add at least a smoke test that verifies `--help` exits 0.
+- Never import internal modules directly in tests when the intent is to test the CLI interface — use subprocess.
+
+## Review Guidance
+
+When reviewing pull requests, pay attention to:
+
+1. **Python 3.8 compatibility** — flag any use of newer syntax or APIs.
+2. **No new runtime dependencies** unless explicitly justified.
+3. **Placeholder boundary** — changes to `cli.py` should not add real conversion logic; that belongs in the packaged build.
+4. **Encoding** — all file I/O must specify `encoding='utf-8'`.
+5. **Path handling** — use `pathlib.Path`, not string concatenation or `os.path`.
+6. **Entry-point contract** — `main(argv=None)` signature, returns an int exit code.
+7. **Test coverage** — new entry points or utilities need at least a smoke test.
+8. **Security** — watch for command injection in subprocess calls (no unsanitized user input in `shell=True`), and validate/sanitize file paths from user input.
+9. **CI compatibility** — CI runs on `windows-latest`; avoid Unix-only assumptions (shebangs, forward-slash-only paths, Unix signals).
+10. **License** — project is MIT; do not introduce code with incompatible licenses.
