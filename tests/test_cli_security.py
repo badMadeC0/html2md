@@ -60,7 +60,6 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 def test_is_safe_path_security(mock_normcase, mock_realpath):
     """Test is_safe_path comprehensively for traversal and prefix-collision."""
     from html2md.cli import is_safe_path
-    import os
 
     # Mock behavior for basic Unix paths
     mock_realpath.side_effect = lambda x: x
