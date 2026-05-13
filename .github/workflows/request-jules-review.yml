@@ -41,24 +41,42 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
+          review_body = "@jules please review this pull request."
 
-          request = urllib.request.Request(
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          }
+
+          # Check existing comments for a duplicate before posting.
+          page = 1
+          while True:
+              list_req = urllib.request.Request(
+                  url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments?per_page=100&page={page}",
+                  headers=headers,
+                  method="GET",
+              )
+              with urllib.request.urlopen(list_req) as resp:
+                  comments = json.loads(resp.read().decode("utf-8"))
+              if any(c["body"].strip() == review_body for c in comments):
+                  print("Review already requested — skipping duplicate comment.")
+                  sys.exit(0)
+              if len(comments) < 100:
+                  break
+              page += 1
+
+          post_req = urllib.request.Request(
               url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
-              data=json.dumps(
-                  {"body": "@google-labs-jules please review this pull request."}
-              ).encode("utf-8"),
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json",
-              },
+              data=json.dumps({"body": review_body}).encode("utf-8"),
+              headers=headers,
               method="POST",
           )
 
           try:
-              with urllib.request.urlopen(request) as response:
+              with urllib.request.urlopen(post_req) as response:
                   print(
-                      "Requested review from @google-labs-jules via comment on "
+                      "Requested review from @jules via comment on "
                       f"PR #{pr_number} (status {response.status})"
                   )
           except urllib.error.HTTPError as error:
