@@ -12,7 +12,11 @@
 #      - a symbolic link to AGENTS.md, or
 #      - a regular file with exact content "AGENTS.md" (Windows materialized symlink).
 #   5. CLAUDE.md points at AGENTS.md (directly or materialized form).
-#   6. BASELINE_VERSION exists and contains a single semver line MAJOR.MINOR.PATCH.
+#   6. BASELINE_VERSION exists and contains a single semver line MAJOR.MINOR.PATCH
+#      (literally: exactly one `\n` per `wc -l`, no extra blank lines).
+#   7. AGENTS.md's baseline block references the broader "agent transcript"
+#      wording (not solely "Claude chat URL") so it aligns with the workflow
+#      and pr-rules/common.md §1.
 
 set -u
 fail() { echo "FAIL: $*" >&2; exit 1; }

@@ -5,7 +5,8 @@ allowed-tools: Bash, Read, Grep, Glob
 
 # /review-pr — AI-PR-Review baseline review
 
-Walk the diff between the current branch and the PR base branch and report
+Walk the diff between the current branch and its PR base (captured from
+`gh pr view` — usually `main` but may be any release branch) and report
 violations of the baseline rule set. Read-only — do not edit files.
 
 ## Inputs
