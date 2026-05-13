@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Minimal, opinionated healthcheck for a pnpm monorepo:
-   - root: test? lint? build?
+   - root: lint? test?
    - workspaces: smoke build where available
 */
 import { execSync } from "node:child_process";
