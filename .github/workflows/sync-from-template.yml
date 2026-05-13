@@ -1,0 +1,38 @@
+name: sync-from-template
+
+# STUB: this workflow is a placeholder. The AI-PR-Review baseline is intended
+# to be synced from a central template repo (e.g. a "ai-pr-review-template"
+# under the same org). Until that template exists and a sync mechanism is
+# wired up, this workflow only logs intent. It does NOT modify the repo.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    name: Stub — no sync configured
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print intent
+        run: |
+          echo "sync-from-template: stub. No template repo wired yet."
+          echo "Files in scope when wiring is complete:"
+          echo "  - AGENTS.md (only the <!-- BEGIN BASELINE --> ... <!-- END BASELINE --> region)"
+          echo "  - pr-rules/common.md"
+          echo "  - pr-rules/python.md"
+          echo "  - .claude/commands/*.md"
+          echo "  - .claude/hooks/protect-sensitive-files.py"
+          echo "  - .cursor/rules/*.mdc"
+          echo "  - .codex/prompts/*.md"
+          echo "  - .github/PULL_REQUEST_TEMPLATE.md"
+          echo "  - .github/workflows/ai-assisted-pr-guard.yml"
+          echo "  - scripts/check_agents_consistency.sh"
+          echo ""
+          echo "Files NEVER synced (repo-local):"
+          echo "  - pr-rules/python.local.md"
+          echo "  - pr-rules/edge-cases.md"
+          echo "  - pr-rules/service-html2md.md"
+          echo "  - BASELINE_VERSION (bumped manually after a sync)"
