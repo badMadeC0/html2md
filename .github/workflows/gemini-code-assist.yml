@@ -64,6 +64,31 @@ jobs:
         # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
         # so wiping it is safe and removes the attack surface.
         run: rm -rf .gemini
+      - name: Vendor the code-review extension as a project-local extension
+        # gemini-cli-extensions/code-review publishes no GitHub releases or
+        # tags, so `gemini extensions install <url>@<ref>` (the run-gemini-cli
+        # default) always 404s on the release lookup and then drops into an
+        # interactive "install via git clone instead?" consent prompt that
+        # CI can't answer reliably. Cloning into .gemini/extensions/<name>/
+        # makes Gemini CLI load it as a trusted project-local extension at
+        # startup — no release lookup, no consent prompt, deterministic ref.
+        env:
+          # Pin to a known-good main HEAD. Bump intentionally; do not pin to
+          # a moving branch ref (defeats supply-chain auditability).
+          EXT_SHA: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+        run: |
+          set -euo pipefail
+          mkdir -p .gemini/extensions
+          git clone --depth 1 https://github.com/gemini-cli-extensions/code-review.git \
+            .gemini/extensions/code-review
+          cd .gemini/extensions/code-review
+          git fetch --depth 1 origin "$EXT_SHA"
+          git checkout "$EXT_SHA"
+          # Sanity-check the extension manifest before we hand control to
+          # the CLI; if the upstream repo restructures, we want a clear
+          # failure here rather than an opaque "command not found" later.
+          test -f gemini-extension.json \
+            || { echo "::error::gemini-extension.json missing in pinned ref $EXT_SHA"; exit 1; }
       - name: Gemini Code Assist
         id: gemini
         continue-on-error: true
@@ -120,10 +145,11 @@ jobs:
                 ]
               }
             }
-          extensions: |
-            [
-              "https://github.com/gemini-cli-extensions/code-review@REPLACE_WITH_FULL_COMMIT_SHA"
-            ]
+          # The code-review extension is vendored above into
+          # .gemini/extensions/code-review/, so we deliberately pass no
+          # `extensions:` input here — that avoids the broken release-tag
+          # install path in run-gemini-cli for an extension repo that has
+          # no releases or tags.
           prompt: "/pr-code-review"
       - name: Note Gemini API quota exhaustion
         if: >
