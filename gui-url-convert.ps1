@@ -24,9 +24,11 @@ if ($BatchFile -or $Url) {
     $pyScript = Join-Path $scriptDir "html2md.py"
 
     # Priority: OutDir > BatchOutDir > Downloads
-    $finalOutDir = if (-not [string]::IsNullOrWhiteSpace($OutDir)) { $OutDir }
-                   elseif (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir }
-                   else { "$env:USERPROFILE\Downloads" }
+    # Normalize to avoid trailing backslash issues with Windows command-line parsing
+    $finalOutDir = $finalOutDir.TrimEnd('\')
+    if ($finalOutDir.Length -eq 2 -and $finalOutDir.EndsWith(':')) {
+        $finalOutDir += '\'
+    }
 
     try {
         $urls = if ($BatchFile) { Get-Content -LiteralPath $BatchFile } else { @($Url) }
