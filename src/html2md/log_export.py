@@ -48,10 +48,10 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
-    if value is None:
-        return ""
     if isinstance(value, str):
         return _sanitize_formula(value)
+    if value is None:
+        return ""
     return value
 
 
