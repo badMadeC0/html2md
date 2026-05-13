@@ -88,3 +88,4 @@ class TestCliExceptions(unittest.TestCase):
 
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
+                            m_open.assert_not_called()
