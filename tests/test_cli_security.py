@@ -51,3 +51,31 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
+
+
+def test_outdir_existing_file_returns_clear_error(capsys, tmp_path):
+    """An existing file passed as --outdir returns a clear preflight error."""
+    outdir_file = tmp_path / "not-a-directory"
+    outdir_file.write_text("not a directory", encoding="utf-8")
+
+    ret = cli.main(["--url", "http://example.com", "--outdir", str(outdir_file)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Error: --outdir must be a directory" in outerr.err
+    assert str(outdir_file) in outerr.err
+
+
+@patch("requests.Session.get")
+def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tmp_path):
+    """Output directory creation failures are reported without a traceback."""
+    outdir = tmp_path / "blocked"
+
+    with patch("pathlib.Path.mkdir", side_effect=OSError("Permission denied")):
+        ret = cli.main(["--url", "http://example.com", "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Error creating output directory" in outerr.err
+    assert "Permission denied" in outerr.err
+    mock_get.assert_not_called()

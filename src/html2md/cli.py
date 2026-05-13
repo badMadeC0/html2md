@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 from urllib.parse import urlparse, unquote
 
 def main(argv=None):
@@ -53,6 +54,20 @@ def main(argv=None):
             'Sec-Fetch-Site': 'cross-site',
             'Sec-Fetch-User': '?1',
         })
+
+        outdir_path = None
+        real_outdir = None
+        if args.outdir:
+            outdir_path = Path(args.outdir)
+            try:
+                if outdir_path.exists() and not outdir_path.is_dir():
+                    print(f"Error: --outdir must be a directory: {args.outdir}", file=sys.stderr)
+                    return 1
+                outdir_path.mkdir(parents=True, exist_ok=True)
+                real_outdir = outdir_path.resolve()
+            except OSError as e:
+                print(f"Error creating output directory '{args.outdir}': {e}", file=sys.stderr)
+                return 1
 
         def process_url(target_url: str) -> int:
             """Process a single URL. Returns 0 on success, 1 on error."""
@@ -104,9 +119,6 @@ def main(argv=None):
                 md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
-                    if not os.path.exists(args.outdir):
-                        os.makedirs(args.outdir)
-
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
@@ -118,15 +130,17 @@ def main(argv=None):
                         if base:
                             filename = f"{base}.md"
 
-                    out_path = os.path.join(args.outdir, filename)
+                    out_path = (outdir_path or Path(args.outdir)) / filename
                     # Final safety check: ensure output stays within outdir
-                    real_outdir = os.path.realpath(args.outdir)
-                    real_out_path = os.path.realpath(out_path)
-                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                    real_out_path = out_path.resolve()
+                    try:
+                        if real_outdir:
+                            real_out_path.relative_to(real_outdir)
+                    except ValueError:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
                         return 1
-                    with open(out_path, 'w', encoding='utf-8') as f:
+                    with out_path.open('w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
                 else:
