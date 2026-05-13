@@ -39,10 +39,11 @@ const pyenvVersionCandidates = () => {
       ? readFileSync(".python-version", "utf8").trim()
       : null;
     const pinnedSeries = pinned?.split(".").slice(0, 2).join(".");
-    const sorted = pinnedSeries
+    const sorted = pinned
       ? [
-          ...versions.filter((version) => version.startsWith(`${pinnedSeries}.`)),
-          ...versions.filter((version) => !version.startsWith(`${pinnedSeries}.`)),
+          ...versions.filter((v) => v === pinned),
+          ...versions.filter((v) => v !== pinned && pinnedSeries && (v === pinnedSeries || v.startsWith(`${pinnedSeries}.`))),
+          ...versions.filter((v) => v !== pinned && (!pinnedSeries || (v !== pinnedSeries && !v.startsWith(`${pinnedSeries}.`)))),
         ]
       : versions;
 
