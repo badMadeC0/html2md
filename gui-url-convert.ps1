@@ -76,9 +76,10 @@ if ($BatchFile) {
 #     $psi.Arguments = "-STA -ExecutionPolicy Bypass -File `"$PSCommandPath`""
 #     $psi.UseShellExecute = $true
 #     [Diagnostics.Process]::Start($psi) | Out-Null
-#     exit
-# }
-
+if ($null -ne $IsWindows -and -not $IsWindows) {
+    Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
+    exit 1
+}
 if ($null -ne $IsWindows -and -not $IsWindows) {
     Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
     exit 1
