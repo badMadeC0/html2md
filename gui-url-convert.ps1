@@ -96,6 +96,8 @@ Add-Type -AssemblyName System.Xaml
 Add-Type -AssemblyName System.Windows.Forms
 
 # --- Define XAML UI (WPF) ---
+# This UI is defined in XAML and loaded at runtime.
+# WPF is used for the graphical interface.
 $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         Title="html2md - Convert URL"
