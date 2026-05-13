@@ -17,7 +17,7 @@ def is_safe_url(url: str) -> bool:
         if not hostname:
             return False
 
-        if hostname.lower() in ('localhost', '127.0.0.1', '::1', '0.0.0.0', '[::]'):
+        if hostname.lower() == 'localhost':
             return False
 
         try:
