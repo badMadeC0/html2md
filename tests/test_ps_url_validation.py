@@ -1,6 +1,21 @@
-import pytest
 import re
-import os
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+GUI_URL_CONVERT_SCRIPT = REPO_ROOT / "gui-url-convert.ps1"
+FOREACH_URL_LIST_PATTERN = re.compile(
+    r"foreach\s*\(\s*\$u\s+in\s+\$urlList\s*\)",
+    re.IGNORECASE,
+)
+VULNERABLE_URI_CAST_PATTERN = re.compile(
+    r"\\[System\\.Uri\\]\\s*\\$url\\b",
+    re.IGNORECASE,
+)
+SAFE_URI_CAST_PATTERN = re.compile(
+    r"\\[System\\.Uri\\]\\s*\\$u\\b",
+    re.IGNORECASE,
+)
 
 
 def test_ps_url_validation():
@@ -8,39 +23,21 @@ def test_ps_url_validation():
     Ensure the loop variable ($u) is used in System.Uri casts in gui-url-convert.ps1
     to prevent the uninitialized `$url` vulnerability from recurring.
     """
-    with open("gui-url-convert.ps1", "r", encoding="utf-8") as f:
-        content = f.read()
+    assert GUI_URL_CONVERT_SCRIPT.exists(), (
+        f"Required file {GUI_URL_CONVERT_SCRIPT} not found for validation."
+    )
 
-    # Vulnerability assertion: ensure uninitialized $url is not used
-    assert (
-        "[System.Uri]$url" not in content
-    ), "VULNERABILITY: Uninitialized `$url` variable used in System.Uri cast."
+    content = GUI_URL_CONVERT_SCRIPT.read_text(encoding="utf-8")
 
-    # Correctness assertion: ensure the proper loop variable is used
-    assert re.search(
-        r"foreach\s*\(\$u\s+in\s+\$urlList\)", content
-    ), "Could not find the expected foreach loop for $urlList."
-    assert (
-        "[System.Uri]$u" in content
-    ), "Could not find correct System.Uri cast using loop variable $u."
+    # Vulnerability assertion: ensure uninitialized $url is not used in a Uri cast.
+    assert not VULNERABLE_URI_CAST_PATTERN.search(content), (
+        "VULNERABILITY: Uninitialized `$url` variable used in System.Uri cast."
+    )
 
-
-def test_no_uninitialized_variables_in_foreach():
-    """
-    Ensure no common `.ps1` files use uninitialized variables inside foreach loops.
-    """
-    # Just a simple static check to prevent recurrence of this exact bug
-    files = ["gui-url-convert.ps1", "setup-html2md.ps1"]
-    for filename in files:
-        if not os.path.exists(filename):
-            continue
-
-        with open(filename, "r", encoding="utf-8") as f:
-            content = f.read()
-
-        # Example pattern: foreach ($var in $list) { ... }
-        # Let's ensure the var is used correctly and not another similar sounding var
-        if filename == "gui-url-convert.ps1":
-            # Just verify the loop logic remains secure
-            assert "foreach ($u in $urlList)" in content
-            assert "$uriObj = [System.Uri]$u" in content
+    # Correctness assertion: ensure the proper loop variable is used.
+    assert FOREACH_URL_LIST_PATTERN.search(content), (
+        "Could not find the expected foreach loop for $urlList."
+    )
+    assert SAFE_URI_CAST_PATTERN.search(content), (
+        "Could not find correct System.Uri cast using loop variable $u."
+    )
