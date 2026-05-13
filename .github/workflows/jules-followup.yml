@@ -1,0 +1,190 @@
+name: Jules Follow-up ToDo
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: jules-followup-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  followup:
+    runs-on: ubuntu-latest
+    # Skip forks: the token typically can't write comments there
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - name: Post ToDo for unresolved Jules suggestions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_GRAPHQL_URL: ${{ github.graphql_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEW_AUTHOR: ${{ github.event.review.user.login }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+
+          review_author = os.environ["REVIEW_AUTHOR"]
+          if review_author != "google-labs-jules":
+              print(f"Review by {review_author!r} — not Jules, skipping.")
+              sys.exit(0)
+
+          api_url = os.environ["GITHUB_API_URL"]
+          graphql_url = os.environ["GITHUB_GRAPHQL_URL"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          owner, repo_name = repo.split("/", 1)
+          pr_number = int(os.environ["PR_NUMBER"])
+          token = os.environ["GITHUB_TOKEN"]
+
+          auth_headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+          }
+
+          # --- Fetch unresolved review threads via GraphQL (paginated) ---
+          query = """
+          query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $pr) {
+                reviewThreads(first: 100, after: $after) {
+                  pageInfo { hasNextPage endCursor }
+                  nodes {
+                    isResolved
+                    isOutdated
+                    path
+                    line
+                    comments(first: 1) {
+                      nodes {
+                        author { login }
+                        body
+                        url
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          """
+
+          threads = []
+          cursor = None
+          while True:
+              gql_req = urllib.request.Request(
+                  url=graphql_url,
+                  data=json.dumps({
+                      "query": query,
+                      "variables": {
+                          "owner": owner,
+                          "repo": repo_name,
+                          "pr": pr_number,
+                          "after": cursor,
+                      },
+                  }).encode("utf-8"),
+                  headers=auth_headers,
+                  method="POST",
+              )
+
+              with urllib.request.urlopen(gql_req) as resp:
+                  gql_data = json.loads(resp.read().decode("utf-8"))
+
+              if gql_data.get("errors"):
+                  for err in gql_data["errors"]:
+                      print(f"GraphQL error: {err.get('message', err)}")
+                  sys.exit(1)
+
+              rt = (
+                  gql_data
+                  .get("data", {})
+                  .get("repository", {})
+                  .get("pullRequest", {})
+                  .get("reviewThreads", {})
+              )
+              threads.extend(rt.get("nodes", []))
+              page_info = rt.get("pageInfo", {})
+              if not page_info.get("hasNextPage"):
+                  break
+              cursor = page_info["endCursor"]
+
+          unresolved = []
+          for thread in threads:
+              if thread["isResolved"] or thread["isOutdated"]:
+                  continue
+              comments = thread.get("comments", {}).get("nodes", [])
+              if not comments:
+                  continue
+              first = comments[0]
+              if first.get("author", {}).get("login") != "google-labs-jules":
+                  continue
+              if "```suggestion" not in first.get("body", ""):
+                  continue
+              unresolved.append({
+                  "path": thread.get("path", ""),
+                  "line": thread.get("line"),
+                  "url": first.get("url", ""),
+              })
+
+          if not unresolved:
+              print("No unresolved Jules suggestions found — nothing to do.")
+              sys.exit(0)
+
+          # --- Build comment body ---
+          lines = ["@jules the following suggestions were not auto-committed — please address them:", ""]
+          for item in unresolved:
+              label = item["path"]
+              if item["line"]:
+                  label += f" (line {item['line']})"
+              lines.append(f"- [ ] [{label}]({item['url']})")
+          todo_body = "\n".join(lines)
+
+          # --- Deduplication: check most recent comments newest-first ---
+          list_req = urllib.request.Request(
+              url=(
+                  f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+                  f"?per_page=100&sort=created&direction=desc"
+              ),
+              headers=auth_headers,
+              method="GET",
+          )
+          with urllib.request.urlopen(list_req) as resp:
+              recent = json.loads(resp.read().decode("utf-8"))
+          if any(c["body"].strip() == todo_body.strip() for c in recent):
+              print("Identical ToDo comment already exists — skipping duplicate.")
+              sys.exit(0)
+
+          # --- Post the ToDo comment ---
+          post_req = urllib.request.Request(
+              url=f"{api_url}/repos/{repo}/issues/{pr_number}/comments",
+              data=json.dumps({"body": todo_body}).encode("utf-8"),
+              headers=auth_headers,
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(post_req) as resp:
+                  print(
+                      f"Posted Jules ToDo comment on PR #{pr_number} "
+                      f"with {len(unresolved)} unresolved suggestion(s) "
+                      f"(status {resp.status})"
+                  )
+          except urllib.error.HTTPError as error:
+              if error.code == 403:
+                  print("Skipping: token cannot comment in this PR context (HTTP 403).")
+                  sys.exit(0)
+              body = error.read().decode("utf-8")
+              print(f"Could not post ToDo comment: {body}")
+              raise
+          PY
