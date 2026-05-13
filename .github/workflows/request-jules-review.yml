@@ -41,7 +41,7 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
-          review_body = "@google-labs-jules @jules please review this pull request."
+          review_body = "@jules please review this pull request."
 
           headers = {
               "Accept": "application/vnd.github+json",
