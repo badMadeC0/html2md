@@ -33,7 +33,7 @@ def is_safe_url(url: str) -> bool:
                 if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local:
                     return False
         except socket.gaierror:
-            pass
+            return False
 
         return True
     except Exception:
