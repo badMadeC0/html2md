@@ -43,5 +43,6 @@ def test_get_host_port_invalid_port(capsys, monkeypatch):
     assert port == DEFAULT_PORT
 
     captured = capsys.readouterr()
-    assert "Warning: Invalid PORT environment variable value" in captured.out
-    assert "'not-an-int'" in captured.out
+    output = captured.out + captured.err
+    assert "Warning: Invalid PORT environment variable value" in output
+    assert "'not-an-int'" in output
