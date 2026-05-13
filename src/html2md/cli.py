@@ -17,7 +17,7 @@ def is_safe_url(url: str) -> bool:
         if not hostname:
             return False
 
-        if hostname.lower() == 'localhost':
+        if hostname.lower() in ('localhost', '127.0.0.1', '::1', '0.0.0.0', '[::]'):
             return False
 
         try:
@@ -30,10 +30,10 @@ def is_safe_url(url: str) -> bool:
                 if "%" in ip:
                     ip = ip.split("%")[0]
                 ip_obj = ipaddress.ip_address(ip)
-                if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved:
+                if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local:
                     return False
         except socket.gaierror:
-            return False
+            pass
 
         return True
     except Exception:
