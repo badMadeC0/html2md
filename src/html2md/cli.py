@@ -54,8 +54,8 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
+        def process_url(target_url: str) -> bool:
+            """Process a single URL. Returns True on success, False on error."""
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
@@ -64,7 +64,42 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return
+                return False
+
+            print(f"Processing URL: {target_url}")
+
+            try:
+                print("Fetching content...")
+                response = session.get(target_url, timeout=30)
+                response.raise_for_status()
+
+                print("Converting to Markdown...")
+                md_content = md(response.text, heading_style="ATX")
+
+                if args.outdir:
+                    if not os.path.exists(args.outdir):
+                        os.makedirs(args.outdir)
+                    out_path = os.path.join(args.outdir, f"{parsed.netloc}_{parsed.path.replace('/', '_')}.md")
+                    real_outdir = os.path.realpath(args.outdir)
+                    real_out_path = os.path.realpath(out_path)
+                    if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
+                        print("Error: Output path escapes output directory.",
+                              file=sys.stderr)
+                        return False
+                    with open(out_path, 'w', encoding='utf-8') as f:
+                        f.write(md_content)
+                    print(f"Success! Saved to: {out_path}")
+                else:
+                    print(md_content)
+                return True
+
+            except requests.RequestException as e:
+                print(f"Network error: {e}", file=sys.stderr)
+            except OSError as e:
+                print(f"File error: {e}", file=sys.stderr)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                print(f"Conversion failed: {e}", file=sys.stderr)
+            return False
 
             print(f"Processing URL: {target_url}")
 
