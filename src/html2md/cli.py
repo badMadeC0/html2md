@@ -30,7 +30,7 @@ def is_safe_url(url: str) -> bool:
                 if "%" in ip:
                     ip = ip.split("%")[0]
                 ip_obj = ipaddress.ip_address(ip)
-                if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local:
+                if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved:
                     return False
         except socket.gaierror:
             return False
