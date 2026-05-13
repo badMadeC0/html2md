@@ -67,19 +67,23 @@ class TestCliExceptions(unittest.TestCase):
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
-                    with patch('os.path.exists', return_value=True):
+                    with (
+                        patch('pathlib.Path.exists', return_value=True),
+                        patch('pathlib.Path.is_dir', return_value=True),
+                        patch('pathlib.Path.mkdir'),
+                    ):
                         original_open = open
                         def mock_open_impl(*args, **kwargs):
                             if str(args[0]).endswith('.mo'):
                                 return original_open(*args, **kwargs)
                             return mock_open(read_data='')()
-                        with patch('builtins.open', side_effect=mock_open_impl) as m_open:
-                            def fake_realpath(self, strict=False):
+                        with patch('pathlib.Path.open', side_effect=mock_open_impl) as mock_open_call:
+                            def fake_resolve(self, strict=False):
                                 if str(self).endswith('.md'):
                                     return Path('/tmp/outside/a.md')
                                 return Path('/tmp/out')
 
-                            with patch('pathlib.Path.resolve', autospec=True, side_effect=fake_realpath):
+                            with patch('pathlib.Path.resolve', autospec=True, side_effect=fake_resolve):
                                 main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
                             output = captured_stderr.getvalue()
