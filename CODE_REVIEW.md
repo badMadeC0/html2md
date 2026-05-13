@@ -12,7 +12,8 @@
 1. **[Security] SSRF Vulnerability**: No private IP validation in `cli.py:process_url`.
 2. **[Architecture] God Function**: `cli.py:main` intertwines I/O and CLI logic.
 3. **[Security] Swallowed Exceptions**: `gui-url-convert.ps1` suppresses critical creation errors.
-4. **[CI/CD] Missing Gates**: No `ruff`, `mypy`, or `bandit`.
+4. **[CI/CD] Missing Gates**: No ruff, mypy, or bandit.
+5. **[Security] Unsafe Process Execution**: gui-url-convert.ps1 uses cmd.exe with manual string concatenation and incomplete metacharacter sanitization.
 
 ## 3. Architecture & Modularity
 `cli.py` and `gui-url-convert.ps1` must be broken up (Ports and Adapters) into dedicated modules for networking, I/O, and business logic.
