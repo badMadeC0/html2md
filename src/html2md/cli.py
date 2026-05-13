@@ -119,9 +119,22 @@ def main(argv=None):  # pylint: disable=too-many-statements
                 max_redirects = 5
                 current_url = target_url
                 for redirect_count in range(max_redirects + 1):
-                    response = session.get(
-                        current_url, timeout=30, allow_redirects=False
-                    )
+class PinningAdapter(requests.adapters.HTTPAdapter):
+    def send(self, request, **kwargs):
+        url = urlparse(request.url)
+        hostname = url.hostname
+        # Resolve hostname to IP
+        addrinfo = socket.getaddrinfo(hostname, url.port or (443 if url.scheme == 'https' else 80))
+        ip = addrinfo[0][4][0]
+        # Replace hostname with IP in URL and set Host header
+        request.url = request.url.replace(hostname, ip)
+        request.headers['Host'] = hostname
+        return super().send(request, **kwargs)
+
+# Mount the adapter to the session
+adapter = PinningAdapter()
+session.mount('http://', adapter)
+session.mount('https://', adapter)
 
                     status_code = getattr(response, "status_code", None)
                     is_redirect = (
