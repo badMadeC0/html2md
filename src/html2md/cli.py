@@ -94,7 +94,7 @@ def main(argv=None):
                         print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
                         response.close()
                         return
-                response._content = bytes(content_bytes)
+                response._content = content_bytes
 
                 print("Converting to Markdown...")
                 md_content = md(response.text, heading_style="ATX")
