@@ -3,7 +3,7 @@
    Exit 0 only if a repair produced a passing healthcheck and a non-empty diff.
 */
 import { execSync, spawnSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 
 const sh = (cmd, opts={}) => {
   console.log(`\n$ ${cmd}`);
