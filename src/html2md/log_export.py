@@ -5,7 +5,7 @@ import csv
 import json
 from pathlib import Path
 
-_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_STR = "=+-@"
 
 
 def _sanitize_formula(value: str) -> str:
@@ -13,7 +13,14 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+
+    if not value[0].isspace():
+        if value[0] in _DANGEROUS_STR:
+            return f"'{value}"
+        return value
+
+    stripped = value.lstrip()
+    if stripped and stripped[0] in _DANGEROUS_STR:
         return f"'{value}"
     return value
 
@@ -41,10 +48,10 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
-    if value is None:
-        return ""
     if isinstance(value, str):
         return _sanitize_formula(value)
+    if value is None:
+        return ""
     return value
 
 
