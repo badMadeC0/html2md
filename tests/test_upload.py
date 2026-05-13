@@ -96,8 +96,9 @@ def test_main_api_error(tmp_path, capsys):
     assert "Mocked API error" in captured.err
 
 
-def test_main_execution():
-    with mock.patch("sys.argv", ["html2md-upload", "nonexistent.txt"]):
+def test_main_execution(tmp_path):
+    missing_file = tmp_path / "nonexistent.txt"
+    with mock.patch("sys.argv", ["html2md-upload", str(missing_file)]):
         with pytest.raises(SystemExit) as exc:
             runpy.run_module("html2md.upload", run_name="__main__")
         assert exc.value.code == 1
