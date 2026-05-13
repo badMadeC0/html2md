@@ -16,24 +16,37 @@ if ($BatchFile) {
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
-    $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
-    $pyScript = Join-Path $scriptDir "html2md.py"
-    $outDir = if (-not [string]::IsNullOrWhiteSpace($BatchOutDir)) { $BatchOutDir } else { "$env:USERPROFILE\Downloads" }
+    # Validate output directory for shell metacharacters
+    if ($outDir -match '[&|<>^"()\\]' -or $outDir -match '%') {
+        Write-Error "Invalid characters detected in output directory."
+        exit 1
+    }
+
+    # Detect executable and base arguments once before the loop
+    $exePath = $null
+    $baseArgs = @()
+    if (Test-Path -LiteralPath $venvExe) {
+        $exePath = $venvExe
+    } elseif (Test-Path -LiteralPath $pyScript) {
+        $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
+        $exePath = $pyCmd
+        $baseArgs = @($pyScript)
+    } else {
+        Write-Error "Could not find html2md executable or script."
+        exit 1
+    }
 
     Get-Content -LiteralPath $BatchFile | ForEach-Object {
         $url = $_.Trim()
         if (-not [string]::IsNullOrWhiteSpace($url)) {
-            Write-Host "Processing: $url"
-            $argsList = @("--url", "$url", "--outdir", "$outDir")
-
-            if (Test-Path -LiteralPath $venvExe) {
-                & $venvExe $argsList
-            } elseif (Test-Path -LiteralPath $pyScript) {
-                $pyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { "python3" }
-                $argsList = @("$pyScript") + $argsList
-                & $pyCmd $argsList
+            $uriObj = $null
+            if ([System.Uri]::TryCreate($url, [System.UriKind]::Absolute, [ref]$uriObj) -and ($uriObj.Scheme -match '^https?$')) {
+                $safeUrl = $uriObj.AbsoluteUri
+                Write-Host "Processing: $safeUrl"
+                $argsList = $baseArgs + @("--url", $safeUrl, "--outdir", $outDir)
+                Start-Process -FilePath $exePath -ArgumentList $argsList -Wait -NoNewWindow
             } else {
-                Write-Error "Could not find html2md executable or script."
+                Write-Error "Skipping invalid URL: $url"
             }
         }
     }
