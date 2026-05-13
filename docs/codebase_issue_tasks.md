@@ -44,24 +44,30 @@ This document lists four scoped follow-up tasks discovered during a repository s
 ---
 
 ## 3) Docs/Comment Discrepancy Task: Align README with actual CLI behavior
+## 3) Docs/Comment Discrepancy Task: Resolve CLI source-of-truth conflict
 
 **Evidence**
 - README describes `html2md` as a placeholder runtime command.
+- Other repository guidance (for example `CLAUDE.md` and `.github/copilot-instructions.md`) also describes `src/html2md/cli.py` as a placeholder stub.
 - The current CLI includes concrete conversion flow (`--url`, `--batch`, requests fetch, markdownify conversion, file output support).
+- As written, a docs-only update could bless behavior that is out of contract with the rest of the repository guidance.
 
 **Locations**
 - `README.md`
-**Location**
-- `README.md`
+- `CLAUDE.md`
+- `.github/copilot-instructions.md`
+- `src/html2md/cli.py`
 
 **Proposed task**
-- Rewrite README sections that call the CLI a placeholder so documentation matches implemented behavior and constraints.
-- Explicitly document supported schemes, exit-code behavior, and dependency requirements.
+- First decide and document the source of truth for CLI behavior: either `src/html2md/cli.py` must match the placeholder-stub contract, or the repository documentation must be updated to reflect the implemented runtime behavior.
+- After that decision, update all affected docs and/or implementation together so the repository presents one consistent contract.
+- Explicitly document the chosen contract, including any supported options, constraints, exit-code behavior, and dependency expectations that should remain visible to contributors.
 
 **Acceptance criteria**
-- README no longer labels the CLI as placeholder-only.
-- CLI options and observed behavior match docs.
-- A docs-focused test/checklist step is added to prevent future drift.
+- A single source of truth for CLI behavior is identified and recorded in the updated task output.
+- If the placeholder-stub contract is retained, `src/html2md/cli.py` and contributor-facing docs consistently describe that placeholder behavior.
+- If the current runtime behavior is retained, all relevant docs (not just `README.md`) are updated to match it.
+- A docs-focused test/checklist step is added to prevent future drift across contributor guidance and user-facing documentation.
 
 ---
 
