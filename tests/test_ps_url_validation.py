@@ -9,7 +9,7 @@ FOREACH_URL_LIST_PATTERN = re.compile(
     re.IGNORECASE,
 )
 VULNERABLE_URI_CAST_PATTERN = re.compile(
-    r"(?m)^\s*(?:\$\w+\s*=\s*)?\[System\.Uri\]\s*\$url\b",
+    r"\\[System\\.Uri\\]\\s*\\$url\\b",
     re.IGNORECASE,
 )
 SAFE_URI_CAST_PATTERN = re.compile(
