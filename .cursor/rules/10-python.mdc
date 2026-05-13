@@ -1,0 +1,45 @@
+---
+description: Python rules for Cursor; loaded automatically when editing Python files.
+globs:
+  - "**/*.py"
+  - "pyproject.toml"
+---
+
+# 10-python — Python rules (auto-attached on *.py)
+
+Mirror of [pr-rules/python.md](mdc:pr-rules/python.md). Read that file in
+full for examples.
+
+## Required
+
+- Python **>= 3.8**. No `match`, no `tomllib`, no `str.removeprefix`,
+  no PEP 695 generics, no `typing.Self`.
+- New / modified modules: `from __future__ import annotations` at the top.
+- Entry-point signature: `main(argv=None) -> int`.
+- CLI parsing: `argparse.ArgumentParser` only — no click/typer/fire.
+- Filesystem: `pathlib.Path`. Always pass `encoding="utf-8"` to `open()`
+  and `Path.open()`.
+- Imports grouped stdlib → third-party → local with one blank line between
+  groups.
+- One responsibility per line; no `;`-chained statements.
+
+## Dependencies
+
+- Runtime deps live in `pyproject.toml` `[project.dependencies]`. Do not
+  add a runtime dep without flagging it in the PR body.
+- Build-system deps live in `[build-system].requires`.
+- Allowed runtime set today: `markdownify`, `beautifulsoup4`, `requests`,
+  `reportlab`, `pillow`, `pyyaml`, `anthropic` (+ optional `deploy` extra:
+  `flask`, `gunicorn`).
+
+## Tests
+
+- pytest only. No `unittest.TestCase` subclasses for new tests.
+- New entry point or CLI utility ⇒ at least a smoke test that asserts
+  `--help` exits 0 (driven via `subprocess.run`, not direct import).
+
+## Cross-platform
+
+- CI runs on `windows-latest`. Avoid POSIX-only assumptions in tested
+  code paths (no Unix signals, no hard-coded `/tmp/`, no shebang-only
+  invocations).

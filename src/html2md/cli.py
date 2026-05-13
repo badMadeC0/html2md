@@ -54,8 +54,8 @@ def main(argv=None):
             'Sec-Fetch-User': '?1',
         })
 
-        def process_url(target_url: str) -> None:
-            """Process a single URL."""
+        def process_url(target_url: str) -> int:
+            """Process a single URL. Returns 0 on success, 1 on error."""
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')
@@ -64,17 +64,44 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
-                return
+                return 1
 
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
-                response = session.get(target_url, timeout=30)
-                response.raise_for_status()
+                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
+                response = session.get(target_url, timeout=30, stream=True)
+                try:
+                    response.raise_for_status()
+
+                    max_size = 10 * 1024 * 1024
+                    try:
+                        if int(response.headers.get('Content-Length', 0)) > max_size:
+                            print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                            return 1
+                    except ValueError:
+                        # Invalid or non-numeric Content-Length: treat as unknown size.
+                        # The streaming loop below still enforces max_size.
+                        pass
+
+                    chunks = []
+                    total = 0
+                    for chunk in response.iter_content(chunk_size=8192):
+                        total += len(chunk)
+                        if total > max_size:
+                            print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                            return 1
+                        chunks.append(chunk)
+                    content_bytes = b"".join(chunks)
+                finally:
+                    response.close()
+
+                encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
+                html_content = content_bytes.decode(encoding, errors="replace")
 
                 print("Converting to Markdown...")
-                md_content = md(response.text, heading_style="ATX")
+                md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
                     if not os.path.exists(args.outdir):
@@ -98,7 +125,7 @@ def main(argv=None):
                     if os.path.commonpath([real_outdir, real_out_path]) != real_outdir:
                         print("Error: Output path escapes output directory.",
                               file=sys.stderr)
-                        return
+                        return 1
                     with open(out_path, 'w', encoding='utf-8') as f:
                         f.write(md_content)
                     print(f"Success! Saved to: {out_path}")
@@ -107,13 +134,22 @@ def main(argv=None):
 
             except requests.RequestException as e:
                 print(f"Network error: {e}", file=sys.stderr)
+                return 1
             except OSError as e:
                 print(f"File error: {e}", file=sys.stderr)
+                return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
                 print(f"Conversion failed: {e}", file=sys.stderr)
+                return 1
+
+            return 0
+
+        exit_code = 0
 
         if args.url:
-            process_url(args.url)
+            code = process_url(args.url)
+            if code:
+                exit_code = code
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -123,9 +159,10 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u)
+                        code = process_url(u)
+                        exit_code |= code
 
-        return 0
+        return exit_code
 
     ap.print_help()
     return 0

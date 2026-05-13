@@ -1,0 +1,38 @@
+---
+description: AI-PR-Review baseline pointer for Cursor agents.
+alwaysApply: true
+---
+
+# 00-baseline — AI-PR-Review baseline (always loaded)
+
+This repo follows the AI-PR-Review baseline. Before proposing or applying any
+change, read these files in order:
+
+1. [AGENTS.md](mdc:AGENTS.md) — authoritative guidance, baseline section
+   wrapped in `<!-- BEGIN BASELINE --> ... <!-- END BASELINE -->` markers.
+2. [pr-rules/common.md](mdc:pr-rules/common.md) — cross-stack rules
+   (security, secrets, scope, `[AI-Assisted]` PR tag, copyright).
+3. [pr-rules/python.md](mdc:pr-rules/python.md) — Python rules.
+4. [pr-rules/python.local.md](mdc:pr-rules/python.local.md) — repo-local
+   Python overrides.
+5. [pr-rules/service-html2md.md](mdc:pr-rules/service-html2md.md) —
+   service-specific rules (CLI/runtime, log-export contract,
+   Windows CI, symlinked CLAUDE.md).
+
+## Hard rules — non-negotiable
+
+- Never push, open, merge, or close PRs.
+- Never read or write `.env*`, `*.pem`, `*.key`, `credentials.json`,
+  `*.crt`, `id_rsa*`, `id_ed25519*`, `id_ecdsa*`, `id_dsa*`, or any file matching a sensible secret naming
+  convention (e.g., `secrets.*`, `secret.*`, `*.secret.*`, `*.secrets.*`,
+  `*api-token*`, `*-credentials.*`). See
+  [pr-rules/common.md](mdc:pr-rules/common.md) §3 for the canonical list.
+- Every AI-assisted PR title must start with `[AI-Assisted]` and the body
+  must include the originating Claude / agent chat URL.
+- Append edge cases to [pr-rules/edge-cases.md](mdc:pr-rules/edge-cases.md);
+  never delete existing rows.
+
+## Before every PR
+
+Run `scripts/check_agents_consistency.sh` from the repo root. If it fails,
+fix the baseline rather than weaken the script.
