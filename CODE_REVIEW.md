@@ -12,8 +12,7 @@
 1. **[Security] SSRF Vulnerability**: No private IP validation in `cli.py:process_url`.
 2. **[Architecture] God Function**: `cli.py:main` intertwines I/O and CLI logic.
 3. **[Security] Swallowed Exceptions**: `gui-url-convert.ps1` suppresses critical creation errors.
-4. **[CI/CD] Missing Gates**: No ruff, mypy, or bandit.
-5. **[Security] Unsafe Process Execution**: gui-url-convert.ps1 uses cmd.exe with manual string concatenation and incomplete metacharacter sanitization.
+4. **[CI/CD] Missing Gates**: No `ruff`, `mypy`, or `bandit`.
 
 ## 3. Architecture & Modularity
 `cli.py` and `gui-url-convert.ps1` must be broken up (Ports and Adapters) into dedicated modules for networking, I/O, and business logic.
@@ -31,7 +30,7 @@ Add `mypy --strict` and use strong `TypedDict` instead of `object` / raw dicts.
 Use `ThreadPoolExecutor` for concurrent batch fetching in `cli.py`.
 
 ## 8. Security & Robustness
-SSRF validation is highly necessary. Error catching must be explicitly targeted. Additionally, fix the undefined $bat variable in gui-url-convert.ps1 and prefer [System.Uri]::TryCreate for URL validation.
+SSRF validation is highly necessary. Error catching must be explicitly targeted.
 
 ## 9. CI/CD & Tooling
 Introduce standard formatting and security tools to GitHub Actions, and run on macOS/Linux targets.
