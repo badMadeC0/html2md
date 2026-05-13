@@ -1,0 +1,264 @@
+name: Gemini Code Assist
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: gemini-code-assist-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review_comment' &&
+       (github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR') &&
+       contains(github.event.comment.body, '@gemini-code-assist')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       (github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'COLLABORATOR') &&
+       contains(github.event.comment.body, '@gemini-code-assist'))
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - name: Check for Gemini API key
+        id: gate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Gemini Code Assist: GEMINI_API_KEY secret is not configured."
+          fi
+
+  gemini-code-assist:
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Strip PR-supplied Gemini config
+        # Project-local .gemini/commands/*.toml shadow extension commands
+        # in Gemini CLI's loader, so a PR could plant a pr-code-review.toml
+        # that hijacks /pr-code-review. We don't ship .gemini/ in the repo,
+        # so wiping it is safe and removes the attack surface.
+        run: rm -rf .gemini
+      - name: Configure Gemini CLI settings
+        run: |
+          mkdir -p .gemini
+          cat > .gemini/settings.json <<'JSON'
+          {
+            "model": {
+              "maxSessionTurns": 25
+            },
+            "mcpServers": {
+              "github": {
+                "command": "docker",
+                "args": [
+                  "run",
+                  "-i",
+                  "--rm",
+                  "-e",
+                  "GITHUB_PERSONAL_ACCESS_TOKEN",
+                  "ghcr.io/github/github-mcp-server@sha256:a1d43076a36638ee24520fd6e83c3905ae41bc9850179081df1de2ba3a7afae0"
+                ],
+                "includeTools": [
+                  "add_comment_to_pending_review",
+                  "pull_request_read",
+                  "pull_request_review_write"
+                ],
+                "env": {
+                  "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                }
+              }
+            },
+            "tools": {
+              "core": [
+                "read_file",
+                "read_many_files",
+                "list_directory",
+                "glob",
+                "grep_search"
+              ]
+            }
+          }
+          JSON
+      - name: Install Gemini CLI
+        run: npm install --silent --no-audit --prefer-offline --global @google/gemini-cli@0.41.2
+      - name: Vendor the code-review extension as a project-local extension
+        # `gemini extensions install <url> --ref <SHA>` does NOT skip the
+        # release-tag lookup — Gemini CLI 0.41.2's installer
+        # (packages/cli/src/config/extensions/github.ts) still queries
+        # GET /repos/<o>/<r>/releases/tags/<ref> first, and only falls back
+        # to "install via git clone instead?" via an interactive consent
+        # prompt. The `echo Y` trick is unreliable: the workspace-trust
+        # prompt fires first and consumes the single Y, so the consent
+        # prompt then blocks the runner. Empirically this still 404s on
+        # PR #614.
+        #
+        # Bypass it entirely by vendoring as a project-local extension at
+        # .gemini/extensions/<name>/. Gemini CLI auto-loads these at startup
+        # with no release lookup, no consent prompt, and a deterministic
+        # ref. When upstream begins publishing releases this step can be
+        # replaced with the standard `gemini extensions install` path.
+        env:
+          # Pin to a known-good main HEAD. Bump intentionally; do not pin
+          # to a moving branch ref (defeats supply-chain auditability).
+          EXT_SHA: dd1a10d2c9d07b2ebade866590fdfa59cd8f9d04
+        run: |
+          set -euo pipefail
+          mkdir -p .gemini/extensions
+          git clone --depth 1 https://github.com/gemini-cli-extensions/code-review.git \
+            .gemini/extensions/code-review
+          cd .gemini/extensions/code-review
+          git fetch --depth 1 origin "$EXT_SHA"
+          git checkout "$EXT_SHA"
+          # Sanity-check the extension manifest before we hand control to
+          # the CLI; if the upstream repo restructures, fail loudly here
+          # rather than with an opaque "command not found" at /pr-code-review.
+          test -f gemini-extension.json \
+            || { echo "::error::gemini-extension.json missing in pinned ref $EXT_SHA"; exit 1; }
+      - name: Gemini Code Assist
+        id: gemini
+        continue-on-error: true
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Consumed by the code-review extension's /pr-code-review prompt
+          # template via $REPOSITORY and $PULL_REQUEST_NUMBER expansions.
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+
+          temp_stdout="$(mktemp -p "${RUNNER_TEMP}" gemini-out.XXXXXXXXXX)"
+          temp_stderr="$(mktemp -p "${RUNNER_TEMP}" gemini-err.XXXXXXXXXX)"
+          trap 'rm -f "${temp_stdout}" "${temp_stderr}"' EXIT
+
+          failed=false
+          if ! gemini --yolo --prompt "/pr-code-review" --output-format json >"${temp_stdout}" 2>"${temp_stderr}"; then
+            failed=true
+          fi
+
+          response=""
+          error_json=""
+          if jq -e . "${temp_stdout}" >/dev/null 2>&1; then
+            response="$(jq -r '.response // ""' "${temp_stdout}")"
+          elif [ -s "${temp_stdout}" ]; then
+            echo "::warning::Gemini CLI stdout was not valid JSON"
+          fi
+          if jq -e . "${temp_stderr}" >/dev/null 2>&1; then
+            error_json="$(jq -c '.error // empty' "${temp_stderr}")"
+          elif [ -s "${temp_stderr}" ]; then
+            echo "::warning::Gemini CLI stderr was not valid JSON"
+          fi
+
+          response_delim="GEMINI_RESPONSE_$$_$(date +%s)_${RANDOM}"
+          error_delim="GEMINI_ERRORS_$$_$(date +%s)_${RANDOM}"
+
+          {
+            echo "gemini_response<<${response_delim}"
+            if [ -n "${response}" ]; then
+              echo "${response}"
+            else
+              cat "${temp_stdout}"
+            fi
+            echo "${response_delim}"
+            echo "gemini_errors<<${error_delim}"
+            if [ -n "${error_json}" ]; then
+              echo "${error_json}"
+            else
+              cat "${temp_stderr}"
+            fi
+            echo "${error_delim}"
+          } >> "${GITHUB_OUTPUT}"
+
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            {
+              echo "### Gemini CLI Execution"
+              echo
+              echo "#### Prompt"
+              echo
+              echo '```'
+              echo "/pr-code-review"
+              echo '```'
+              if [ -n "${response}" ]; then
+                echo
+                echo "#### Response"
+                echo
+                echo "${response}"
+              fi
+              if [ -n "${error_json}" ]; then
+                echo
+                echo "#### Error"
+                echo
+                echo '```json'
+                echo "${error_json}"
+                echo '```'
+              elif [ "${failed}" = true ]; then
+                echo
+                echo "#### Error Output"
+                echo
+                echo '```'
+                cat "${temp_stderr}"
+                echo '```'
+              fi
+            } >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+          if [ "${failed}" = true ]; then
+            if [ -n "${error_json}" ]; then
+              error_message="$(jq -r '.message // .' <<< "${error_json}")"
+              escaped_error_message="${error_message//'%'/'%25'}"
+              escaped_error_message="${escaped_error_message//$'\r'/'%0D'}"
+              escaped_error_message="${escaped_error_message//$'\n'/'%0A'}"
+              echo "::error title=Gemini CLI execution failed::${escaped_error_message}"
+            fi
+            echo "::group::Gemini CLI STDERR"
+            cat "${temp_stderr}"
+            echo "::endgroup::"
+            exit 1
+          fi
+      - name: Note Gemini API quota exhaustion
+        if: >
+          steps.gemini.outcome == 'failure' &&
+          (contains(steps.gemini.outputs.gemini_errors, 'TerminalQuotaError') ||
+           contains(steps.gemini.outputs.gemini_errors, 'exhausted your daily quota') ||
+           contains(steps.gemini.outputs.gemini_errors, 'Quota exceeded'))
+        run: |
+          echo "::notice title=Gemini quota exhausted::Skipping Gemini Code Assist because the configured Gemini API key has exhausted its quota."
+          {
+            echo "### Gemini Code Assist"
+            echo
+            echo "Skipped because the configured Gemini API key has exhausted its Gemini API quota."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Note other Gemini failures
+        if: >
+          steps.gemini.outcome == 'failure' &&
+          !(contains(steps.gemini.outputs.gemini_errors, 'TerminalQuotaError') ||
+            contains(steps.gemini.outputs.gemini_errors, 'exhausted your daily quota') ||
+            contains(steps.gemini.outputs.gemini_errors, 'Quota exceeded'))
+        run: |
+          echo "::warning title=Gemini Code Assist failed::Gemini CLI failed, but this workflow is non-blocking."

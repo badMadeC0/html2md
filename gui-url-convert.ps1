@@ -76,10 +76,9 @@ if ($BatchFile) {
 #     $psi.Arguments = "-STA -ExecutionPolicy Bypass -File `"$PSCommandPath`""
 #     $psi.UseShellExecute = $true
 #     [Diagnostics.Process]::Start($psi) | Out-Null
-if ($null -ne $IsWindows -and -not $IsWindows) {
-    Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
-    exit 1
-}
+#     exit
+# }
+
 if ($null -ne $IsWindows -and -not $IsWindows) {
     Write-Error "This GUI script requires Windows Presentation Foundation (WPF) and is not supported on macOS or Linux."
     exit 1
@@ -273,13 +272,10 @@ $PasteBtn.Add_Click({
     }
 })
 
-$logPlaceholder = "Ready. Conversion logs will appear here..."
-
 # --- Clear button logic ---
 $ClearBtn.Add_Click({
     $UrlBox.Clear()
     $UrlBox.Focus()
-    $LogBox.Text = $logPlaceholder
     $StatusText.Text = "Cleared."
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
@@ -291,9 +287,6 @@ $UrlBox.Add_TextChanged({
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
         $ClearBtn.IsEnabled = $false
         $ClearBtn.ToolTip = "URL list is already empty"
-        if ([string]::IsNullOrWhiteSpace($LogBox.Text) -or $LogBox.Text -eq $logPlaceholder) {
-            $LogBox.Text = $logPlaceholder
-        }
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
@@ -308,9 +301,6 @@ $ConvertBtn.Add_Click({
     $urlList = @($rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
     $outdir = $OutBox.Text.Trim()
 
-    if ($LogBox.Text -eq $logPlaceholder) {
-        $LogBox.Clear()
-    }
     $LogBox.Text = "--- Starting Conversion ---`r`n"
     $ProgressBar.IsIndeterminate = $true
 
@@ -431,26 +421,13 @@ $ConvertBtn.Add_Click({
         $safeVenvExe = $venvExe -replace '["$`]', '`$0'
         $safePyScript = $pyScript -replace '["$`]', '`$0'
 
-        $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-        if ($WholePageChk.IsChecked) {
-            $singleArgs += "--whole-page"
-        }
-
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-<<<<<<< HEAD
             $psi.Arguments = "-NoExit -NoProfile -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
             $psi.Arguments = "-NoExit -NoProfile -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
-=======
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' $($singleArgs -join ' ')`""
-        }
-        elseif (Test-Path -LiteralPath $pyScript) {
-            $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' $($singleArgs -join ' ')`""
->>>>>>> 4fa5180 (fix(gui): clear log placeholder when conversion starts and properly maintain single string arguments)
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
