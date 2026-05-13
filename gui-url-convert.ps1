@@ -327,6 +327,7 @@ $ConvertBtn.Add_Click({
         if ($short) { $scriptDir = $short }
     } catch {}
 
+    $bat = Join-Path $scriptDir "run-html2md.bat"
     $venvExe = Join-Path $scriptDir ".venv\Scripts\html2md.exe"
     $pyScript = Join-Path $scriptDir "html2md.py"
 
@@ -344,7 +345,6 @@ $ConvertBtn.Add_Click({
     }
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "powershell.exe"
     $psi.WorkingDirectory = $scriptDir
     $psi.UseShellExecute = $true
 
@@ -359,8 +359,11 @@ $ConvertBtn.Add_Click({
         $safeTempFile = $tempFile -replace "'", "''"
         $safeOutDir = $outdir -replace "'", "''"
 
-        # Relaunch this script in batch mode
-        # Use single quotes for arguments to avoid variable expansion and allow containing spaces/special chars
+        # Relaunch this script in batch mode.
+        # Use PowerShell only for the script re-entry point; single-URL conversions
+        # continue to use the batch launcher below so this UI-only change does not
+        # alter the normal converter process.
+        $psi.FileName = "powershell.exe"
         $psi.Arguments = "-NoExit -ExecutionPolicy Bypass -File '$safeCommandPath' -BatchFile '$safeTempFile' -BatchOutDir '$safeOutDir'"
         if ($WholePageChk.IsChecked) {
             $psi.Arguments += " -BatchWholePage"
@@ -369,27 +372,26 @@ $ConvertBtn.Add_Click({
         # --- SINGLE URL MODE ---
         $url = $urlList[0]
 
-        # Sanitize inputs for single-quoted string interpolation in PowerShell
-        $safeUrl = $url -replace "'", "''"
-        $safeOutDir = $outdir -replace "'", "''"
-        $safeVenvExe = $venvExe -replace "'", "''"
-        $safePyScript = $pyScript -replace "'", "''"
+        # Sanitize inputs for double-quoted cmd.exe arguments. URL validation and
+        # the output directory metacharacter check above reject embedded quotes.
+        $safeUrl = $url -replace '"', '\"'
+        $safeOutDir = $outdir -replace '"', '\"'
+        $safeBat = $bat -replace '"', '\"'
+        $safeVenvExe = $venvExe -replace '"', '\"'
+        $safePyScript = $pyScript -replace '"', '\"'
 
-        if (Test-Path -LiteralPath $venvExe) {
+        $psi.FileName = "cmd.exe"
+        if (Test-Path -LiteralPath $bat) {
+            $LogBox.AppendText("Found batch launcher: $bat`r`n")
+            $psi.Arguments = "/c `"`"$safeBat`" --url `"$safeUrl`" --outdir `"$safeOutDir`"`""
+        }
+        elseif (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
-            $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-            if ($WholePageChk.IsChecked) {
-                $singleArgs += "--whole-page"
-            }
-            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' $($singleArgs -join ' ')`""
+            $psi.Arguments = "/c `"`"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`"`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
-            $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
-            if ($WholePageChk.IsChecked) {
-                $singleArgs += "--whole-page"
-            }
-            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' $($singleArgs -join ' ')`""
+            $psi.Arguments = "/c `"`"$pyCmd`" `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`"`""
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
