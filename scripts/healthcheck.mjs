@@ -4,8 +4,7 @@
    - workspaces: smoke build where available
 */
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const run = (cmd) => execSync(cmd, { stdio: "inherit" });
