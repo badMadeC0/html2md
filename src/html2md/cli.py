@@ -106,10 +106,13 @@ def main(argv=None):
                     from bs4 import BeautifulSoup
                     soup = BeautifulSoup(html_content, 'html.parser')
                     for tag in soup.find_all(True):
-                        for attr in ['href', 'src']:
-                            val = tag.get(attr)
-                            if val and val.strip().lower().startswith(('javascript:', 'vbscript:', 'data:text/html')):
-                                tag[attr] = '#'
+                        for attr, val in list(tag.attrs.items()):
+                            attr_lower = attr.lower()
+                            if attr_lower.startswith('on'):
+                                del tag[attr]
+                            elif attr_lower in ('href', 'src'):
+                                if isinstance(val, str) and val.strip().lower().startswith(('javascript:', 'vbscript:', 'data:')):
+                                    tag[attr] = '#'
                     html_content = str(soup)
                 except ImportError:
                     print("Warning: BeautifulSoup is not available. XSS sanitization disabled.", file=sys.stderr)
