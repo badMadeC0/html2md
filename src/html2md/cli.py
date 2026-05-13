@@ -115,7 +115,8 @@ def main(argv=None):
                                     tag[attr] = '#'
                     html_content = str(soup)
                 except ImportError:
-                    print("Warning: BeautifulSoup is not available. XSS sanitization disabled.", file=sys.stderr)
+                    print("Error: BeautifulSoup is required for XSS sanitization.", file=sys.stderr)
+                    return 1
 
                 md_content = md(html_content, heading_style="ATX")
 
