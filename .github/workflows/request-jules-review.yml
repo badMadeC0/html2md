@@ -41,7 +41,15 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
-          review_body = "@jules please review this pull request."
+          review_body = "@jules, please review this pull request!"
+          # Legacy wordings posted before grammar/handle fixes. PRs that
+          # already have any of them must not get a second comment with
+          # the new wording on later `synchronize` events.
+          equivalent_bodies = {
+              review_body,
+              "@jules please review this pull request.",
+              "@google-labs-jules please review this pull request.",
+          }
 
           headers = {
               "Accept": "application/vnd.github+json",
@@ -59,7 +67,7 @@ jobs:
               )
               with urllib.request.urlopen(list_req) as resp:
                   comments = json.loads(resp.read().decode("utf-8"))
-              if any(c["body"].strip() == review_body for c in comments):
+              if any(c["body"].strip() in equivalent_bodies for c in comments):
                   print("Review already requested — skipping duplicate comment.")
                   sys.exit(0)
               if len(comments) < 100:
