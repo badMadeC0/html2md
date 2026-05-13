@@ -116,6 +116,23 @@ def main(argv=None):
                 html_content = content_bytes.decode(encoding, errors="replace")
 
                 print("Converting to Markdown...")
+                # Sanitize HTML to prevent XSS via javascript:/vbscript: links
+                try:
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(html_content, 'html.parser')
+                    for tag in soup.find_all(True):
+                        for attr, val in list(tag.attrs.items()):
+                            attr_lower = attr.lower()
+                            if attr_lower.startswith('on'):
+                                del tag[attr]
+                            elif attr_lower in ('href', 'src'):
+                                if isinstance(val, str) and val.strip().lower().startswith(('javascript:', 'vbscript:', 'data:')):
+                                    tag[attr] = '#'
+                    html_content = str(soup)
+                except ImportError:
+                    print("Error: BeautifulSoup is required for XSS sanitization.", file=sys.stderr)
+                    return 1
+
                 md_content = md(html_content, heading_style="ATX")
 
                 if args.outdir:
