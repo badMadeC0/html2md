@@ -41,12 +41,13 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
-          review_body = "@jules please review this pull request."
-          # Legacy wording posted before the rename in commit 08ece6a. PRs
-          # that already have it must not get a second comment with the
-          # new wording on later `synchronize` events.
+          review_body = "@jules, please review this pull request!"
+          # Legacy wordings posted before grammar/handle fixes. PRs that
+          # already have any of them must not get a second comment with
+          # the new wording on later `synchronize` events.
           equivalent_bodies = {
               review_body,
+              "@jules please review this pull request.",
               "@google-labs-jules please review this pull request.",
           }
 
