@@ -35,10 +35,10 @@ const hasVenvModule = (candidate) => {
   const result = spawnSync(candidate, ["-m", "venv", "--help"], { stdio: "pipe" });
   return result.status === 0;
 };
-
 const python = pythonCandidates.find((candidate, index, candidates) => {
   if (candidates.indexOf(candidate) !== index) return false;
-  return isSupportedPython(candidate) && hasVenvModule(candidate);
+  const result = spawnSync(candidate, ["-c", "import sys; print(sys.version_info >= (3, 8))"], { stdio: "pipe" });
+  return result.status === 0 && result.stdout?.toString().trim() === "True";
 });
 
 if (!python) {
