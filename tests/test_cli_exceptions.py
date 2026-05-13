@@ -79,8 +79,8 @@ class TestCliExceptions(unittest.TestCase):
                             output = captured_stderr.getvalue()
                             self.assertIn("Output path escapes output directory", output)
                             opened_markdown_paths = [
-                                call.args[0]
-                                for call in m_open.call_args_list
-                                if call.args and str(call.args[0]).endswith('.md')
+                                p for call in m_open.call_args_list
+                                for p in [call.args[0] if call.args else call.kwargs.get('file')]
+                                if p and str(p).endswith('.md')
                             ]
                             self.assertEqual([], opened_markdown_paths)
