@@ -65,7 +65,7 @@ def main(argv=None):
             """Process a single URL."""
             # Fix common URL typo: trailing slash before query parameters
             if "/?" in target_url:
-                target_url = target_url.replace("/?", "?")
+                target_url = target_url.replace("/?", "?", 1)
 
             parsed = urlparse(target_url)
             if parsed.scheme not in ("http", "https"):
