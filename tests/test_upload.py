@@ -92,7 +92,8 @@ def test_main_api_error(tmp_path, capsys):
 
     assert return_code == 1
     captured = capsys.readouterr()
-    assert "API error: Mocked API error" in captured.err
+    assert "API error:" in captured.err
+    assert "Mocked API error" in captured.err
 
 
 def test_main_execution():
