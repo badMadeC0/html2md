@@ -13,10 +13,10 @@ if ($BatchFile) {
         Write-Error "Batch file not found: $BatchFile"
         exit 1
     }
-    
+
     # Check if this is a temp file created by the GUI (temp files are in %TEMP%)
     $isTempFile = $BatchFile -like "$env:TEMP\*"
-    
+
     $scriptDir = Split-Path -Parent $PSCommandPath
     if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
@@ -118,7 +118,7 @@ $xaml = @"
             <Label Content="_Paste URL(s):" Target="{Binding ElementName=UrlBox}" FontSize="14" VerticalAlignment="Bottom"/>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,2">
                 <Button Name="PasteBtn" Content="Pas_te" Height="22" Width="60" Margin="0,0,5,0" ToolTip="Paste from Clipboard"/>
-                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="Clear URL list"/>
+                <Button Name="ClearBtn" Content="Clea_r" Height="22" Width="60" ToolTip="URL list is already empty" IsEnabled="False"/>
             </StackPanel>
         </Grid>
 
@@ -152,7 +152,8 @@ $xaml = @"
         <ProgressBar Name="ProgressBar" Grid.Row="4" Height="10" Margin="0,10,0,0" IsIndeterminate="False" AutomationProperties.Name="Conversion Progress"/>
         
         <TextBox Name="LogBox" Grid.Row="5" Margin="0,10,0,0" FontFamily="Consolas" FontSize="12"
-                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"/>
+                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" IsReadOnly="True" AutomationProperties.Name="Log Output"
+                 Text="Ready. Conversion logs will appear here..."/>
 
         <StatusBar Grid.Row="6" Margin="0,10,0,0">
             <TextBlock Name="StatusText" Text="Ready" Foreground="#555555"/>
@@ -271,10 +272,13 @@ $PasteBtn.Add_Click({
     }
 })
 
+$logPlaceholder = "Ready. Conversion logs will appear here..."
+
 # --- Clear button logic ---
 $ClearBtn.Add_Click({
     $UrlBox.Clear()
     $UrlBox.Focus()
+    $LogBox.Text = $logPlaceholder
     $StatusText.Text = "Cleared."
     $StatusText.ClearValue([System.Windows.Controls.TextBlock]::ForegroundProperty)
 })
@@ -284,9 +288,16 @@ $UrlBox.Add_TextChanged({
     if ([string]::IsNullOrWhiteSpace($UrlBox.Text)) {
         $ConvertBtn.IsEnabled = $false
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion"
+        $ClearBtn.IsEnabled = $false
+        $ClearBtn.ToolTip = "URL list is already empty"
+        if ([string]::IsNullOrWhiteSpace($LogBox.Text) -or $LogBox.Text -eq $logPlaceholder) {
+            $LogBox.Text = $logPlaceholder
+        }
     } else {
         $ConvertBtn.IsEnabled = $true
         $ConvertBtn.ToolTip = "Start conversion process"
+        $ClearBtn.IsEnabled = $true
+        $ClearBtn.ToolTip = "Clear URL list"
     }
 })
 
@@ -296,6 +307,9 @@ $ConvertBtn.Add_Click({
     $urlList = @($rawInput -split "`r`n|`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
     $outdir = $OutBox.Text.Trim()
 
+    if ($LogBox.Text -eq $logPlaceholder) {
+        $LogBox.Clear()
+    }
     $LogBox.Text = "--- Starting Conversion ---`r`n"
     $ProgressBar.IsIndeterminate = $true
 
@@ -416,13 +430,26 @@ $ConvertBtn.Add_Click({
         $safeVenvExe = $venvExe -replace '["$`]', '`$0'
         $safePyScript = $pyScript -replace '["$`]', '`$0'
 
+        $singleArgs = @("--url", "'$safeUrl'", "--outdir", "'$safeOutDir'")
+        if ($WholePageChk.IsChecked) {
+            $singleArgs += "--whole-page"
+        }
+
         if (Test-Path -LiteralPath $venvExe) {
             $LogBox.AppendText("Found venv executable: $venvExe`r`n")
+<<<<<<< HEAD
             $psi.Arguments = "-NoExit -NoProfile -Command `"& `"$safeVenvExe`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
         }
         elseif (Test-Path -LiteralPath $pyScript) {
             $LogBox.AppendText("Found Python script: $pyScript`r`n")
             $psi.Arguments = "-NoExit -NoProfile -Command `"& $pyCmd `"$safePyScript`" --url `"$safeUrl`" --outdir `"$safeOutDir`" --all-formats$optArg`""
+=======
+            $psi.Arguments = "-NoExit -Command `"& '$safeVenvExe' $($singleArgs -join ' ')`""
+        }
+        elseif (Test-Path -LiteralPath $pyScript) {
+            $LogBox.AppendText("Found Python script: $pyScript`r`n")
+            $psi.Arguments = "-NoExit -Command `"& $pyCmd '$safePyScript' $($singleArgs -join ' ')`""
+>>>>>>> 4fa5180 (fix(gui): clear log placeholder when conversion starts and properly maintain single string arguments)
         }
         else {
             $StatusText.Text = "Error: html2md executable not found."
