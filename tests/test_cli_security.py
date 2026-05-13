@@ -3,6 +3,10 @@
 from unittest.mock import MagicMock, patch
 import pytest
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+
 from html2md import cli
 
 
@@ -60,6 +64,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 def test_is_safe_path_security(mock_normcase, mock_realpath):
     """Test is_safe_path comprehensively for traversal and prefix-collision."""
     from html2md.cli import is_safe_path
+    import os
 
     # Mock behavior for basic Unix paths
     mock_realpath.side_effect = lambda x: x
@@ -94,10 +99,10 @@ def test_is_safe_path_security(mock_normcase, mock_realpath):
     # Windows path separator logic: os.sep is '/' on linux, so we need to patch os.sep for the test to truly simulate Windows,
     # or just test the logic directly. The logic in is_safe_path relies on os.sep.
 
-    with patch("html2md.cli.os.sep", "\\"):
-        assert not is_safe_path("C:\\foo", "D:\\foo\\file.md")
-        assert is_safe_path("C:\\foo", "C:\\foo\\file.md")
+    with patch("html2md.cli.os.sep", "\\\\"):
+        assert not is_safe_path("C:\\\\foo", "D:\\\\foo\\\\file.md")
+        assert is_safe_path("C:\\\\foo", "C:\\\\foo\\\\file.md")
         assert is_safe_path(
-            "C:\\foo", "c:\\foo\\file.md"
+            "C:\\\\foo", "c:\\\\foo\\\\file.md"
         )  # normcase makes it match
-        assert not is_safe_path("C:\\foo", "C:\\foobar\\file.md")
+        assert not is_safe_path("C:\\\\foo", "C:\\\\foobar\\\\file.md")

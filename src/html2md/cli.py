@@ -23,16 +23,9 @@ def is_safe_path(basedir: str, target: str) -> bool:
         prefix = norm_base if norm_base.endswith(os.sep) else norm_base + os.sep
 
         return norm_target == norm_base or norm_target.startswith(prefix)
-    real_base = os.path.realpath(basedir)
-    real_target = os.path.realpath(target)
-    # normcase normalizes case on Windows and leaves it alone on Unix
-    norm_base = os.path.normcase(real_base)
-    norm_target = os.path.normcase(real_target)
-
-    # Ensure base ends with separator for strict prefix checking
-    prefix = norm_base if norm_base.endswith(os.sep) else norm_base + os.sep
-
-    return norm_target == norm_base or norm_target.startswith(prefix)
+    except ValueError:
+        # e.g. different drives on Windows
+        return False
 
 
 def main(argv=None):
