@@ -261,7 +261,7 @@ $UrlBox.Add_TextChanged({
         $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion (Alt+C)"
     } else {
         $ConvertBtn.IsEnabled = $true
-        $ConvertBtn.ToolTip = "Start conversion process (Alt+C)"
+        $ConvertBtn.ToolTip = "Please enter at least one URL to enable conversion (Alt+C)"
     }
 })
 
