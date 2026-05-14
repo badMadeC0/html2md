@@ -6,7 +6,12 @@ WPF GUI for html2md
 - Safe for double-click or PowerShell execution
 #>
 
-param([string]$BatchFile, [string]$BatchOutDir)
+param(
+    [ValidateNotNullOrEmpty()]
+    [string]$BatchFile,
+
+    [string]$BatchOutDir
+)
 
 if ($BatchFile) {
     if (-not (Test-Path -LiteralPath $BatchFile)) {
