@@ -1,16 +1,16 @@
 """CLI entry point for html2md."""
 
 from __future__ import annotations
+
 import argparse
 import os
 import sys
-from urllib.parse import urlparse, unquote
-from typing import Any, Tuple, Callable
+from typing import Any, Callable, Optional, Tuple
+from urllib.parse import unquote, urlparse
 
 
 class DependencyError(Exception):
     """Raised when required dependencies cannot be imported."""
-
 
 
 def load_dependencies() -> Tuple[Any, Callable[..., str]]:
@@ -29,9 +29,11 @@ def load_dependencies() -> Tuple[Any, Callable[..., str]]:
 
         return requests, md
     except ImportError as e:
-        raise DependencyError(
-            f"Missing dependency {e.name}. Please run: pip install requests markdownify"
-        ) from e
+        missing_dependency = e.name or (e.msg.split("'")[1] if e.msg and "No module named" in e.msg else "required dependency")
+        message = "Missing dependency {}. Please run: pip install requests markdownify"
+        raise DependencyError(message.format(missing_dependency)) from e
+        message = "Missing dependency {}. Please run: pip install requests markdownify"
+        raise DependencyError(message.format(missing_dependency)) from e
 
 
 def setup_session(requests_module: Any) -> Any:
@@ -65,7 +67,11 @@ def setup_session(requests_module: Any) -> Any:
 
 
 def process_url(
-    target_url: str, session: Any, md: Callable[..., str], outdir: str | None
+    target_url: str,
+    session: Any,
+    md: Callable[..., str],
+    outdir: Optional[str],
+    requests_module: Any,
 ) -> None:
     """Process a single URL: fetch HTML and convert to Markdown."""
     # Fix common URL typo: trailing slash before query parameters
@@ -82,9 +88,6 @@ def process_url(
         return
 
     print(f"Processing URL: {target_url}")
-
-    # We need to catch RequestException without hardcoding `import requests` at the top level
-    import requests  # type: ignore  # pylint: disable=import-outside-toplevel
 
     try:
         print("Fetching content...")
@@ -122,7 +125,7 @@ def process_url(
         else:
             print(md_content)
 
-    except requests.RequestException as e:
+    except requests_module.RequestException as e:
         print(f"Network error: {e}", file=sys.stderr)
     except OSError as e:
         print(f"File error: {e}", file=sys.stderr)
@@ -156,7 +159,7 @@ def main(argv=None):
         session = setup_session(requests)
 
         if args.url:
-            process_url(args.url, session, md, args.outdir)
+            process_url(args.url, session, md, args.outdir, requests)
 
         if args.batch:
             if not os.path.exists(args.batch):
@@ -166,7 +169,7 @@ def main(argv=None):
                 for line in f:
                     u = line.strip()
                     if u:
-                        process_url(u, session, md, args.outdir)
+                        process_url(u, session, md, args.outdir, requests)
 
         return 0
 
