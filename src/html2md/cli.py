@@ -182,7 +182,7 @@ def main(argv=None):
                     if u:
                         yield u
 
-            max_workers = 8
+            max_workers = MAX_BATCH_WORKERS
             # Process URLs concurrently, but output results sequentially in order.
             # Keep submitted futures bounded so completed Markdown payloads cannot
             # accumulate for the entire batch behind a slow earlier URL.
