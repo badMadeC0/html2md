@@ -29,7 +29,9 @@ def load_dependencies() -> Tuple[Any, Callable[..., str]]:
 
         return requests, md
     except ImportError as e:
-        missing_dependency = e.name or str(e) or "required dependency"
+        missing_dependency = e.name or (e.msg.split("'")[1] if e.msg and "No module named" in e.msg else "required dependency")
+        message = "Missing dependency {}. Please run: pip install requests markdownify"
+        raise DependencyError(message.format(missing_dependency)) from e
         message = "Missing dependency {}. Please run: pip install requests markdownify"
         raise DependencyError(message.format(missing_dependency)) from e
 
