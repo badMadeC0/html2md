@@ -41,7 +41,12 @@ jobs:
           repo = os.environ["GITHUB_REPOSITORY"]
           pr_number = os.environ["PR_NUMBER"]
           token = os.environ["GITHUB_TOKEN"]
-          review_body = "@jules please review this pull request."
+          review_body = "@jules, please review this pull request!"
+          equivalent_bodies = {
+              "@jules, please review this pull request!",
+              "@jules please review this pull request.",
+              "@google-labs-julius please review this pull request.",
+          }
 
           headers = {
               "Accept": "application/vnd.github+json",
@@ -59,9 +64,17 @@ jobs:
               )
               with urllib.request.urlopen(list_req) as resp:
                   comments = json.loads(resp.read().decode("utf-8"))
-              if any(c["body"].strip() == review_body for c in comments):
-                  print("Review already requested — skipping duplicate comment.")
-                  sys.exit(0)
+              for c in comments:
+                  body_strip = c.get("body", "").strip()
+                  user_login = c.get("user", {}).get("login", "")
+
+                  if body_strip in equivalent_bodies:
+                      print("Review already requested — skipping duplicate comment.")
+                      sys.exit(0)
+
+                  if user_login == "google-labs-jules" and "👋 Jules, reporting for duty!" in body_strip:
+                      print("Jules is already reviewing — skipping comment.")
+                      sys.exit(0)
               if len(comments) < 100:
                   break
               page += 1
