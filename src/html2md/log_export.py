@@ -49,7 +49,7 @@ def _sanitize_value(value: object) -> object:
     return value
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     """Run the log export CLI."""
     ap = argparse.ArgumentParser(
         prog='html2md-log-export', description='Export html2md JSONL logs to CSV'
