@@ -1,5 +1,4 @@
 """Upload utility for html2md."""
-from __future__ import annotations
 
 import argparse
 import mimetypes
