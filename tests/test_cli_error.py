@@ -1,4 +1,5 @@
 """Tests for html2md CLI error-handling paths."""
+
 import unittest
 from unittest.mock import patch, MagicMock
 import sys
@@ -7,7 +8,7 @@ import os
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[import-untyped]
 
@@ -32,10 +33,12 @@ class TestCliError(unittest.TestCase):
         # Capture stderr
         captured_stderr = io.StringIO()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
+        with patch("html2md.cli.requests", mock_requests), patch(
+            "html2md.cli.md", mock_markdownify.markdownify
+        ):
+            with patch("sys.stderr", captured_stderr):
                 try:
-                    html2md.cli.main(['--url', 'http://example.com'])
+                    html2md.cli.main(["--url", "http://example.com"])
                 except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
 
@@ -61,10 +64,12 @@ class TestCliError(unittest.TestCase):
 
         captured_stderr = io.StringIO()
 
-        with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
+        with patch("html2md.cli.requests", mock_requests), patch(
+            "html2md.cli.md", mock_markdownify.markdownify
+        ):
+            with patch("sys.stderr", captured_stderr):
                 try:
-                    html2md.cli.main(['--url', 'http://example.com'])
+                    html2md.cli.main(["--url", "http://example.com"])
                 except (SystemExit, RuntimeError, ValueError) as e:
                     self.fail(f"main raised exception {e}")
 
@@ -73,5 +78,6 @@ class TestCliError(unittest.TestCase):
         self.assertIn("Conversion failed", output)
         self.assertIn("Parse error", output)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
