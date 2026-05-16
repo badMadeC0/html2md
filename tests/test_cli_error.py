@@ -4,6 +4,8 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
+import pytest
+requests = pytest.importorskip("requests")
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.

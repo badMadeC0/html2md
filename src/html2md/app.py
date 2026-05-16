@@ -30,7 +30,12 @@ def get_host_port():
         )
         port_value = DEFAULT_PORT
 
-    hostname = os.environ.get('HOST', '0.0.0.0')
+
+    # SECURITY: Default to 127.0.0.1 (localhost) instead of 0.0.0.0 (all interfaces).
+    # Running the Flask development server on 0.0.0.0 exposes it to the network,
+    # which is insecure. In production, use a production WSGI server like Gunicorn:
+    # gunicorn -b 0.0.0.0:10000 html2md.app:app
+    hostname = os.environ.get('HOST', '127.0.0.1')
     return hostname, port_value
 
 
