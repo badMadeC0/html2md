@@ -2,6 +2,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import pytest
+requests = pytest.importorskip("requests")
 import requests  # type: ignore[import-untyped]
 from pathlib import Path
 from html2md.cli import main

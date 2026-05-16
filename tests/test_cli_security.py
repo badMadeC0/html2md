@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 import pytest
+pytest.importorskip("requests")
 
 from html2md import cli
 
