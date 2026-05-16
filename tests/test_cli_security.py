@@ -48,7 +48,9 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
         assert "Success!" in outerr.out
 
     # Ensure any output files are contained under --outdir.
-    assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
+    assert list(
+        outdir.rglob("*.md")
+    ), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
 
@@ -79,3 +81,27 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_url_password_is_masked_in_stdout(mock_get, capsys, tmp_path):
+    """Ensure that passwords in URLs are masked when printed to stdout."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    url = "https://user:secretpassword@example.com/api"
+    cli.main(["--url", url, "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+
+    # The password should be masked
+    assert "Processing URL: https://user:***@example.com/api" in outerr.out
+
+    # The actual unmasked password should not appear anywhere in stdout or stderr
+    assert "secretpassword" not in outerr.out
+    assert "secretpassword" not in outerr.err
