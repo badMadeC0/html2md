@@ -64,10 +64,12 @@ jobs:
         with:
           branch: auto/self-heal
           commit-message: "chore(self-heal): automated repairs"
-          title: "🤖 Self-healing: Automated repairs"
+          title: "[AI-Assisted] 🤖 Self-healing: Automated repairs"
           body: |
             Automated repository repairs attempting to fix CI failure.
 
             Logs attached to workflow run artifacts.
+
+            https://claude.ai/code/session_self_healing_workflow
           labels: self-heal
           signoff: true
