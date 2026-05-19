@@ -8,9 +8,3 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
-
-## 2025-05-19 - Avoid Expensive String Operations in Hot Loops
-
-**Learning:** When writing hot loops that process text, be very careful with operations like `lstrip()` or `startswith()`. In an optimization for `_sanitize_formula` processing large JSONL files, checking if a string started with whitespace `if value[0].isspace():` before running `.lstrip()` reduced the time spent sanitizing normal strings by around 40%. String operations create new string objects, which is a waste of CPU and memory if the string doesn't actually have the pattern you're trying to strip. Using a `set` for character lookup is also marginally faster than using `.startswith()` with a tuple.
-
-**Action:** Whenever sanitizing or normalizing strings in a hot path, use fast, early short-circuit checks (e.g. `value[0].isspace()`) to avoid allocating new strings when the data is already clean.
