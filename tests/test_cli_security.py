@@ -34,6 +34,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
+    response.iter_content.return_value = [b"<h1>dummy</h1>"]
     response.raise_for_status.return_value = None
     mock_get.return_value = response
 
@@ -79,3 +80,40 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+import socket
+@patch("socket.getaddrinfo")
+def test_process_url_blocks_ssrf(mock_gethostbyname, capsys):
+    """Ensure that SSRF payloads are blocked."""
+    mock_gethostbyname.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 0))]
+
+    ret = cli.main(["--url", "http://localhost:8080/"])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "resolves to a forbidden internal IP address" in outerr.err
+
+import socket
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_blocks_ssrf_via_redirect(mock_get, mock_gethostbyname, capsys):
+    """Ensure that SSRF payloads via redirects are blocked."""
+    # First request goes to a safe IP
+    def fake_getaddrinfo(hostname, port):
+        if hostname == "safe.com":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("8.8.8.8", 0))]
+        elif hostname == "internal.local":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.1", 0))]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("1.2.3.4", 0))]
+    mock_gethostbyname.side_effect = fake_getaddrinfo
+
+    response = MagicMock()
+    response.is_redirect = True
+    response.headers = {"Location": "http://internal.local/"}
+    mock_get.return_value = response
+
+    ret = cli.main(["--url", "http://safe.com/"])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "Redirect resolves to a forbidden internal IP address" in outerr.err

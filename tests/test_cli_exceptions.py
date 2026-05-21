@@ -33,6 +33,7 @@ class TestCliExceptions(unittest.TestCase):
             with patch('requests.Session.get') as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
@@ -71,6 +72,7 @@ class TestCliExceptions(unittest.TestCase):
             with patch('requests.Session.get') as mock_get:
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
+                mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
                 mock_resp.status_code = 200
                 mock_get.return_value = mock_resp
 
