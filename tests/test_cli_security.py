@@ -79,3 +79,31 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+@patch("time.time")
+def test_slowloris_timeout_prevention(mock_time, mock_get, capsys, tmp_path):
+    """Ensure that absolute timeout prevents Slow-Read DoS during iter_content."""
+    # Setup mock response
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.headers = {'Content-Length': '100'}
+
+    # iter_content will yield 3 chunks
+    response.iter_content.return_value = [b"chunk1", b"chunk2", b"chunk3"]
+    mock_get.return_value = response
+
+    # Mock time.time() to simulate time passing slowly.
+    # 1st call: start_time (0)
+    # 2nd call: check chunk 1 (10 seconds)
+    # 3rd call: check chunk 2 (70 seconds) -> should trigger timeout!
+    mock_time.side_effect = [0, 10, 70]
+
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    ret = cli.main(["--url", "http://example.com", "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Error: Download took too long (exceeded 60 seconds)." in outerr.err

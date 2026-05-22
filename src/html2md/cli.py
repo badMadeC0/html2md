@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
@@ -102,7 +103,11 @@ def main(argv=None):
 
                     chunks = []
                     total = 0
+                    start_time = time.time()
                     for chunk in response.iter_content(chunk_size=8192):
+                        if time.time() - start_time > 60:
+                            print("Error: Download took too long (exceeded 60 seconds).", file=sys.stderr)
+                            return 1
                         total += len(chunk)
                         if total > max_size:
                             print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
