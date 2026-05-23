@@ -4,6 +4,7 @@ import csv
 import json
 from html2md.log_export import main
 
+
 def test_log_export_csv_injection(tmp_path):
     """Test that potential CSV injection payloads are sanitized."""
     input_file = tmp_path / "injection.jsonl"
@@ -24,9 +25,12 @@ def test_log_export_csv_injection(tmp_path):
             f.write(json.dumps(item) + "\n")
 
     argv = [
-        '--in', str(input_file),
-        '--out', str(output_file),
-        '--fields', 'ts,input,status'
+        "--in",
+        str(input_file),
+        "--out",
+        str(output_file),
+        "--fields",
+        "ts,input,status",
     ]
 
     ret = main(argv)
@@ -40,9 +44,9 @@ def test_log_export_csv_injection(tmp_path):
         assert len(rows) == 6
 
         # Check sanitization (expect leading single quote)
-        assert rows[0]['input'] == "'=SUM(1,2)"
-        assert rows[1]['input'] == "'+SUM(1,2)"
-        assert rows[2]['input'] == "'-SUM(1,2)"
-        assert rows[3]['input'] == "'@SUM(1,2)"
-        assert rows[4]['input'] == "safe_value"
-        assert rows[5]['input'] == "'    =SUM(1,2)"
+        assert rows[0]["input"] == "'=SUM(1,2)"
+        assert rows[1]["input"] == "'+SUM(1,2)"
+        assert rows[2]["input"] == "'-SUM(1,2)"
+        assert rows[3]["input"] == "'@SUM(1,2)"
+        assert rows[4]["input"] == "safe_value"
+        assert rows[5]["input"] == "'    =SUM(1,2)"
