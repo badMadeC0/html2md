@@ -8,3 +8,6 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+## $(date +%Y-%m-%d) - [Optimize CSV sanitization check]
+**Learning:** Checking the first character `value[0]` for `.isspace()` is much faster than performing `.lstrip().startswith(...)` for strings that do not start with a space. Using an inline string `char in "=+-@"` is also slightly faster than checking against a tuple. However, this creates a minor maintainability risk if the original `_DANGEROUS_PREFIXES` tuple is updated without updating the hardcoded string.
+**Action:** When optimizing hot loops by making conditions faster, check for common patterns like lack of spaces to avoid expensive string operations like `.lstrip()`. Ensure temporary benchmarking files and environment config files (like `.python-version`) are cleaned up and restored before submission.
