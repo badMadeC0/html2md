@@ -79,3 +79,41 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://169.254.169.254", # AWS IMDS
+        "http://[::1]",
+        "http://10.0.0.1",
+        "http://192.168.1.1",
+    ]
+)
+@patch("requests.Session.get")
+def test_ssrf_protection_blocks_internal_ips(mock_get, capsys, tmp_path, url):
+    """Test that URLs resolving to internal or restricted IPs are blocked."""
+    ret = cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Error: URL resolves to a restricted network address." in outerr.err
+    mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+def test_ssrf_protection_blocks_redirect_to_internal_ips(mock_get, capsys, tmp_path):
+    """Test that redirects to internal or restricted IPs are blocked."""
+
+    # Mock first response as a redirect to localhost
+    mock_response = MagicMock()
+    mock_response.status_code = 301
+    mock_response.headers = {'Location': 'http://127.0.0.1'}
+    mock_get.return_value = mock_response
+
+    ret = cli.main(["--url", "http://example.com", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Error: URL resolves to a restricted network address." in outerr.err
