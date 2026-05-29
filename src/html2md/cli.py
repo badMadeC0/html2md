@@ -5,37 +5,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse, urljoin, unquote
-import socket
-import ipaddress
-
-def _is_safe_url(url: str) -> bool:
-    """Validate that the URL resolves to a safe, non-internal IP address."""
-    parsed = urlparse(url)
-    hostname = parsed.hostname
-    if not hostname:
-        return False
-
-    try:
-        # Resolve hostname to IPs
-        addr_info = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        # If we can't resolve it, it's unsafe or invalid
-        return False
-
-    for info in addr_info:
-        ip_str = info[4][0]
-        try:
-            ip = ipaddress.ip_address(ip_str)
-        except ValueError:
-            continue
-
-        # Block internal, private, loopback, and metadata IPs
-        if (ip.is_private or ip.is_loopback or ip.is_link_local or
-            ip.is_multicast or ip.is_unspecified or ip.is_reserved):
-            return False
-
-    return True
+from urllib.parse import urlparse, unquote
 
 def main(argv=None):
     """Run the CLI."""
@@ -115,57 +85,32 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                # Security: Enforce SSRF protection with manual redirect handling
-                current_url = target_url
-                max_redirects = 10
-                redirect_count = 0
+                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
+                response = session.get(target_url, timeout=30, stream=True)
+                try:
+                    response.raise_for_status()
 
-                while True:
-                    if not _is_safe_url(current_url):
-                        print(f"Error: URL resolves to a restricted network address.", file=sys.stderr)
-                        return 1
-
-                    # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                    # Use allow_redirects=False to intercept and validate each redirect
-                    response = session.get(current_url, timeout=30, stream=True, allow_redirects=False)
+                    max_size = 10 * 1024 * 1024
                     try:
-                        if response.status_code in (301, 302, 303, 307, 308):
-                            redirect_url = response.headers.get('Location')
-                            if not redirect_url:
-                                print("Error: Redirect missing Location header.", file=sys.stderr)
-                                return 1
+                        if int(response.headers.get('Content-Length', 0)) > max_size:
+                            print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                            return 1
+                    except ValueError:
+                        # Invalid or non-numeric Content-Length: treat as unknown size.
+                        # The streaming loop below still enforces max_size.
+                        pass
 
-                            current_url = urljoin(current_url, redirect_url)
-                            redirect_count += 1
-                            if redirect_count > max_redirects:
-                                print("Error: Too many redirects.", file=sys.stderr)
-                                return 1
-                            continue # follow the redirect
-
-                        response.raise_for_status()
-
-                        max_size = 10 * 1024 * 1024
-                        try:
-                            if int(response.headers.get('Content-Length', 0)) > max_size:
-                                print(f"Error: Content-Length exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                                return 1
-                        except ValueError:
-                            # Invalid or non-numeric Content-Length: treat as unknown size.
-                            # The streaming loop below still enforces max_size.
-                            pass
-
-                        chunks = []
-                        total = 0
-                        for chunk in response.iter_content(chunk_size=8192):
-                            total += len(chunk)
-                            if total > max_size:
-                                print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
-                                return 1
-                            chunks.append(chunk)
-                        content_bytes = b"".join(chunks)
-                        break # Successfully downloaded content
-                    finally:
-                        response.close()
+                    chunks = []
+                    total = 0
+                    for chunk in response.iter_content(chunk_size=8192):
+                        total += len(chunk)
+                        if total > max_size:
+                            print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
+                            return 1
+                        chunks.append(chunk)
+                    content_bytes = b"".join(chunks)
+                finally:
+                    response.close()
 
                 encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
                 html_content = content_bytes.decode(encoding, errors="replace")
