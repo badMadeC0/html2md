@@ -8,3 +8,22 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-25 - Python Fast Path String Sanitization Optimization
+
+**Learning:** When sanitizing strings in a hot loop (like a JSONL to CSV converter), string allocations (like `lstrip()`) are a significant source of overhead.
+
+In `_sanitize_formula`, we originally had:
+`if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):`
+
+This was calling `.lstrip()` and allocating a new string for almost every single value being processed, even if it didn't start with whitespace.
+
+By changing this to first check if the string actually starts with whitespace using `.isspace()`, we can completely skip the `lstrip()` operation and allocation for the vast majority of standard strings:
+`if first_char.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):`
+
+Furthermore, `type(val) is X` is significantly faster than `isinstance(val, X)` in hot loops when you are certain subclass checking is not required (e.g., standard dicts and strings in basic JSON serialization). Finally, using a `set` for character lookups is faster than a `tuple`.
+
+**Action:**
+- Use `if str[0].isspace():` to guard expensive `.lstrip()` or `.strip()` calls if the goal is only to handle cases where leading whitespace is present.
+- Use `type(x) is y` instead of `isinstance(x, y)` in serialization hot loops where strict types are expected.
+- Use a `set` for membership testing (`in`) even for small collections of strings if checked in a hot loop.
