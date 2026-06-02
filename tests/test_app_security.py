@@ -1,5 +1,7 @@
 """Security tests for Flask app."""
 import pytest
+
+flask = pytest.importorskip("flask")
 from html2md.app import app
 
 @pytest.fixture
