@@ -1,6 +1,7 @@
 """Security tests for Flask app."""
 import pytest
 
+# Skip this test if Flask is not installed (e.g., in core CI environments)
 flask = pytest.importorskip("flask")
 from html2md.app import app
 
