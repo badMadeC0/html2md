@@ -28,9 +28,10 @@ def main(argv=None):
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
+            from bs4 import BeautifulSoup  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests markdownify beautifulsoup4", file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -115,8 +116,15 @@ def main(argv=None):
                 encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
                 html_content = content_bytes.decode(encoding, errors="replace")
 
+                # Security: Sanitize HTML to prevent XSS payloads in Markdown output
+                print("Sanitizing HTML...")
+                soup = BeautifulSoup(html_content, "html.parser")
+                for tag in soup(["script", "style", "iframe", "object", "embed"]):
+                    tag.decompose()
+                sanitized_html = str(soup)
+
                 print("Converting to Markdown...")
-                md_content = md(html_content, heading_style="ATX")
+                md_content = md(sanitized_html, heading_style="ATX")
 
                 if args.outdir:
                     # Create a safe filename based on the URL
