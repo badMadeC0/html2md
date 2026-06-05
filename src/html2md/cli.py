@@ -7,6 +7,14 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
+def mask_url_password(url: str) -> str:
+    """Mask the password in a URL if it exists to prevent leaking credentials."""
+    parsed = urlparse(url)
+    if parsed.password:
+        safe_netloc = parsed.netloc.replace(f":{parsed.password}@", ":***@")
+        return parsed._replace(netloc=safe_netloc).geturl()
+    return url
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -81,7 +89,8 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            safe_target_url = mask_url_password(target_url)
+            print(f"Processing URL: {safe_target_url}")
 
             try:
                 print("Fetching content...")
@@ -147,13 +156,22 @@ def main(argv=None):
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                msg = str(e).replace(target_url, safe_target_url)
+                if parsed.password:
+                    msg = msg.replace(f":{parsed.password}@", ":***@")
+                print(f"Network error: {msg}", file=sys.stderr)
                 return 1
             except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
+                msg = str(e).replace(target_url, safe_target_url)
+                if parsed.password:
+                    msg = msg.replace(f":{parsed.password}@", ":***@")
+                print(f"File error: {msg}", file=sys.stderr)
                 return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                msg = str(e).replace(target_url, safe_target_url)
+                if parsed.password:
+                    msg = msg.replace(f":{parsed.password}@", ":***@")
+                print(f"Conversion failed: {msg}", file=sys.stderr)
                 return 1
 
             return 0
