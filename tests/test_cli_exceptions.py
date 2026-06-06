@@ -2,6 +2,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import io
+import socket
 import requests  # type: ignore[import-untyped]
 from pathlib import Path
 from html2md.cli import main
@@ -10,7 +11,8 @@ from html2md.cli import main
 class TestCliExceptions(unittest.TestCase):
     """Unit tests for CLI network, file, and path-containment error handling."""
 
-    def test_network_error(self):
+    @patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))])
+    def test_network_error(self, mock_getaddrinfo):
         """Test that network errors are caught and printed."""
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
@@ -26,7 +28,8 @@ class TestCliExceptions(unittest.TestCase):
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
-    def test_file_error(self):
+    @patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))])
+    def test_file_error(self, mock_getaddrinfo):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
@@ -34,6 +37,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.is_redirect = False
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
@@ -64,7 +68,8 @@ class TestCliExceptions(unittest.TestCase):
         assert result != 0
         assert "--outdir must be a directory" in captured_stderr.getvalue()
 
-    def test_outdir_containment_uses_path_aware_check(self):
+    @patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))])
+    def test_outdir_containment_uses_path_aware_check(self, mock_getaddrinfo):
         """Test that output containment check rejects prefix-matching escapes."""
         captured_stderr = io.StringIO()
         with patch('sys.stderr', captured_stderr):
@@ -72,6 +77,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.is_redirect = False
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):

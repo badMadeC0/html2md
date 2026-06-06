@@ -79,3 +79,41 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch('socket.getaddrinfo')
+def test_ssrf_forbidden_ip(mock_getaddrinfo, capsys):
+    """Test that URLs resolving to forbidden internal IPs are rejected."""
+    import socket
+    # Mock resolution to localhost
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))
+    ]
+
+    ret = cli.main(["--url", "http://example.com/internal-data"])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "Error: URL resolves to a forbidden internal IP address." in outerr.err
+
+@patch('socket.getaddrinfo')
+@patch("requests.Session.get")
+def test_ssrf_forbidden_ip_redirect(mock_get, mock_getaddrinfo, capsys):
+    """Test that redirects resolving to forbidden internal IPs are rejected."""
+    import socket
+
+    # First resolve to a safe IP, then to an internal one on redirect
+    mock_getaddrinfo.side_effect = [
+        [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))], # safe
+        [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('169.254.169.254', 80))] # AWS metadata
+    ]
+
+    mock_response = MagicMock()
+    mock_response.is_redirect = True
+    mock_response.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    mock_get.return_value = mock_response
+
+    ret = cli.main(["--url", "http://example.com"])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "Error: Redirect resolves to a forbidden internal IP address." in outerr.err

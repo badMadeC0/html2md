@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 import os
+import socket
 import requests  # type: ignore[import-untyped]
 
 # Ensure src is in path before importing the local package.
@@ -15,7 +16,8 @@ import html2md.cli  # pylint: disable=wrong-import-position  # type: ignore[impo
 class TestCliError(unittest.TestCase):
     """Unit tests for CLI network and conversion error handling."""
 
-    def test_cli_conversion_request_failure(self):
+    @patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))])
+    def test_cli_conversion_request_failure(self, mock_getaddrinfo):
         """Test that requests.get failure is caught and printed."""
 
         # Configure requests mock to fail
@@ -42,7 +44,8 @@ class TestCliError(unittest.TestCase):
         output = captured_stderr.getvalue()
         self.assertIn("Network error", output)
 
-    def test_cli_conversion_markdownify_failure(self):
+    @patch('socket.getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))])
+    def test_cli_conversion_markdownify_failure(self, mock_getaddrinfo):
         """Test that markdownify failure is caught and printed."""
 
         mock_requests = MagicMock()
@@ -53,6 +56,7 @@ class TestCliError(unittest.TestCase):
         mock_requests.Session.return_value = mock_session
         mock_response = MagicMock()
         mock_response.text = "<html></html>"
+        mock_response.is_redirect = False
         mock_session.get.return_value = mock_response
 
         mock_markdownify = MagicMock()
