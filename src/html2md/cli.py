@@ -69,6 +69,25 @@ def main(argv=None):
                 print(f"Error creating output directory '{args.outdir}': {e}", file=sys.stderr)
                 return 1
 
+        def _is_safe_url(url: str) -> bool:
+            import socket
+            import ipaddress
+            u = urlparse(url)
+            if not u.hostname:
+                return False
+            try:
+                # Use getaddrinfo to get all IPs (IPv4 and IPv6) and fail closed on resolution errors
+                addr_info = socket.getaddrinfo(u.hostname, None)
+                for item in addr_info:
+                    ip_str = item[4][0]
+                    ip = ipaddress.ip_address(ip_str)
+                    if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+                        return False
+            except (socket.gaierror, ValueError):
+                # Fail closed: if we can't resolve it or parse the IP, we assume it's unsafe.
+                return False
+            return True
+
         def process_url(target_url: str) -> int:
             """Process a single URL. Returns 0 on success, 1 on error."""
             # Fix common URL typo: trailing slash before query parameters
@@ -81,12 +100,36 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
+            if not _is_safe_url(target_url):
+                print("Error: URL resolves to a forbidden internal IP address.", file=sys.stderr)
+                return 1
+
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
+                # Security: Manually handle redirects to prevent SSRF via redirect
+                current_url = target_url
+                for _ in range(10): # Max 10 redirects
+                    response = session.get(current_url, timeout=30, stream=True, allow_redirects=False)
+                    if response.is_redirect is True:
+                        next_url = response.headers.get("Location")
+                        if not next_url:
+                            break
+                        # Resolve relative URLs
+                        from urllib.parse import urljoin
+                        next_url = urljoin(str(current_url), str(next_url))
+                        if not _is_safe_url(next_url):
+                            print("Error: Redirect resolves to a forbidden internal IP address.", file=sys.stderr)
+                            return 1
+                        current_url = next_url
+                        response.close()
+                    else:
+                        break
+                else:
+                    print("Error: Too many redirects.", file=sys.stderr)
+                    return 1
                 try:
                     response.raise_for_status()
 
