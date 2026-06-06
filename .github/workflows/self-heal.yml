@@ -69,14 +69,3 @@ jobs:
             selfheal-pre.txt
             selfheal-repair.txt
             selfheal-post.txt
-
-      - name: Create PR with fixes
-        if: steps.post.outcome == 'success'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "chore: self-healing fixes"
-          title: "chore: self-healing fixes"
-          body: "Auto-generated PR by self-heal workflow."
-          branch: "self-heal-fixes"
-          labels: "self-heal"
-          assignees: "badMade"

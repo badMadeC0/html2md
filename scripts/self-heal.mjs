@@ -60,7 +60,6 @@ if (!passHealth()) {
   if (existsSync("scripts/verify-static.mjs")) {
     trySh("node scripts/verify-static.mjs");
   }
-  if (passHealth()) fixed = fixed || changed();
 }
 
 process.exit(fixed ? 0 : 1);
