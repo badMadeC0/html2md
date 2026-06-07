@@ -28,12 +28,43 @@ def main(argv=None):
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
+            import socket  # pylint: disable=import-outside-toplevel
+            import ipaddress  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
                   "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
 
+        class SSRFAdapter(requests.adapters.HTTPAdapter):
+            """Adapter to block SSRF attempts to local or private IPs."""
+            def send(self, request, *args, **kwargs):
+                parsed = urlparse(request.url)
+                if parsed.hostname:
+                    try:
+                        # getaddrinfo resolves to all IPs including IPv4 and IPv6
+                        addr_info = socket.getaddrinfo(parsed.hostname, None)
+                        for info in addr_info:
+                            ip = info[4][0]
+                            ip_obj = ipaddress.ip_address(ip)
+                            if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_unspecified:
+                                raise requests.exceptions.ConnectionError(
+                                    f"SSRF blocked: Access to internal IP {ip} is denied."
+                                )
+                    except socket.gaierror as exc:
+                        raise requests.exceptions.ConnectionError(
+                            f"SSRF blocked: Could not resolve hostname {parsed.hostname}"
+                        ) from exc
+                    except ValueError as exc:
+                        raise requests.exceptions.ConnectionError(
+                            f"SSRF blocked: Invalid IP address parsed from {parsed.hostname}"
+                        ) from exc
+                return super().send(request, *args, **kwargs)
+
         session = requests.Session()
+        ssrf_adapter = SSRFAdapter()
+        session.mount('http://', ssrf_adapter)
+        session.mount('https://', ssrf_adapter)
+
         session.headers.update({
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
