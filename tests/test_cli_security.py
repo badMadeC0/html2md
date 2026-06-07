@@ -79,3 +79,31 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "hostname, ip",
+    [
+        ("localhost", "127.0.0.1"),
+        ("169.254.169.254", "169.254.169.254"),
+        ("metadata.internal", "169.254.169.254"),
+        ("private-server", "10.0.0.5"),
+        ("unspecified", "0.0.0.0"),
+        ("ipv6-loop", "::1"),
+    ],
+)
+def test_ssrf_prevention(capsys, hostname, ip):
+    """Test that requests to private/local IPs are blocked."""
+    url = f"http://{hostname}/data"
+
+    # Mock getaddrinfo to return a structure matching what it would naturally return:
+    # [(family, type, proto, canonname, sockaddr)] where sockaddr is (ip, port)
+    mock_addr_info = [(None, None, None, None, (ip, 80))]
+
+    with patch("socket.getaddrinfo", return_value=mock_addr_info):
+        ret = cli.main(["--url", url])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "SSRF blocked: Access to internal IP" in outerr.err
+    assert ip in outerr.err
