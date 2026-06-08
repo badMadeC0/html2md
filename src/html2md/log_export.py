@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIX_STR = "=+-@"
 
 
 def _sanitize_formula(value: str) -> str:
@@ -14,7 +15,10 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+
+    first = value[0]
+    # Check string for faster lookup, and avoid lstrip allocation unless space-padded
+    if first in _DANGEROUS_PREFIX_STR or (first.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES)):
         return f"'{value}"
     return value
 
