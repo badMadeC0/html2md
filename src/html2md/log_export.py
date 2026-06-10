@@ -14,7 +14,10 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    c = value[0]
+    if c in ("=", "+", "-", "@"):
+        return f"'{value}"
+    if c.isspace() and value.lstrip().startswith(("=", "+", "-", "@")):
         return f"'{value}"
     return value
 
@@ -42,10 +45,18 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
+    if type(value) is str:
+        # We inline the _sanitize_formula logic for speed, as it's the hottest loop
+        if not value or value[0] == "'":  # type: ignore
+            return value
+        c = value[0]  # type: ignore
+        if c in ("=", "+", "-", "@"):
+            return f"'{value}"
+        if c.isspace() and value.lstrip().startswith(("=", "+", "-", "@")):  # type: ignore
+            return f"'{value}"
+        return value
     if value is None:
         return ""
-    if isinstance(value, str):
-        return _sanitize_formula(value)
     return value
 
 
@@ -75,7 +86,7 @@ def main(argv=None):
         loads = json.loads
 
         # Pre-extract names to avoid tuple unpacking in loop comprehension
-        input_names = [name for name, _ in mapping]
+        input_names = tuple(name for name, _ in mapping)
 
         for line in fi:
             # json.loads ignores whitespace; skip manual strip/empty checks
@@ -85,11 +96,12 @@ def main(argv=None):
                 continue
 
             # Strict/fast dict check
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
+            get = rec.get
             writerow([
-                sanitize(rec.get(name, ""))
+                sanitize(get(name, ""))
                 for name in input_names
             ])
 
