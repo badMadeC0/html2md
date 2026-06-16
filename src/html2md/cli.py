@@ -81,7 +81,15 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            # Security: Prevent credential leakage in logs
+            safe_log_url = target_url
+            if parsed.password:
+                safe_netloc = f"{parsed.username}:***@{parsed.hostname}"
+                if parsed.port:
+                    safe_netloc += f":{parsed.port}"
+                safe_log_url = parsed._replace(netloc=safe_netloc).geturl()
+
+            print(f"Processing URL: {safe_log_url}")
 
             try:
                 print("Fetching content...")
@@ -121,14 +129,19 @@ def main(argv=None):
                 if args.outdir:
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(unquote(url_path))
-                        # Sanitize to prevent path traversal
-                        base = base.replace('/', '_').replace('\\', '_')
-                        base = base.strip('. ')
-                        if base:
-                            filename = f"{base}.md"
+
+                    # Security: Use parsed components to avoid exposing credentials in filename
+                    path_str = parsed.path.rstrip('/')
+                    if path_str:
+                        base = os.path.basename(unquote(path_str))
+                    else:
+                        base = parsed.hostname or "index"
+
+                    # Sanitize to prevent path traversal
+                    base = base.replace('/', '_').replace('\\', '_')
+                    base = base.strip('. ')
+                    if base:
+                        filename = f"{base}.md"
 
                     out_path = (outdir_path or Path(args.outdir)) / filename
                     # Final safety check: ensure output stays within outdir
