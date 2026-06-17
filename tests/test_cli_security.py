@@ -23,6 +23,27 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://localhost/admin",
+        "https://127.0.0.1/server-status",
+        "http://192.168.1.1/router",
+        "https://10.0.0.5/api",
+        "http://169.254.169.254/latest/meta-data/",
+    ],
+)
+@patch("requests.Session.get")
+def test_process_url_ssrf_protection(mock_get, capsys, tmp_path, url):
+    """SSRF attempts to internal or private IPs are rejected before any network call."""
+    ret = cli.main(["--url", url, "--outdir", str(tmp_path)])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "Error: SSRF attempt detected. Refusing to connect to internal or private IP." in outerr.err
+    mock_get.assert_not_called()
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
