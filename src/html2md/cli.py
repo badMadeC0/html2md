@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 import argparse
+import ipaddress
 import os
+import socket
 import sys
 from pathlib import Path
 from urllib.parse import urlparse, unquote
@@ -80,6 +82,18 @@ def main(argv=None):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
+
+            hostname = parsed.hostname
+            if hostname:
+                try:
+                    for _, _, _, _, sockaddr in socket.getaddrinfo(hostname, None):
+                        ip = ipaddress.ip_address(sockaddr[0])
+                        if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+                            print("Error: SSRF attempt detected. Refusing to connect to internal or private IP.", file=sys.stderr)
+                            return 1
+                except (socket.gaierror, ValueError):
+                    # If DNS resolution fails, allow requests to handle the connection error natively
+                    pass
 
             print(f"Processing URL: {target_url}")
 
