@@ -14,6 +14,7 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
+
     if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
@@ -72,15 +73,15 @@ def main(argv=None):
         # Hoist lookups out of hot loop for faster access (LOAD_FAST vs LOAD_GLOBAL/LOAD_ATTR)
         sanitize = _sanitize_value
         writerow = w.writerow
-        loads = json.loads
+        decode = json.JSONDecoder().decode
 
         # Pre-extract names to avoid tuple unpacking in loop comprehension
         input_names = [name for name, _ in mapping]
 
         for line in fi:
-            # json.loads ignores whitespace; skip manual strip/empty checks
+            # json.JSONDecoder().decode ignores whitespace; skip manual strip/empty checks
             try:
-                rec = loads(line)
+                rec = decode(line)
             except json.JSONDecodeError:
                 continue
 
