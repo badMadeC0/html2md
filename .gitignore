@@ -29,6 +29,7 @@ htmlcov/
 venv/
 ENV/
 env/
+.venv/
 
 # IDE
 .vscode/
@@ -40,3 +41,4 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+node_modules/
