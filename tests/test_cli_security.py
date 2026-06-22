@@ -66,6 +66,8 @@ def test_outdir_existing_file_returns_clear_error(capsys, tmp_path):
     assert str(outdir_file) in outerr.err
 
 
+import socket
+
 @patch("requests.Session.get")
 def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tmp_path):
     """Output directory creation failures are reported without a traceback."""
@@ -79,3 +81,41 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+def test_ssrf_blocked_urls(mock_get, capsys, tmp_path):
+    """Test that SSRF is prevented by blocking URLs resolving to internal/private IPs."""
+    # Test blocked URLs
+    blocked_urls = [
+        "http://127.0.0.1/",
+        "http://localhost:8080/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://[::1]/",
+        "http://10.0.0.1/",
+        "http://192.168.1.1/"
+    ]
+
+    for url in blocked_urls:
+        ret = cli.main(["--url", url, "--outdir", str(tmp_path)])
+        outerr = capsys.readouterr()
+        assert ret == 1
+        assert "resolves to an internal or invalid IP address" in outerr.err
+        mock_get.assert_not_called()
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_ssrf_allowed_urls(mock_get, mock_getaddrinfo, capsys, tmp_path):
+    """Test that safe external URLs are allowed."""
+    # Mock DNS resolution for external domain to return a public IP
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
+    ]
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    ret = cli.main(["--url", "http://example.com", "--outdir", str(tmp_path)])
+    assert ret == 0
+    mock_get.assert_called_once()
