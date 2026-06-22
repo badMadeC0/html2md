@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -18,7 +17,9 @@ def test_gui_script_avoids_command_relaunch() -> None:
     # The script should not use -Command to relaunch itself or other processes for conversion.
     # We allow it in comments or help text, but not in the active code for launching.
     # Specifically, check the $psi.Arguments lines.
-    active_arguments = [line for line in gui_script.splitlines() if "$psi.Arguments =" in line]
+    active_arguments = [
+        line for line in gui_script.splitlines() if "$psi.Arguments =" in line
+    ]
     for line in active_arguments:
         assert "-Command" not in line
         assert "-File" in line
