@@ -1,3 +1,6 @@
-* @badMade
+# Assign @google-labs-jules as a reviewer for all pull requests
+
+* @jules
+
 apps/** @badMade
 packages/** @badMade

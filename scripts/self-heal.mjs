@@ -61,3 +61,5 @@ if (!passHealth()) {
     trySh("node scripts/verify-static.mjs");
   }
 }
+
+process.exit(fixed ? 0 : 1);

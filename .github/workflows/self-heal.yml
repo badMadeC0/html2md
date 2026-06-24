@@ -76,8 +76,13 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b self-heal-fix-${{ github.run_id }}
-          git commit -am "chore(self-heal): auto-fix CI failures"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(self-heal): auto-fix CI failures"
           git push origin self-heal-fix-${{ github.run_id }}
-          gh pr create --title "Self-heal auto-fix" --body "Automated PR from self-healing workflow" --label "self-heal"
+          gh pr create --title "[AI-Assisted] Self-heal auto-fix" --body "Automated PR from self-healing workflow" --label "self-heal"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
