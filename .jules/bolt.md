@@ -8,3 +8,10 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2023-10-25 - Python Micro-Optimizations vs Robustness
+**Learning:** Two performance optimization attempts failed because they prioritized micro-speed over correctness and practical data shapes:
+1. Using `type(value) is str` instead of `isinstance(value, str)` is slightly faster but inherently unsafe because it breaks compatibility with string subclasses (like Jinja2 `Markup` or translation strings), potentially bypassing security checks like CSV injection sanitization.
+2. Adding `@lru_cache` to a function that processes log export values is a poor choice because log data (like timestamps, unique IDs, or full error messages) is highly variable. The overhead of hashing and dictionary lookups, combined with constant cache eviction (thrashing), makes it slower than simple fast-path character checks.
+
+**Action:** Never use `type() is X` when inheritance/subclassing is a valid use case; stick to `isinstance`. Avoid memoization (`@lru_cache`) on functions that process high-cardinality/variable data streams, as the cache management overhead will outweigh any benefits.
