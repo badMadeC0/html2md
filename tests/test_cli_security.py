@@ -79,3 +79,23 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_process_url_redacts_credentials_in_logs(mock_get, capsys, tmp_path):
+    """Ensure that passwords in URLs are redacted before being printed to stdout."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    url_with_creds = "https://admin:supersecret@example.com/sensitive-data"
+
+    cli.main(["--url", url_with_creds, "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+    assert "admin:***@example.com" in outerr.out
+    assert "supersecret" not in outerr.out
