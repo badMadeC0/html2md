@@ -1,4 +1,4 @@
-## 2024-05-08 - Added Request Size Limits to Prevent Denial of Service
-**Vulnerability:** The CLI fetched remote URLs directly into memory without any size constraints. A malicious or misconfigured server returning a multi-gigabyte HTML response would cause an Out of Memory (OOM) error, creating a Denial of Service (DoS) vulnerability.
-**Learning:** Even simple CLI fetch tools are susceptible to resource exhaustion attacks if response sizes are unbounded, especially since `requests.get` without `stream=True` buffers the entire response in memory.
-**Prevention:** Always use `stream=True` when downloading untrusted resources, and enforce a strict upper limit on downloaded bytes.
+## 2025-02-28 - SSRF Vulnerability in URL Fetcher
+**Vulnerability:** The CLI application allowed fetching arbitrary URLs using `requests.get` without validating the resolved IP address, leading to Server-Side Request Forgery (SSRF). Attackers could potentially access internal network resources or cloud metadata services. Additionally, the initial fix was susceptible to DNS rebinding attacks.
+**Learning:** Initial check-then-fetch approaches (resolving IP, checking if allowed, then fetching using original URL) are vulnerable to DNS rebinding. The `requests` library will perform its own DNS resolution, which might yield a different (malicious) IP address than the one checked.
+**Prevention:** Always validate the resolved IP address and force the HTTP client to connect directly to the validated IP address while preserving the original `Host` header to prevent DNS rebinding attacks.

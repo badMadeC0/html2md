@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
@@ -81,12 +83,40 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
+            # SSRF Protection: Resolve hostname and block internal/private IP addresses
+            hostname = parsed.hostname or ""
+            hostname = hostname.strip("[]")
+            ip_str = None
+            if hostname:
+                try:
+                    ip_str = socket.gethostbyname(hostname)
+                    ip_obj = ipaddress.ip_address(ip_str)
+                    if (ip_obj.is_private or ip_obj.is_loopback or
+                        ip_obj.is_link_local or ip_obj.is_multicast or
+                        ip_obj.is_unspecified or ip_obj.is_reserved):
+                        print(f"Error: Access to internal or reserved IP addresses ({ip_str}) is not permitted for security reasons.", file=sys.stderr)
+                        return 1
+                except socket.gaierror:
+                    print(f"Error: Could not resolve hostname '{hostname}'.", file=sys.stderr)
+                    return 1
+                except ValueError:
+                    # Should not happen as gethostbyname returns a valid IP, but catch just in case
+                    pass
+
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
+                # To prevent DNS rebinding attacks, connect directly to the resolved IP
+                # and pass the original hostname in the Host header.
+                safe_url = target_url
+                req_headers = {}
+                if ip_str and hostname:
+                    safe_url = target_url.replace(hostname, ip_str, 1)
+                    req_headers['Host'] = hostname
+
+                response = session.get(safe_url, headers=req_headers, timeout=30, stream=True)
                 try:
                     response.raise_for_status()
 
