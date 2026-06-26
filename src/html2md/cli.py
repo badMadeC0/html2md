@@ -86,7 +86,6 @@ def main(argv=None):
             # SSRF Protection: Resolve hostname and block internal/private IP addresses
             hostname = parsed.hostname or ""
             hostname = hostname.strip("[]")
-            ip_str = None
             if hostname:
                 try:
                     ip_str = socket.gethostbyname(hostname)
@@ -100,7 +99,6 @@ def main(argv=None):
                     print(f"Error: Could not resolve hostname '{hostname}'.", file=sys.stderr)
                     return 1
                 except ValueError:
-                    # Should not happen as gethostbyname returns a valid IP, but catch just in case
                     pass
 
             print(f"Processing URL: {target_url}")
@@ -108,15 +106,7 @@ def main(argv=None):
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                # To prevent DNS rebinding attacks, connect directly to the resolved IP
-                # and pass the original hostname in the Host header.
-                safe_url = target_url
-                req_headers = {}
-                if ip_str and hostname:
-                    safe_url = target_url.replace(hostname, ip_str, 1)
-                    req_headers['Host'] = hostname
-
-                response = session.get(safe_url, headers=req_headers, timeout=30, stream=True)
+                response = session.get(target_url, timeout=30, stream=True)
                 try:
                     response.raise_for_status()
 
