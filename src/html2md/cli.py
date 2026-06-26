@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
@@ -80,6 +82,24 @@ def main(argv=None):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
+
+            # SSRF Protection: Resolve hostname and block internal/private IP addresses
+            hostname = parsed.hostname or ""
+            hostname = hostname.strip("[]")
+            if hostname:
+                try:
+                    ip_str = socket.gethostbyname(hostname)
+                    ip_obj = ipaddress.ip_address(ip_str)
+                    if (ip_obj.is_private or ip_obj.is_loopback or
+                        ip_obj.is_link_local or ip_obj.is_multicast or
+                        ip_obj.is_unspecified or ip_obj.is_reserved):
+                        print(f"Error: Access to internal or reserved IP addresses ({ip_str}) is not permitted for security reasons.", file=sys.stderr)
+                        return 1
+                except socket.gaierror:
+                    print(f"Error: Could not resolve hostname '{hostname}'.", file=sys.stderr)
+                    return 1
+                except ValueError:
+                    pass
 
             print(f"Processing URL: {target_url}")
 

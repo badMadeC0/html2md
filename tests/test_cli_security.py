@@ -79,3 +79,18 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+def test_process_url_ssrf_blocked(mock_get, capsys, tmp_path):
+    """Ensure SSRF protection blocks requests to internal/private IP addresses."""
+    urls = [
+        "http://127.0.0.1/admin",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://localhost:8080"
+    ]
+    for url in urls:
+        ret = cli.main(["--url", url, "--outdir", str(tmp_path)])
+        assert ret == 1
+        outerr = capsys.readouterr()
+        assert "not permitted for security reasons" in outerr.err or "Could not resolve hostname" in outerr.err
+    mock_get.assert_not_called()
