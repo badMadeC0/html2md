@@ -67,6 +67,55 @@ def test_outdir_existing_file_returns_clear_error(capsys, tmp_path):
 
 
 @patch("requests.Session.get")
+def test_xss_sanitization_in_markdown(mock_get, capsys):
+    """Test that malicious HTML tags and hrefs are sanitized to prevent XSS."""
+    response = MagicMock()
+    # Provide HTML with malicious elements
+    response.text = '''
+    <html>
+    <body>
+        <h1>Title</h1>
+        <script>alert("xss1");</script>
+        <a href="javascript:alert('xss2')">Bad Link</a>
+        <a href="  vBscRipT: msgbox('xss3') ">Bad Link 2</a>
+        <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgneHNzNCcpPC9zY3JpcHQ+">Bad Link 3</a>
+        <iframe src="http://evil.com"></iframe>
+        <style>body { background: url('javascript:alert("xss5")'); }</style>
+    </body>
+    </html>
+    '''
+    # We must mock iter_content to return the response text encoded as bytes
+    # because the CLI now streams the response
+    response.iter_content.return_value = [response.text.encode('utf-8')]
+    response.encoding = 'utf-8'
+    response.headers = {'Content-Length': str(len(response.text.encode('utf-8')))}
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    # Call main with a URL, no --outdir to print to stdout
+    ret = cli.main(["--url", "http://example.com"])
+
+    outerr = capsys.readouterr()
+    assert ret == 0
+
+    stdout = outerr.out
+
+    # Assert that malicious payloads are NOT present
+    assert "alert(\"xss1\")" not in stdout
+    assert "javascript:alert('xss2')" not in stdout
+    assert "vBscRipT:" not in stdout
+    assert "data:text" not in stdout
+    assert "evil.com" not in stdout
+    assert "xss5" not in stdout
+
+    # Assert that safe content IS present, and links are neutralized
+    assert "Title" in stdout
+    assert "[Bad Link](#)" in stdout
+    assert "[Bad Link 2](#)" in stdout
+    assert "[Bad Link 3](#)" in stdout
+
+
+@patch("requests.Session.get")
 def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tmp_path):
     """Output directory creation failures are reported without a traceback."""
     outdir = tmp_path / "blocked"
