@@ -14,7 +14,11 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+
+    # Optimization: lstrip() allocates a new string if spaces exist.
+    # We avoid this overhead by only calling it when the first character is whitespace.
+    c = value[0]
+    if c in _DANGEROUS_PREFIXES or (c.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES)):
         return f"'{value}"
     return value
 
