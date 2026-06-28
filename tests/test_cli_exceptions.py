@@ -26,6 +26,32 @@ class TestCliExceptions(unittest.TestCase):
                 self.assertIn("Network error", output)
                 self.assertIn("Network unreachable", output)
 
+    def test_password_redaction(self):
+        """Test that URLs containing passwords do not expose the password in logs or errors."""
+        captured_stderr = io.StringIO()
+        captured_stdout = io.StringIO()
+
+        with patch('sys.stderr', captured_stderr), patch('sys.stdout', captured_stdout):
+            with patch('requests.Session.get') as mock_get:
+                mock_get.side_effect = requests.RequestException("Failed fetching http://user:secret123@example.com")
+
+                try:
+                    main(['--url', 'http://user:secret123@example.com'])
+                except (SystemExit, RuntimeError, ValueError) as e:
+                    self.fail(f"main raised exception {e}")
+
+                stdout_output = captured_stdout.getvalue()
+                stderr_output = captured_stderr.getvalue()
+
+                # Verify stdout (Processing URL)
+                self.assertIn("Processing URL: http://user:***@example.com", stdout_output)
+                self.assertNotIn("secret123", stdout_output)
+
+                # Verify stderr (Network error)
+                self.assertIn("Network error", stderr_output)
+                self.assertIn("http://user:***@example.com", stderr_output)
+                self.assertNotIn("secret123", stderr_output)
+
     def test_file_error(self):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
