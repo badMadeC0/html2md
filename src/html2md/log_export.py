@@ -7,14 +7,17 @@ import json
 from pathlib import Path
 
 _DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_SET = frozenset(_DANGEROUS_PREFIXES)
 
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    c = value[0]
+    if c in _DANGEROUS_SET:
+        return f"'{value}"
+    if c.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -44,8 +47,16 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
+    # Inline string check and sanitization for performance in hot loop
     if isinstance(value, str):
-        return _sanitize_formula(value)
+        if not value or value[0] == "'":
+            return value
+        c = value[0]
+        if c in _DANGEROUS_SET:
+            return f"'{value}"
+        if c.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     return value
 
 
