@@ -16,12 +16,12 @@ matching a sensible secret naming convention" clause: bare `secrets`/
 inside a `secrets/`, `secret/`, or `credentials/` directory are also
 treated as sensitive via `SENSITIVE_DIR_SEGMENTS`.
 """
+
 from __future__ import annotations
 
 import fnmatch
 import json
 import sys
-
 
 SENSITIVE_BASENAME_PATTERNS = (
     # Documented in pr-rules/common.md §3.
@@ -65,11 +65,13 @@ PATH_KEYS = {"file_path", "path", "notebook_path"}
 # segments include one of these (e.g. `secrets/prod.json`,
 # `config/credentials/token.yaml`) is treated as sensitive regardless of
 # the leaf basename. Matched against lower-cased path segments.
-SENSITIVE_DIR_SEGMENTS = frozenset({
-    "secrets",
-    "secret",
-    "credentials",
-})
+SENSITIVE_DIR_SEGMENTS = frozenset(
+    {
+        "secrets",
+        "secret",
+        "credentials",
+    }
+)
 
 
 def is_sensitive(path: str) -> bool:
@@ -115,25 +117,30 @@ def main(argv=None) -> int:
     try:
         payload_raw = sys.stdin.read()
     except Exception as exc:
-        print(f"protect-sensitive-files: BLOCKED — failed to read stdin: {exc}",
-              file=sys.stderr)
+        print(
+            f"protect-sensitive-files: BLOCKED — failed to read stdin: {exc}",
+            file=sys.stderr,
+        )
         return 2
 
     if not payload_raw.strip():
-        print("protect-sensitive-files: BLOCKED — empty hook payload",
-              file=sys.stderr)
+        print("protect-sensitive-files: BLOCKED — empty hook payload", file=sys.stderr)
         return 2
 
     try:
         payload = json.loads(payload_raw)
     except json.JSONDecodeError as exc:
-        print(f"protect-sensitive-files: BLOCKED — bad JSON payload: {exc}",
-              file=sys.stderr)
+        print(
+            f"protect-sensitive-files: BLOCKED — bad JSON payload: {exc}",
+            file=sys.stderr,
+        )
         return 2
 
     if not isinstance(payload, dict):
-        print("protect-sensitive-files: BLOCKED — hook payload must be a JSON object",
-              file=sys.stderr)
+        print(
+            "protect-sensitive-files: BLOCKED — hook payload must be a JSON object",
+            file=sys.stderr,
+        )
         return 2
 
     tool_name = payload.get("tool_name") or ""
@@ -157,7 +164,11 @@ def main(argv=None) -> int:
     # about the bypass after the fact.
     if not candidates:
         try:
-            shape = sorted(tool_input.keys()) if isinstance(tool_input, dict) else type(tool_input).__name__
+            shape = (
+                sorted(tool_input.keys())
+                if isinstance(tool_input, dict)
+                else type(tool_input).__name__
+            )
         except Exception:
             shape = "<unknown>"
         print(
