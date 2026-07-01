@@ -79,3 +79,37 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+def test_url_password_is_masked_in_output(capsys):
+    """Ensure that passwords embedded in URLs are not printed to stdout or stderr."""
+    import sys
+
+    class FakeRequestException(Exception):
+        pass
+
+    # We patch requests via sys.modules and mock the session get method
+    mock_requests = MagicMock()
+    mock_requests.RequestException = FakeRequestException
+
+    mock_session = MagicMock()
+    mock_requests.Session.return_value = mock_session
+    mock_session.get.side_effect = FakeRequestException(
+        "Invalid URL 'http://user:supersecret123@example.com/': No schema supplied."
+    )
+
+    mock_markdownify = MagicMock()
+
+    with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
+        ret = cli.main(["--url", "http://user:supersecret123@example.com/"])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+
+    # Ensure stdout doesn't leak it in "Processing URL: ..."
+    assert "supersecret123" not in outerr.out
+    assert "http://user:***@example.com/" in outerr.out
+
+    # Ensure stderr doesn't leak it in exceptions
+    assert "supersecret123" not in outerr.err
+    assert "http://user:***@example.com/" in outerr.err
