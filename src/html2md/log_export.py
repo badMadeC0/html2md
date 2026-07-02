@@ -6,16 +6,25 @@ import csv
 import json
 from pathlib import Path
 
-_DANGEROUS_PREFIXES = ("=", "+", "-", "@")
+_DANGEROUS_PREFIXES = frozenset(("=", "+", "-", "@"))
 
 
 def _sanitize_formula(value: str) -> str:
     """Prefix strings that look like formulas to prevent CSV injection."""
-    # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+
+    first = value[0]
+    if first in _DANGEROUS_PREFIXES:
         return f"'{value}"
+
+    # Only lstrip if the string starts with whitespace.
+    # This avoids allocations and .startswith() for the vast majority of safe strings.
+    if first.isspace():
+        lstripped = value.lstrip()
+        if lstripped and lstripped[0] in _DANGEROUS_PREFIXES:
+            return f"'{value}"
+
     return value
 
 
