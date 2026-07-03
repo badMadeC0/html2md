@@ -48,7 +48,9 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
         assert "Success!" in outerr.out
 
     # Ensure any output files are contained under --outdir.
-    assert list(outdir.rglob("*.md")), "No markdown files were created in the output directory."
+    assert list(
+        outdir.rglob("*.md")
+    ), "No markdown files were created in the output directory."
     assert secret_file.read_text(encoding="utf-8") == "secret content"
     assert not (tmp_path / "secret.txt.md").exists()
 
@@ -79,3 +81,47 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_url_credentials_are_not_leaked(mock_get, capsys, tmp_path):
+    """URLs containing basic auth credentials do not leak them in logs or filenames."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.content = b"<h1>dummy</h1>"
+    response.encoding = "utf-8"
+    response.headers = {"Content-Length": "14"}
+
+    # Mock iter_content to yield chunks correctly
+    response.iter_content = MagicMock(return_value=[b"<h1>dummy</h1>"])
+
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    url = "https://sensitiveuser:supersecretpassword@example.com/sensitive_path"
+    ret = cli.main(["--url", url, "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+
+    assert ret == 0
+
+    # Output should show masked credentials
+    assert (
+        "Processing URL: https://sensitiveuser:***@example.com/sensitive_path"
+        in outerr.out
+    )
+
+    # Ensure credentials are not leaked in standard output except for the masked username
+    # the username 'sensitiveuser' WILL be in the output as 'sensitiveuser:***'
+    assert "supersecretpassword" not in outerr.out
+    assert "supersecretpassword" not in outerr.err
+    assert "sensitiveuser" not in outerr.err
+
+    # Ensure no file contains the credentials in its name
+    for file_path in outdir.rglob("*.md"):
+        assert "sensitiveuser" not in file_path.name
+        assert "supersecretpassword" not in file_path.name
+        assert "example.com" in file_path.name or "sensitive_path" in file_path.name
