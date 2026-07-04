@@ -14,3 +14,6 @@
 ## 2024-05-18 - [Optimizing CSV Injection Sanitization]
 **Learning:** Hardcoding string checks like `if first_char in "=+-@"` can be faster than tuple checks, but it fails to account for potential multi-character dangerous prefixes that might be added to `_DANGEROUS_PREFIXES` in the future. A safer and faster approach for avoiding `.lstrip()` overhead on non-whitespace strings is to use `first_char.isspace()` to branch, and then use `value.startswith(_DANGEROUS_PREFIXES)` on the non-whitespace branch.
 **Action:** Always prioritize exact semantic equivalence when optimizing. When trying to bypass expensive string operations like `.lstrip()`, use fast-path checks like `.isspace()` to branch, rather than replacing the core validation logic (`.startswith()`) with a simplified, brittle character check.
+## 2024-05-18 - [Fixing PR Metadata CI Failure]
+**Learning:** PRs containing AI transcript metadata URLs must have titles explicitly prefixed with `[AI-Assisted]`. When pushing an updated submission to fix a CI failure, the `submit` tool might not update the PR title if pushed to an existing branch that already has a PR.
+**Action:** When fixing PR title metadata CI failures with the `submit` tool, explicitly push to a new branch name (e.g., `-v2`, `-v3`) to guarantee a new PR is created with the correctly formatted `[AI-Assisted]` title.
