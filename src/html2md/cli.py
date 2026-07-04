@@ -81,6 +81,24 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
+            # Security: SSRF protection on the initial URL
+            if parsed.hostname:
+                import socket
+                import ipaddress
+                try:
+                    # Handle IPv6 properly using getaddrinfo
+                    addr_infos = socket.getaddrinfo(parsed.hostname, None)
+                    for info in addr_infos:
+                        ip = info[4][0]
+                        addr = ipaddress.ip_address(ip)
+                        if addr.is_private or addr.is_loopback or addr.is_link_local:
+                            print(f"Error: Fetching from internal or private IP addresses ({ip}) is not allowed.", file=sys.stderr)
+                            return 1
+                except Exception:
+                    # If DNS resolution fails, let requests handle it (fail open)
+                    # Note: Vulnerable to DNS Rebinding TOCTOU, but adds basic defense-in-depth
+                    pass
+
             print(f"Processing URL: {target_url}")
 
             try:
