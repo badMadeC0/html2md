@@ -23,6 +23,29 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1/admin",
+        "http://localhost:8080/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/",
+        "http://[::1]/",
+    ],
+)
+def test_process_url_ssrf_protection(capsys, tmp_path, url):
+    """Internal and private IP addresses are rejected before any network call."""
+    from unittest.mock import MagicMock
+    mock_requests = MagicMock()
+    mock_requests.RequestException = Exception
+
+    with patch.dict("sys.modules", {"requests": mock_requests, "markdownify": MagicMock()}):
+        cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert "Error: Fetching from internal or private IP addresses" in outerr.err
+
+
 @patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
