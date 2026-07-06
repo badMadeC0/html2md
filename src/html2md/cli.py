@@ -5,7 +5,31 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
+import socket
+import ipaddress
+
+def _is_safe_url(url: str) -> tuple[bool, str]:
+    """Check if the URL resolves to a safe global IP address."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "Invalid URL: No hostname found"
+
+    try:
+        # Resolve the hostname to all available IP addresses
+        for addr_info in socket.getaddrinfo(hostname, None):
+            ip_str = addr_info[4][0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            # Block internal, loopback, link-local, and multicast addresses
+            if ip_obj.is_loopback or ip_obj.is_private or ip_obj.is_link_local or ip_obj.is_multicast:
+                return False, f"URL resolves to a forbidden internal IP ({ip_str})"
+    except socket.gaierror:
+        return False, f"Could not resolve hostname: {hostname}"
+    except ValueError:
+        return False, f"Invalid IP address resolved for {hostname}"
+
+    return True, ""
 
 def main(argv=None):
     """Run the CLI."""
@@ -85,8 +109,43 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
-                # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
+
+                # Manual redirect loop to validate each target URL against SSRF
+                current_url = target_url
+                max_redirects = 5
+                redirects = 0
+                response = None
+
+                while redirects <= max_redirects:
+                    is_safe, error_msg = _is_safe_url(current_url)
+                    if not is_safe:
+                        print(f"Error: {error_msg}: {current_url}", file=sys.stderr)
+                        if response:
+                            response.close()
+                        return 1
+
+                    # Security: Stream response, disable redirects to handle them manually, and enforce 10MB limit to prevent DoS (OOM)
+                    response = session.get(current_url, timeout=30, stream=True, allow_redirects=False)
+
+                    if response.is_redirect:
+                        location = response.headers.get('Location')
+                        if not location:
+                            print("Error: Redirect without Location header.", file=sys.stderr)
+                            response.close()
+                            return 1
+                        current_url = urljoin(current_url, location)
+                        response.close()
+                        redirects += 1
+                        continue
+
+                    break
+
+                if redirects > max_redirects:
+                    print("Error: Too many redirects.", file=sys.stderr)
+                    if response:
+                        response.close()
+                    return 1
+
                 try:
                     response.raise_for_status()
 
@@ -110,7 +169,8 @@ def main(argv=None):
                         chunks.append(chunk)
                     content_bytes = b"".join(chunks)
                 finally:
-                    response.close()
+                    if response:
+                        response.close()
 
                 encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
                 html_content = content_bytes.decode(encoding, errors="replace")

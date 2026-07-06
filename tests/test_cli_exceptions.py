@@ -13,43 +13,47 @@ class TestCliExceptions(unittest.TestCase):
     def test_network_error(self):
         """Test that network errors are caught and printed."""
         captured_stderr = io.StringIO()
-        with patch('sys.stderr', captured_stderr):
-            with patch('requests.Session.get') as mock_get:
-                mock_get.side_effect = requests.RequestException("Network unreachable")
+        with patch('html2md.cli._is_safe_url', return_value=(True, "")):
+            with patch('sys.stderr', captured_stderr):
+                with patch('requests.Session.get') as mock_get:
+                    mock_get.side_effect = requests.RequestException("Network unreachable")
 
-                try:
-                    main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+                    try:
+                        main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
-                output = captured_stderr.getvalue()
-                self.assertIn("Network error", output)
-                self.assertIn("Network unreachable", output)
+                    output = captured_stderr.getvalue()
+                    self.assertIn("Network error", output)
+                    self.assertIn("Network unreachable", output)
 
     def test_file_error(self):
         """Test that file I/O errors are caught and printed."""
         captured_stderr = io.StringIO()
-        with patch('sys.stderr', captured_stderr):
-            with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
-                mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+        with patch('html2md.cli._is_safe_url', return_value=(True, "")):
+            with patch('sys.stderr', captured_stderr):
+                with patch('requests.Session.get') as mock_get:
+                    mock_resp = MagicMock()
+                    mock_resp.text = "<h1>Hello</h1>"
+                    mock_resp.status_code = 200
+                    mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
+                    mock_resp.is_redirect = False
+                    mock_get.return_value = mock_resp
 
-                with patch('markdownify.markdownify', return_value="# Hello"):
-                    with (
-                        patch('pathlib.Path.exists', return_value=False),
-                        patch('pathlib.Path.mkdir'),
-                        patch('pathlib.Path.open', side_effect=OSError("Permission denied")),
-                    ):
-                        try:
-                            main(['--url', 'http://example.com', '--outdir', 'dummy'])
-                        except (SystemExit, RuntimeError, ValueError) as e:
-                            self.fail(f"main raised exception {e}")
+                    with patch('markdownify.markdownify', return_value="# Hello"):
+                        with (
+                            patch('pathlib.Path.exists', return_value=False),
+                            patch('pathlib.Path.mkdir'),
+                            patch('pathlib.Path.open', side_effect=OSError("Permission denied")),
+                        ):
+                            try:
+                                main(['--url', 'http://example.com', '--outdir', 'dummy'])
+                            except (SystemExit, RuntimeError, ValueError) as e:
+                                self.fail(f"main raised exception {e}")
 
-                        output = captured_stderr.getvalue()
-                        self.assertIn("File error", output)
-                        self.assertIn("Permission denied", output)
+                            output = captured_stderr.getvalue()
+                            self.assertIn("File error", output)
+                            self.assertIn("Permission denied", output)
 
     def test_outdir_is_file_returns_error(self):
         """Test that --outdir pointing at an existing file returns a non-zero exit code."""
@@ -67,28 +71,31 @@ class TestCliExceptions(unittest.TestCase):
     def test_outdir_containment_uses_path_aware_check(self):
         """Test that output containment check rejects prefix-matching escapes."""
         captured_stderr = io.StringIO()
-        with patch('sys.stderr', captured_stderr):
-            with patch('requests.Session.get') as mock_get:
-                mock_resp = MagicMock()
-                mock_resp.text = "<h1>Hello</h1>"
-                mock_resp.status_code = 200
-                mock_get.return_value = mock_resp
+        with patch('html2md.cli._is_safe_url', return_value=(True, "")):
+            with patch('sys.stderr', captured_stderr):
+                with patch('requests.Session.get') as mock_get:
+                    mock_resp = MagicMock()
+                    mock_resp.text = "<h1>Hello</h1>"
+                    mock_resp.status_code = 200
+                    mock_resp.iter_content.return_value = [b"<h1>Hello</h1>"]
+                    mock_resp.is_redirect = False
+                    mock_get.return_value = mock_resp
 
-                with patch('markdownify.markdownify', return_value="# Hello"):
-                    with (
-                        patch('pathlib.Path.exists', return_value=True),
-                        patch('pathlib.Path.is_dir', return_value=True),
-                        patch('pathlib.Path.mkdir'),
-                    ):
-                        with patch('pathlib.Path.open') as mock_open:
-                            def fake_resolve(path):
-                                if str(path).endswith('.md'):
-                                    return Path('/tmp/outside/a.md')
-                                return Path('/tmp/out')
+                    with patch('markdownify.markdownify', return_value="# Hello"):
+                        with (
+                            patch('pathlib.Path.exists', return_value=True),
+                            patch('pathlib.Path.is_dir', return_value=True),
+                            patch('pathlib.Path.mkdir'),
+                        ):
+                            with patch('pathlib.Path.open') as mock_open:
+                                def fake_resolve(path):
+                                    if str(path).endswith('.md'):
+                                        return Path('/tmp/outside/a.md')
+                                    return Path('/tmp/out')
 
-                            with patch('pathlib.Path.resolve', fake_resolve):
-                                main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
+                                with patch('pathlib.Path.resolve', fake_resolve):
+                                    main(['--url', 'http://example.com/a', '--outdir', '/tmp/out'])
 
-                            output = captured_stderr.getvalue()
-                            self.assertIn("Output path escapes output directory", output)
-                            mock_open.assert_not_called()
+                                output = captured_stderr.getvalue()
+                                self.assertIn("Output path escapes output directory", output)
+                                mock_open.assert_not_called()

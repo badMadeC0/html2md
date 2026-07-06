@@ -33,11 +33,12 @@ class TestCliError(unittest.TestCase):
         captured_stderr = io.StringIO()
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+            with patch('html2md.cli._is_safe_url', return_value=(True, "")):
+                with patch('sys.stderr', captured_stderr):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         self.assertIn("Network error", output)
@@ -53,6 +54,8 @@ class TestCliError(unittest.TestCase):
         mock_requests.Session.return_value = mock_session
         mock_response = MagicMock()
         mock_response.text = "<html></html>"
+        mock_response.iter_content.return_value = [b"<html></html>"]
+        mock_response.is_redirect = False
         mock_session.get.return_value = mock_response
 
         mock_markdownify = MagicMock()
@@ -62,11 +65,12 @@ class TestCliError(unittest.TestCase):
         captured_stderr = io.StringIO()
 
         with patch.dict(sys.modules, {'requests': mock_requests, 'markdownify': mock_markdownify}):
-            with patch('sys.stderr', captured_stderr):
-                try:
-                    html2md.cli.main(['--url', 'http://example.com'])
-                except (SystemExit, RuntimeError, ValueError) as e:
-                    self.fail(f"main raised exception {e}")
+            with patch('html2md.cli._is_safe_url', return_value=(True, "")):
+                with patch('sys.stderr', captured_stderr):
+                    try:
+                        html2md.cli.main(['--url', 'http://example.com'])
+                    except (SystemExit, RuntimeError, ValueError) as e:
+                        self.fail(f"main raised exception {e}")
 
         output = captured_stderr.getvalue()
         # The code catches Exception and prints "Conversion failed: {e}"

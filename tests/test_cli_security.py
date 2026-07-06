@@ -14,8 +14,9 @@ from html2md import cli
         ("example.com/data.txt", ""),
     ],
 )
+@patch('html2md.cli._is_safe_url', return_value=(True, ""))
 @patch("requests.Session.get")
-def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme):
+def test_process_url_unsupported_scheme(mock_get, mock_is_safe_url, capsys, tmp_path, url, scheme):
     """Unsupported schemes are rejected before any network call."""
     cli.main(["--url", url, "--outdir", str(tmp_path)])
     outerr = capsys.readouterr()
@@ -23,8 +24,9 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
     mock_get.assert_not_called()
 
 
+@patch('html2md.cli._is_safe_url', return_value=(True, ""))
 @patch("requests.Session.get")
-def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
+def test_traversal_like_paths_stay_within_outdir(mock_get, mock_is_safe_url, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
     outdir.mkdir()
@@ -34,6 +36,8 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
+    response.iter_content.return_value = [b"<h1>dummy</h1>"]
+    response.is_redirect = False
     response.raise_for_status.return_value = None
     mock_get.return_value = response
 
@@ -66,8 +70,9 @@ def test_outdir_existing_file_returns_clear_error(capsys, tmp_path):
     assert str(outdir_file) in outerr.err
 
 
+@patch('html2md.cli._is_safe_url', return_value=(True, ""))
 @patch("requests.Session.get")
-def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tmp_path):
+def test_outdir_creation_failure_returns_error_before_fetch(mock_get, mock_is_safe_url, capsys, tmp_path):
     """Output directory creation failures are reported without a traceback."""
     outdir = tmp_path / "blocked"
 
