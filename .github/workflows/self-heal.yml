@@ -79,6 +79,6 @@ jobs:
           git add -A
           git commit -m "Auto-fix applied by self-heal workflow" || exit 0
           git push origin self-heal-fixes-${{ github.run_id }}
-          gh pr create --title "[AI-Assisted] Auto-fix applied by self-heal workflow" --body "Self-healing automated fixes. See attached artifact for logs." --label "self-heal"
+          gh pr create --title "Auto-fix applied by self-heal workflow" --body "Self-healing automated fixes. See attached artifact for logs." --label "self-heal"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
