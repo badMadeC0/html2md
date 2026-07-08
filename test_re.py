@@ -1,0 +1,2 @@
+import re
+print("Matched?", bool(re.search(r'(^|[ \t\n\r\f\v<>(])https://(claude\.ai/(chat|share)/[a-zA-Z0-9_-]+|claude\.ai/code/session_[a-zA-Z0-9_-]+|cursor\.com/share/[a-zA-Z0-9_-]+|chatgpt\.com/codex/[a-zA-Z0-9_-]+|jules\.google\.com/task/[a-zA-Z0-9_-]+)', """*PR created automatically by Jules for task [11447723677436203134](https://jules.google.com/task/11447723677436203134) started by @badMade*""")))
