@@ -79,3 +79,33 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_markdown_xss_sanitization(mock_get, capsys, tmp_path):
+    """Ensure dangerous URL schemes are stripped from links and images before Markdown conversion."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    html_bytes = b'<html><body><a href="javascript:alert(1)">Click</a><img src="vbscript:msgbox(1)"><a href="data:text/html,<script>alert(1)</script>">Data</a><a href="https://example.com">Safe</a></body></html>'
+    response.iter_content.return_value = [html_bytes]
+    response.encoding = 'utf-8'
+    response.headers = {'Content-Length': str(len(html_bytes))}
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://example.com/malicious", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+    assert "Success!" in outerr.out
+
+    md_files = list(outdir.rglob("*.md"))
+    assert len(md_files) == 1
+    content = md_files[0].read_text(encoding="utf-8")
+
+    # Assert dangerous schemes are stripped
+    assert "javascript:" not in content.lower()
+    assert "vbscript:" not in content.lower()
+    assert "data:text/html" not in content.lower()
+    # Assert safe URLs are preserved
+    assert "https://example.com" in content

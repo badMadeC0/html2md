@@ -28,9 +28,10 @@ def main(argv=None):
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
+            from bs4 import BeautifulSoup  # type: ignore # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests markdownify beautifulsoup4", file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -114,6 +115,17 @@ def main(argv=None):
 
                 encoding = response.encoding if isinstance(response.encoding, str) else "utf-8"
                 html_content = content_bytes.decode(encoding, errors="replace")
+
+                # Sanitize HTML to prevent XSS via malicious URL schemes in links/images
+                soup = BeautifulSoup(html_content, 'html.parser')
+                for tag in soup.find_all(True):
+                    for attr in ['href', 'src']:
+                        val = tag.get(attr)
+                        if val and isinstance(val, str):
+                            val_lower = val.lower().strip()
+                            if val_lower.startswith(('javascript:', 'vbscript:', 'data:text/html')):
+                                del tag[attr]
+                html_content = str(soup)
 
                 print("Converting to Markdown...")
                 md_content = md(html_content, heading_style="ATX")
