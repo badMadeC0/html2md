@@ -4,8 +4,31 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+
+def is_safe_url(url_str: str) -> bool:
+    """Verify that a URL resolves to a public, safe IP address to prevent SSRF."""
+    try:
+        parsed = urlparse(url_str)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Resolve hostname to all possible IP addresses
+        addr_infos = socket.getaddrinfo(hostname, None)
+        for addr_info in addr_infos:
+            ip_str = addr_info[4][0]
+            ip = ipaddress.ip_address(ip_str)
+            # Check for various types of non-public IPs
+            if (ip.is_loopback or ip.is_private or ip.is_multicast or
+                ip.is_link_local or ip.is_unspecified or ip.is_reserved):
+                return False
+        return True
+    except Exception:
+        return False
 
 def main(argv=None):
     """Run the CLI."""
@@ -79,6 +102,10 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
+                return 1
+
+            if not is_safe_url(target_url):
+                print(f"Error: Security policy prevents fetching internal or private IP address for URL '{target_url}'. (SSRF protection)", file=sys.stderr)
                 return 1
 
             print(f"Processing URL: {target_url}")
