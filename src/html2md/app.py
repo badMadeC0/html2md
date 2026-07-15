@@ -11,6 +11,20 @@ DEFAULT_PORT = 10000
 app = Flask(__name__)
 
 
+@app.after_request
+def add_security_headers(response):
+    """Add standard security headers to all responses."""
+    # Prevent MIME sniffing
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'DENY'
+    # Enforce HTTPS and prevent downgrade attacks
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Mitigate XSS attacks
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
+    return response
+
+
 @app.route('/health')
 def health():
     """Return health status of the application."""
