@@ -83,6 +83,7 @@ jobs:
           fi
           BRANCH_NAME="self-heal/fix-${GITHUB_RUN_ID}"
           git checkout -b "$BRANCH_NAME"
+          rm -f selfheal-pre.txt selfheal-repair.txt selfheal-post.txt
           git add .
           git commit -m "chore: auto-fix applied by self-heal workflow"
           git push origin "$BRANCH_NAME"
