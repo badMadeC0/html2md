@@ -98,8 +98,15 @@ jobs:
                   method="POST",
               )
 
-              with urllib.request.urlopen(gql_req) as resp:
-                  gql_data = json.loads(resp.read().decode("utf-8"))
+              try:
+                  with urllib.request.urlopen(gql_req) as resp:
+                      gql_data = json.loads(resp.read().decode("utf-8"))
+              except urllib.error.HTTPError as error:
+                  if error.code in (403, 503):
+                      print(f"Skipping: token cannot perform GraphQL query or service unavailable (HTTP {error.code}).")
+                      sys.exit(0)
+                  print(f"Could not perform GraphQL query: {error.read().decode('utf-8')}")
+                  raise
 
               if gql_data.get("errors"):
                   for err in gql_data["errors"]:
@@ -159,8 +166,15 @@ jobs:
               headers=auth_headers,
               method="GET",
           )
-          with urllib.request.urlopen(list_req) as resp:
-              recent = json.loads(resp.read().decode("utf-8"))
+          try:
+              with urllib.request.urlopen(list_req) as resp:
+                  recent = json.loads(resp.read().decode("utf-8"))
+          except urllib.error.HTTPError as error:
+              if error.code in (403, 503):
+                  print(f"Skipping: token cannot fetch comments or service unavailable (HTTP {error.code}).")
+                  sys.exit(0)
+              print(f"Could not fetch comments: {error.read().decode('utf-8')}")
+              raise
           if any(c["body"].strip() == todo_body.strip() for c in recent):
               print("Identical ToDo comment already exists — skipping duplicate.")
               sys.exit(0)

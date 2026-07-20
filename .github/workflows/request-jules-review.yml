@@ -57,8 +57,15 @@ jobs:
                   headers=headers,
                   method="GET",
               )
-              with urllib.request.urlopen(list_req) as resp:
-                  comments = json.loads(resp.read().decode("utf-8"))
+              try:
+                  with urllib.request.urlopen(list_req) as resp:
+                      comments = json.loads(resp.read().decode("utf-8"))
+              except urllib.error.HTTPError as error:
+                  if error.code in (403, 503):
+                      print(f"Skipping: token cannot fetch comments or service unavailable (HTTP {error.code}).")
+                      sys.exit(0)
+                  print(f"Could not fetch comments: {error.read().decode('utf-8')}")
+                  raise
               if any(c["body"].strip() == review_body for c in comments):
                   print("Review already requested — skipping duplicate comment.")
                   sys.exit(0)
