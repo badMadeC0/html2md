@@ -102,7 +102,9 @@ def main(argv=None):
 
                     chunks = []
                     total = 0
-                    for chunk in response.iter_content(chunk_size=8192):
+                    # ⚡ Bolt: Increased chunk_size from 8192 (8KB) to 131072 (128KB)
+                    # to reduce iteration overhead and list appends by 16x during streaming
+                    for chunk in response.iter_content(chunk_size=131072):
                         total += len(chunk)
                         if total > max_size:
                             print(f"Error: Downloaded content exceeds maximum allowed size ({max_size} bytes).", file=sys.stderr)
