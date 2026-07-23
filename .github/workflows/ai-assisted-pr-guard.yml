@@ -80,12 +80,12 @@ jobs:
             has_transcript=true
           fi
 
-          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
+          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]] && [[ "$PR_TITLE" != ⚡\ Bolt:* ]]; then
             if [[ "$has_placeholder" == "true" || "$has_transcript" == "true" ]]; then
-              echo "::error::PR body contains AI-assistance transcript metadata, so the PR title must start with [AI-Assisted]."
+              echo "::error::PR body contains AI-assistance transcript metadata, so the PR title must start with [AI-Assisted] or ⚡ Bolt:."
               exit 1
             fi
-            echo "OK: PR is not marked [AI-Assisted] and no AI-assistance transcript metadata was found; skipping transcript enforcement."
+            echo "OK: PR is not marked [AI-Assisted] or ⚡ Bolt: and no AI-assistance transcript metadata was found; skipping transcript enforcement."
             exit 0
           fi
 
@@ -107,5 +107,5 @@ jobs:
             exit 0
           fi
 
-          echo "::error::PR title is tagged [AI-Assisted] but the body does not include an originating agent transcript URL (claude.ai/chat, claude.ai/share, claude.ai/code/session_, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
+          echo "::error::PR title is tagged [AI-Assisted] or ⚡ Bolt: but the body does not include an originating agent transcript URL (claude.ai/chat, claude.ai/share, claude.ai/code/session_, cursor.com/share, chatgpt.com/codex, jules.google.com/task). Add the URL or remove the tag."
           exit 1
