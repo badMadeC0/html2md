@@ -1,0 +1,13 @@
+{
+  "name": "html2md-cli-monorepo",
+  "version": "0.11.6",
+  "private": true,
+  "scripts": {
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "self:heal": "node scripts/self-heal.mjs",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  }
+}
