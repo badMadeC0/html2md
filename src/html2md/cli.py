@@ -4,8 +4,15 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import re
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+
+
+def _sanitize_text(text: str) -> str:
+    """Mask credentials in URLs to prevent leakage in output."""
+    return re.sub(r"(https?://)[^@/]+@", r"\1***:***@", text)
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -81,7 +88,7 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            print(f"Processing URL: {_sanitize_text(target_url)}")
 
             try:
                 print("Fetching content...")
@@ -147,13 +154,13 @@ def main(argv=None):
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                print(f"Network error: {_sanitize_text(str(e))}", file=sys.stderr)
                 return 1
             except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
+                print(f"File error: {_sanitize_text(str(e))}", file=sys.stderr)
                 return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                print(f"Conversion failed: {_sanitize_text(str(e))}", file=sys.stderr)
                 return 1
 
             return 0
