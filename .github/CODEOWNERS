@@ -1,3 +1,8 @@
 # Assign @google-labs-jules as a reviewer for all pull requests
 
 * @jules
+
+# Self-heal auto-routing
+* @badMade
+apps/** @badMade
+packages/** @badMade
