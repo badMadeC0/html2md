@@ -79,3 +79,22 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+def test_cli_masks_credentials_in_output_and_errors(mock_get, capsys, tmp_path):
+    """Ensure passwords in URLs are masked in standard output and error messages."""
+    import requests
+    mock_get.side_effect = requests.RequestException("Failed to connect to http://user:secret123@example.com/")
+
+    ret = cli.main(["--url", "http://user:secret123@example.com/", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+
+    # Check that stdout doesn't contain the secret
+    assert "secret123" not in outerr.out
+    assert "http://user:***@example.com/" in outerr.out
+
+    # Check that stderr doesn't contain the secret
+    assert "secret123" not in outerr.err
+    assert "http://user:***@example.com/" in outerr.err
