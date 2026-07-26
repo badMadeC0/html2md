@@ -81,7 +81,11 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            safe_url = target_url
+            if parsed.password:
+                safe_url = target_url.replace(f":{parsed.password}@", ":***@")
+
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
@@ -123,7 +127,9 @@ def main(argv=None):
                     filename = "conversion_result.md"
                     url_path = target_url.split('?')[0].rstrip('/')
                     if url_path:
-                        base = os.path.basename(unquote(url_path))
+                        # use safe_url to prevent leaking passwords in filename
+                        safe_url_path = safe_url.split('?')[0].rstrip('/')
+                        base = os.path.basename(unquote(safe_url_path))
                         # Sanitize to prevent path traversal
                         base = base.replace('/', '_').replace('\\', '_')
                         base = base.strip('. ')
