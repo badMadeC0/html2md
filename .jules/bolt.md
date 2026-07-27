@@ -8,3 +8,6 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+## 2024-05-18 - [Python String and Type Checking Optimizations in Hot Loops]
+**Learning:** Exact type checking using `type(x) is dict` and `type(x) is str` is measurably faster than `isinstance(x, dict)` and `isinstance(x, str)` in Python. When checking string prefixes, avoiding `.lstrip()` entirely by first checking `.isspace()` on the first character significantly improves string sanitization performance, as string containment checks (`value[0] in "=+-@"`) are extremely fast.
+**Action:** Apply exact type checks (`type() is`) in critical fast-paths (like CSV row processing loops) where inheritance is not a concern, and avoid `.lstrip()` unless pre-flight checks (like `.isspace()`) suggest it is necessary.
