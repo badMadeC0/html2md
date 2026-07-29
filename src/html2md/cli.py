@@ -121,11 +121,13 @@ def main(argv=None):
                 if args.outdir:
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(unquote(url_path))
+                    safe_path = parsed.path.rstrip('/')
+                    if not safe_path:
+                        safe_path = parsed.hostname or ""
+                    if safe_path:
+                        base = os.path.basename(unquote(safe_path))
                         # Sanitize to prevent path traversal
-                        base = base.replace('/', '_').replace('\\', '_')
+                        base = base.replace('/', '_').replace('\\', '_').replace(':', '_')
                         base = base.strip('. ')
                         if base:
                             filename = f"{base}.md"
