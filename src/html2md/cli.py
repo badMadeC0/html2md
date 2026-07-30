@@ -7,6 +7,32 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
+from urllib.parse import urlunparse
+
+def _redact_url(url: str) -> str:
+    """Redact password from URL if present."""
+    parsed = urlparse(url)
+    if not parsed.password:
+        return url
+
+    # Safely reconstruct netloc preserving formatting, avoiding parsed.port
+    # which can raise ValueError on non-numeric ports, and avoiding
+    # parsed.hostname which strips IPv6 brackets.
+    # Instead, we replace the password substring directly if we know username.
+    netloc = parsed.netloc
+
+    # urlparse puts credentials before '@' in netloc
+    if '@' in netloc:
+        credentials, rest = netloc.split('@', 1)
+        if ':' in credentials:
+            # Safely replace password part
+            username, _ = credentials.split(':', 1)
+            safe_netloc = f"{username}:***@{rest}"
+            parsed = parsed._replace(netloc=safe_netloc)
+
+    return urlunparse(parsed)
+
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -81,7 +107,8 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            safe_url = _redact_url(target_url)
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
@@ -121,7 +148,7 @@ def main(argv=None):
                 if args.outdir:
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
+                    url_path = safe_url.split('?')[0].rstrip('/')
                     if url_path:
                         base = os.path.basename(unquote(url_path))
                         # Sanitize to prevent path traversal
