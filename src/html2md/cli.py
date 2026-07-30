@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
 
 def main(argv=None):
     """Run the CLI."""
@@ -81,12 +83,60 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
+            def check_ssrf(url_to_check: str) -> bool:
+                p = urlparse(url_to_check)
+                if not p.hostname:
+                    return False
+                try:
+                    addr_info = socket.getaddrinfo(p.hostname, None)
+                    for res in addr_info:
+                        ip = res[4][0]
+                        ip_obj = ipaddress.ip_address(ip)
+                        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_unspecified:
+                            return False
+                except socket.gaierror:
+                    pass
+                except ValueError:
+                    pass
+                return True
+
+            if not check_ssrf(target_url):
+                print(f"Error: Security violation. Access to internal/private IP is blocked to prevent SSRF.", file=sys.stderr)
+                return 1
+
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
+                # Also handle redirects manually to prevent SSRF bypasses via redirects
+                redirect_count = 0
+                max_redirects = 5
+                current_url = target_url
+
+                while redirect_count < max_redirects:
+                    response = session.get(current_url, timeout=30, stream=True, allow_redirects=False)
+                    if response.status_code in (301, 302, 303, 307, 308):
+                        location = response.headers.get("Location")
+                        if not location:
+                            print("Error: Redirect missing Location header.", file=sys.stderr)
+                            return 1
+
+                        current_url = urljoin(current_url, location)
+
+                        if not check_ssrf(current_url):
+                            print(f"Error: Security violation on redirect. Access to internal/private IP is blocked to prevent SSRF.", file=sys.stderr)
+                            return 1
+                        redirect_count += 1
+                        response.close()
+                        continue
+                    else:
+                        break
+
+                if redirect_count >= max_redirects:
+                    print(f"Error: Too many redirects (>{max_redirects}).", file=sys.stderr)
+                    return 1
+
                 try:
                     response.raise_for_status()
 

@@ -79,3 +79,68 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_ssrf_protection_blocks_internal_ips(mock_get, capsys, tmp_path):
+    """Ensure that SSRF protection blocks requests to internal and loopback IP addresses (IPv4 & IPv6)."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    urls_to_block = [
+        "http://127.0.0.1/",
+        "http://localhost/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/admin",
+        "http://[::1]/",
+        "http://[fe80::1]/"
+    ]
+
+    for url in urls_to_block:
+        ret = cli.main(["--url", url, "--outdir", str(outdir)])
+        outerr = capsys.readouterr()
+
+        assert ret == 1
+        assert "Error: Security violation." in outerr.err
+        assert "blocked to prevent SSRF" in outerr.err
+        mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_ssrf_protection_handles_missing_hostname(mock_get, capsys, tmp_path):
+    """Ensure that SSRF protection gracefully handles malformed URLs without a hostname."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    url = "http:///path"
+    ret = cli.main(["--url", url, "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "Error: Security violation." in outerr.err
+    mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_ssrf_protection_blocks_redirect_to_internal_ip(mock_get, capsys, tmp_path):
+    """Ensure that SSRF protection catches redirects to internal IPs."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    url = "http://example.com"
+
+    # Mock response for the initial valid request
+    mock_response = MagicMock()
+    mock_response.status_code = 302
+    mock_response.headers = {"Location": "http://127.0.0.1/"}
+
+    # Needs to return a valid response that will trigger a redirect
+    mock_get.return_value = mock_response
+
+    ret = cli.main(["--url", url, "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "Error: Security violation on redirect." in outerr.err
+    assert "blocked to prevent SSRF" in outerr.err
+    mock_get.assert_called_once()
