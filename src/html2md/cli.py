@@ -71,6 +71,10 @@ def main(argv=None):
 
         def process_url(target_url: str) -> int:
             """Process a single URL. Returns 0 on success, 1 on error."""
+            # Security: Sanitize input by removing leading/trailing whitespace
+            # and control characters that might bypass scheme validation
+            target_url = target_url.strip()
+
             # Fix common URL typo: trailing slash before query parameters
             if '/?' in target_url:
                 target_url = target_url.replace('/?', '?')

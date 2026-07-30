@@ -12,6 +12,8 @@ from html2md import cli
         ("file:///etc/passwd", "file"),
         ("ftp://example.com/data.txt", "ftp"),
         ("example.com/data.txt", ""),
+        (" \r\n file:///etc/passwd", "file"),
+        ("\tjavascript://alert(1)", "javascript"),
     ],
 )
 @patch("requests.Session.get")
