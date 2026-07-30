@@ -79,3 +79,33 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+def test_url_credentials_redacted_in_stdout_and_filename(capsys, tmp_path):
+    """Ensure passwords in URLs are redacted from stdout and not used in filenames."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    with patch("requests.Session.get") as mock_get:
+        response = MagicMock()
+        response.text = "<h1>dummy</h1>"
+        response.raise_for_status.return_value = None
+        mock_get.return_value = response
+
+        # A URL without a path means the domain is used for the filename,
+        # verifying the password isn't leaked into the filename either.
+        url = "http://user:supersecret@example.com"
+        cli.main(["--url", url, "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+
+    # The password should not be in the output
+    assert "supersecret" not in outerr.out
+    assert "supersecret" not in outerr.err
+
+    # The redacted string should be in the output
+    assert "user:***@example.com" in outerr.out
+
+    # The output filename should not contain the password
+    created_files = list(outdir.glob("*.md"))
+    assert len(created_files) == 1
+    assert "supersecret" not in created_files[0].name
