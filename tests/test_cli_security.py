@@ -79,3 +79,34 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_url_credentials_are_sanitized_in_output(mock_get, capsys, tmp_path):
+    """Test that URLs containing credentials do not leak them into stdout."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    # Provide dummy content bytes to avoid decode error in cli.py
+    response.iter_content.return_value = [b"<h1>dummy</h1>"]
+    response.encoding = "utf-8"
+    mock_get.return_value = response
+
+    # Provide a URL with basic auth
+    url = "http://sensitiveuser:supersecretpass@example.com/foo"
+
+    cli.main(["--url", url, "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+
+    # Assert that the sanitized URL is printed
+    assert "Processing URL: http://***:***@example.com/foo" in outerr.out
+
+    # Assert that the credentials are not leaked in stdout or stderr
+    assert "sensitiveuser" not in outerr.out
+    assert "supersecretpass" not in outerr.out
+    assert "sensitiveuser" not in outerr.err
+    assert "supersecretpass" not in outerr.err
