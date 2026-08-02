@@ -1,0 +1,80 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest black
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-pre.txt
+
+      - name: Attempt self-heal repairs
+        run: python scripts/self-heal.py | tee selfheal-repair.txt
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-post.txt
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Check for diff
+        id: check_diff
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "has_diff=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success' && steps.check_diff.outputs.has_diff == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: automated self-heal repairs"
+          git push -f origin HEAD:self-heal-patch
+          gh pr create --base main --head self-heal-patch --title "chore: automated self-heal repairs" --body "Automated fixes from self-heal workflow." --label "self-heal" || echo "PR already exists"
