@@ -40,3 +40,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+test_large.jsonl
+test_large.csv
+generate_jsonl.py
