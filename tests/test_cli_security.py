@@ -79,3 +79,19 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_cli_masks_passwords_in_output(mock_get, capsys):
+    """Ensure that passwords in URLs are masked in CLI output."""
+    mock_response = MagicMock()
+    mock_response.text = "<h1>Hello</h1>"
+    mock_response.raise_for_status.return_value = None
+    mock_get.return_value = mock_response
+
+    cli.main(["--url", "http://admin:supersecret@example.com"])
+
+    outerr = capsys.readouterr()
+    assert "http://admin:***@example.com" in outerr.out
+    assert "supersecret" not in outerr.out
+    assert "supersecret" not in outerr.err
