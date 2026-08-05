@@ -8,3 +8,8 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+## 2024-06-25 - Python Fast Path Optimizations for CSV/JSON Export Loop - Update
+
+**Learning:** When optimizing Python, using `type(x) is` instead of `isinstance()` is an unsafe micro-optimization that can break polymorphism (e.g. subclassing like `OrderedDict`). It should be avoided unless explicitly required. The true measurable performance gains come from avoiding string allocations entirely, such as checking `value[0].isspace()` before calling `value.lstrip()`. Also, avoid committing benchmarking files (`bench.py`, etc) to the repo.
+
+**Action:** Continue relying on `isinstance()` for type checks to preserve duck-typing safety, and focus on algorithmic / memory allocation optimizations (like avoiding `lstrip()` via fast-path checks) which yield better and safer performance gains.
