@@ -75,7 +75,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "chore(self-heal): auto-fixes from CI failure"
-          title: "[Self-heal] Auto-fixes applied"
+          title: "[AI-Assisted] Auto-fixes applied"
           body: |
             ## Self-healing Auto-fixes
             Triggered by a CI failure. The self-healing scripts successfully repaired the project.
