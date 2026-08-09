@@ -81,7 +81,11 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            safe_url = target_url
+            if parsed.password:
+                safe_url = target_url.replace(f":{parsed.password}@", ":***@")
+
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
@@ -121,9 +125,9 @@ def main(argv=None):
                 if args.outdir:
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
-                    if url_path:
-                        base = os.path.basename(unquote(url_path))
+                    safe_url_path = safe_url.split('?')[0].rstrip('/')
+                    if safe_url_path:
+                        base = os.path.basename(unquote(safe_url_path))
                         # Sanitize to prevent path traversal
                         base = base.replace('/', '_').replace('\\', '_')
                         base = base.strip('. ')
@@ -147,13 +151,22 @@ def main(argv=None):
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                err_msg = str(e)
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(f"Network error: {err_msg}", file=sys.stderr)
                 return 1
             except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
+                err_msg = str(e)
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(f"File error: {err_msg}", file=sys.stderr)
                 return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                err_msg = str(e)
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(f"Conversion failed: {err_msg}", file=sys.stderr)
                 return 1
 
             return 0

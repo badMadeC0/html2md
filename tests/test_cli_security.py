@@ -67,6 +67,43 @@ def test_outdir_existing_file_returns_clear_error(capsys, tmp_path):
 
 
 @patch("requests.Session.get")
+def test_cli_masks_passwords_in_url_output(mock_get, capsys, tmp_path):
+    """The CLI must not leak passwords from basic auth URLs in its console output."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://user:supersecretpass@example.com", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert "Processing URL: http://user:***@example.com" in outerr.out
+    assert "supersecretpass" not in outerr.out
+    assert "supersecretpass" not in outerr.err
+
+
+@patch("requests.Session.get")
+def test_cli_masks_passwords_in_network_error(mock_get, capsys):
+    """The CLI must not leak passwords in error messages when network requests fail."""
+    import requests
+    mock_get.side_effect = requests.RequestException(
+        "Max retries exceeded with url: http://user:supersecretpass@example.com/"
+    )
+
+    cli.main(["--url", "http://user:supersecretpass@example.com/"])
+    outerr = capsys.readouterr()
+
+    assert "Processing URL: http://user:***@example.com" in outerr.out
+    assert "Network error:" in outerr.err
+    assert "http://user:***@example.com/" in outerr.err
+    assert "supersecretpass" not in outerr.out
+    assert "supersecretpass" not in outerr.err
+
+
+@patch("requests.Session.get")
 def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tmp_path):
     """Output directory creation failures are reported without a traceback."""
     outdir = tmp_path / "blocked"
