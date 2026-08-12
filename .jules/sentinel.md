@@ -5,3 +5,7 @@
 ## 2024-08-12 - AI-Assisted PR Metadata Requirements
 **Learning:** PR titles must start with `[AI-Assisted]` when the body contains an AI transcript URL (e.g. `jules.google.com/task/...`) to pass the GitHub Actions CI check "Verify AI-assisted PR metadata".
 **Action:** Always include the `[AI-Assisted]` prefix in the PR title for tasks involving AI agents in this project to prevent CI failures.
+
+## 2024-08-12 - AI-Assisted PR Metadata Requirements (Update)
+**Learning:** When a PR fails the "Verify AI-assisted PR metadata" check due to a missing `[AI-Assisted]` prefix, modifying the title via the `submit` tool on the *same branch* may not update the PR title on GitHub, causing repeated CI failures.
+**Action:** When fixing a missing `[AI-Assisted]` prefix, use a **new branch name** with the `submit` tool so that a new Pull Request is created with the correct title from the start.
