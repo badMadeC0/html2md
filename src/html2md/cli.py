@@ -81,7 +81,13 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            # Prevent credential leakage in logs
+            safe_url = target_url
+            if parsed.username or parsed.password:
+                safe_netloc = parsed.netloc.split('@')[-1]
+                safe_url = parsed._replace(netloc=safe_netloc).geturl()
+
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
