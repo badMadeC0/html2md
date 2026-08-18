@@ -5,7 +5,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urlunparse
 
 def main(argv=None):
     """Run the CLI."""
@@ -81,7 +81,12 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            safe_target_url = target_url
+            if parsed.password:
+                safe_netloc = parsed.netloc.replace(f":{parsed.password}@", ":***@")
+                safe_target_url = urlunparse(parsed._replace(netloc=safe_netloc))
+
+            print(f"Processing URL: {safe_target_url}")
 
             try:
                 print("Fetching content...")
@@ -147,13 +152,22 @@ def main(argv=None):
                     print(md_content)
 
             except requests.RequestException as e:
-                print(f"Network error: {e}", file=sys.stderr)
+                err_msg = f"Network error: {e}"
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(err_msg, file=sys.stderr)
                 return 1
             except OSError as e:
-                print(f"File error: {e}", file=sys.stderr)
+                err_msg = f"File error: {e}"
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(err_msg, file=sys.stderr)
                 return 1
             except Exception as e:  # pylint: disable=broad-exception-caught
-                print(f"Conversion failed: {e}", file=sys.stderr)
+                err_msg = f"Conversion failed: {e}"
+                if parsed.password:
+                    err_msg = err_msg.replace(f":{parsed.password}@", ":***@")
+                print(err_msg, file=sys.stderr)
                 return 1
 
             return 0
