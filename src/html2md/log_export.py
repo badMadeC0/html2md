@@ -14,13 +14,8 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES:
+    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
-
-    # Only perform expensive lstrip() and startswith() if the string starts with whitespace
-    if value[0].isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
-        return f"'{value}"
-
     return value
 
 
@@ -49,7 +44,7 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if type(value) is str:
+    if isinstance(value, str):
         return _sanitize_formula(value)
     return value
 
@@ -64,7 +59,7 @@ def main(argv=None):
     ap.add_argument('--fields', default='ts,input,output,status,reason')
     args = ap.parse_args(argv)
 
-    fields = [stripped for f in args.fields.split(',') if (stripped := f.strip())]
+    fields = [f.strip() for f in args.fields.split(',') if f.strip()]
     fieldnames, mapping = _unique_fieldnames(fields)
 
     inp = Path(args.inp)
@@ -90,7 +85,7 @@ def main(argv=None):
                 continue
 
             # Strict/fast dict check
-            if type(rec) is not dict:
+            if not isinstance(rec, dict):
                 continue
 
             writerow([
