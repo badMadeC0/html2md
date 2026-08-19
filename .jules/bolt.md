@@ -8,3 +8,7 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-25 - Python String Operations Optimization
+**Learning:** Optimizing repeated string operations like `.strip()` and expensive `.startswith()` checks can measurably improve performance in hot paths. Using the walrus operator (`:=`) in list comprehensions (e.g. `[stripped for f in args.fields.split(',') if (stripped := f.strip())]`) avoids calling `.strip()` twice. Checking a single character (`value[0].isspace()`) before performing an expensive `value.lstrip().startswith(...)` creates a fast path that skips string allocations for the vast majority of strings.
+**Action:** When performing string manipulations in loops, use walrus operators to cache results of operations like `.strip()` and add single-character checks (like `.isspace()`) to create fast paths that bypass expensive methods.
