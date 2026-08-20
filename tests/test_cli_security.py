@@ -79,3 +79,46 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@patch("requests.Session.get")
+def test_xss_mitigation_sanitizes_dangerous_schemes(mock_get, capsys):
+    """Dangerous URL schemes in links and images should be sanitized to prevent XSS."""
+    html_content = '''
+        <html><body>
+            <a href="javascript:alert(1)">XSS Link</a>
+            <a href=" vbscript:msgbox(1)">VBScript Link</a>
+            <a href="DATA:text/html,<script>alert(1)</script>">Data Link</a>
+            <a href="https://example.com">Safe Link</a>
+            <img src="javascript:alert(1)" alt="XSS Image">
+            <img src="https://example.com/image.png" alt="Safe Image">
+        </body></html>
+    '''
+
+    response = MagicMock()
+    # Mocking iter_content and Content-Length to pass size checks
+    response.iter_content.return_value = [html_content.encode("utf-8")]
+    response.headers = {'Content-Length': str(len(html_content))}
+    response.encoding = "utf-8"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    ret = cli.main(["--url", "http://example.com"])
+
+    assert ret == 0
+    outerr = capsys.readouterr()
+    output = outerr.out
+
+    # Check that dangerous links are sanitized to '#'
+    assert "[XSS Link](#)" in output
+    assert "[VBScript Link](#)" in output
+    assert "[Data Link](#)" in output
+
+    # Check that safe link is preserved
+    assert "[Safe Link](https://example.com)" in output
+
+    # Check that dangerous image src is removed/empty
+    assert "![XSS Image]()" in output
+
+    # Check that safe image is preserved
+    assert "![Safe Image](https://example.com/image.png)" in output

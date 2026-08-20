@@ -28,9 +28,10 @@ def main(argv=None):
         try:
             import requests  # type: ignore  # pylint: disable=import-outside-toplevel
             from markdownify import markdownify as md  # pylint: disable=import-outside-toplevel
+            from bs4 import BeautifulSoup  # type: ignore  # pylint: disable=import-outside-toplevel
         except ImportError as e:
             print(f"Error: Missing dependency {e.name}."
-                  "Please run: pip install requests markdownify", file=sys.stderr)
+                  "Please run: pip install requests markdownify beautifulsoup4", file=sys.stderr)
             return 1
 
         session = requests.Session()
@@ -116,7 +117,19 @@ def main(argv=None):
                 html_content = content_bytes.decode(encoding, errors="replace")
 
                 print("Converting to Markdown...")
-                md_content = md(html_content, heading_style="ATX")
+                # Security: Sanitize dangerous schemes to prevent XSS in Markdown rendering
+                soup = BeautifulSoup(html_content, 'html.parser')
+                for tag in soup.find_all(['a', 'img']):
+                    if tag.name == 'a' and tag.has_attr('href'):
+                        href = tag['href'].strip().lower()
+                        if href.startswith(('javascript:', 'vbscript:', 'data:')):
+                            tag['href'] = '#'
+                    elif tag.name == 'img' and tag.has_attr('src'):
+                        src = tag['src'].strip().lower()
+                        if src.startswith(('javascript:', 'vbscript:', 'data:')):
+                            tag['src'] = ''
+
+                md_content = md(str(soup), heading_style="ATX")
 
                 if args.outdir:
                     # Create a safe filename based on the URL
