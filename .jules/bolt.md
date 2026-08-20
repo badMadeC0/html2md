@@ -8,3 +8,7 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2025-01-08 - [Incomplete Fast Paths in Logical ORs]
+**Learning:** In `_sanitize_formula`, an intended fast path optimization missed its mark. The condition `value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES)` meant that for 99% of normal strings (which don't start with a dangerous prefix), the first condition was False, causing Python to evaluate the second condition and execute the expensive `lstrip()` anyway.
+**Action:** Guard expensive string operations in logical OR statements with an additional fast-path check. For example, use `value[0].isspace() and value.lstrip().startswith(...)` so the expensive operation is only called when absolutely necessary.
