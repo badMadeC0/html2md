@@ -14,7 +14,10 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    first_char = value[0]
+    if first_char in _DANGEROUS_PREFIXES:
+        return f"'{value}"
+    if first_char.isspace() and value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -44,7 +47,7 @@ def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
     if value is None:
         return ""
-    if isinstance(value, str):
+    if type(value) is str:
         return _sanitize_formula(value)
     return value
 
@@ -85,7 +88,7 @@ def main(argv=None):
                 continue
 
             # Strict/fast dict check
-            if not isinstance(rec, dict):
+            if type(rec) is not dict:
                 continue
 
             writerow([
