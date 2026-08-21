@@ -5,7 +5,37 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
+import socket
+import ipaddress
+
+def _is_internal_url(url: str) -> bool:
+    """Check if the URL resolves to an internal/private IP address."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return True
+
+        # Use getaddrinfo to support both IPv4 and IPv6
+        addr_info = socket.getaddrinfo(hostname, None)
+
+        # Check all resolved IP addresses to prevent bypass
+        for res in addr_info:
+            ip_addr = res[4][0]
+            ip = ipaddress.ip_address(ip_addr)
+            if (ip.is_private or ip.is_loopback or
+                ip.is_link_local or ip.is_multicast or
+                ip.is_reserved or ip.is_unspecified):
+                return True
+
+        return False
+    except OSError:
+        # If DNS resolution fails or other OS error, it's safer to block
+        return True
+    except ValueError:
+        return True
+
 
 def main(argv=None):
     """Run the CLI."""
@@ -85,8 +115,35 @@ def main(argv=None):
 
             try:
                 print("Fetching content...")
+
+                # Security: Prevent SSRF by validating the URL and handling redirects manually
+                current_url = target_url
+                max_redirects = 5
+                response = None
+
+                for _ in range(max_redirects + 1):
+                    if _is_internal_url(current_url):
+                        print(f"Error: Refusing to fetch internal or unresolvable URL: {current_url}", file=sys.stderr)
+                        return 1
+
+                    response = session.get(current_url, timeout=30, stream=True, allow_redirects=False)
+
+                    if response.status_code in (301, 302, 303, 307, 308):
+                        location = response.headers.get('Location')
+                        if not location:
+                            print("Error: Redirect without Location header.", file=sys.stderr)
+                            response.close()
+                            return 1
+                        current_url = urljoin(current_url, location)
+                        response.close()
+                        continue
+
+                    break
+                else:
+                    print(f"Error: Too many redirects (>{max_redirects}).", file=sys.stderr)
+                    return 1
+
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
                 try:
                     response.raise_for_status()
 

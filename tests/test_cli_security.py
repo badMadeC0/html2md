@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 import pytest
+import socket
 
 from html2md import cli
 
@@ -79,3 +80,54 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "url, mock_ip",
+    [
+        ("http://localhost:8080/admin", "127.0.0.1"),
+        ("http://127.0.0.1/admin", "127.0.0.1"),
+        ("http://169.254.169.254/latest/meta-data/", "169.254.169.254"),
+        ("http://internal.company.com/secret", "10.0.0.1"),
+    ],
+)
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_ssrf_direct_internal_url(mock_get, mock_getaddr, capsys, tmp_path, url, mock_ip):
+    """Direct requests to internal or loopback IP addresses are blocked."""
+    mock_getaddr.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', (mock_ip, 0))]
+
+    ret = cli.main(["--url", url, "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Refusing to fetch internal or unresolvable URL" in outerr.err
+    mock_get.assert_not_called()
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_ssrf_redirect_to_internal(mock_get, mock_getaddr, capsys, tmp_path):
+    """Redirects to internal or loopback IP addresses are blocked."""
+    import socket
+    # First host resolves to public IP, second to private IP
+    def getaddr_side_effect(hostname, *args, **kwargs):
+        if hostname == "public.example.com":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ("93.184.216.34", 0))]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ("169.254.169.254", 0))]
+    mock_getaddr.side_effect = getaddr_side_effect
+
+    # Mock the redirect response
+    redirect_response = MagicMock()
+    redirect_response.status_code = 302
+    redirect_response.headers = {'Location': 'http://169.254.169.254/meta-data'}
+
+    # Since requests.Session.get is called with allow_redirects=False, it just returns the 302
+    mock_get.return_value = redirect_response
+
+    ret = cli.main(["--url", "http://public.example.com/redirect", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Refusing to fetch internal or unresolvable URL" in outerr.err
+    assert mock_get.call_count == 1
