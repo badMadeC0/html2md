@@ -8,3 +8,7 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+
+## 2024-05-24 - Python Micro-Optimization Anti-Pattern: type() vs isinstance()
+**Learning:** Replacing `isinstance(x, dict)` with `type(x) is dict` in tight loops for a negligible nanosecond performance gain is an anti-pattern. While technically faster, it breaks polymorphism (failing on subclasses like `defaultdict` or `OrderedDict`) and explicitly violates the rule against "Micro-optimizations with no measurable impact" and "sacrificing correctness".
+**Action:** Never optimize `isinstance()` checks using exact `type()` equality in Python code unless exact type matching is a functional requirement, regardless of loop heat.
