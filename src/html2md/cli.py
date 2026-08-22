@@ -81,7 +81,16 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            from urllib.parse import urlunparse
+
+            # Security: Mask basic auth passwords to prevent credential leakage in logs
+            if parsed.password:
+                safe_netloc = parsed.netloc.replace(f":{parsed.password}@", ":***@")
+                safe_url = urlunparse(parsed._replace(netloc=safe_netloc))
+            else:
+                safe_url = target_url
+
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
