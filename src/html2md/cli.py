@@ -81,7 +81,14 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            display_url = target_url
+            if parsed.password:
+                host_info = parsed.netloc.rsplit('@', 1)[-1]
+                user_info = parsed.username or ''
+                masked_netloc = f"{user_info}:***@{host_info}"
+                display_url = parsed._replace(netloc=masked_netloc).geturl()
+
+            print(f"Processing URL: {display_url}")
 
             try:
                 print("Fetching content...")
