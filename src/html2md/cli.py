@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, urljoin, unquote
 
 def main(argv=None):
     """Run the CLI."""
@@ -81,12 +83,70 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
+            # SSRF Protection: Prevent fetching from local, private, or link-local IPs
+            hostname = parsed.hostname
+            if hostname:
+                try:
+                    # Use getaddrinfo to support both IPv4 and IPv6
+                    addr_info = socket.getaddrinfo(hostname, None)
+                    for info in addr_info:
+                        ip_addr = info[4][0]
+                        ip_obj = ipaddress.ip_address(ip_addr)
+                        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_unspecified:
+                            print(f"Error: URL resolves to a local/private network address ({ip_addr}). "
+                                  "SSRF protection prevented this request.", file=sys.stderr)
+                            return 1
+                except socket.gaierror:
+                    print(f"Error: Could not resolve hostname '{hostname}'.", file=sys.stderr)
+                    return 1
+
             print(f"Processing URL: {target_url}")
 
             try:
                 print("Fetching content...")
                 # Security: Stream response and enforce 10MB limit to prevent DoS (OOM)
-                response = session.get(target_url, timeout=30, stream=True)
+                # Security: Disable redirects to prevent SSRF bypass via redirects
+                response = session.get(target_url, timeout=30, stream=True, allow_redirects=False)
+
+                # Handle redirects manually to enforce SSRF checks on the redirect target
+                redirect_count = 0
+                max_redirects = 10
+                current_url = target_url
+                while response.is_redirect:
+                    if redirect_count >= max_redirects:
+                        print("Error: Too many redirects.", file=sys.stderr)
+                        return 1
+                    redirect_count += 1
+
+                    redirect_url = response.headers.get('Location')
+                    if not redirect_url:
+                        break
+
+                    # Fix relative redirects securely using urljoin
+                    redirect_url = urljoin(current_url, redirect_url)
+                    current_url = redirect_url
+
+                    redirect_parsed = urlparse(redirect_url)
+                    redirect_hostname = redirect_parsed.hostname
+                    if redirect_hostname:
+                        try:
+                            # Use getaddrinfo to support both IPv4 and IPv6
+                            addr_info = socket.getaddrinfo(redirect_hostname, None)
+                            for info in addr_info:
+                                redirect_ip = info[4][0]
+                                redirect_ip_obj = ipaddress.ip_address(redirect_ip)
+                                if redirect_ip_obj.is_private or redirect_ip_obj.is_loopback or redirect_ip_obj.is_link_local or redirect_ip_obj.is_unspecified:
+                                    print(f"Error: URL redirects to a local/private network address ({redirect_ip}). "
+                                          "SSRF protection prevented this request.", file=sys.stderr)
+                                    return 1
+                        except socket.gaierror:
+                            print(f"Error: Could not resolve redirect hostname '{redirect_hostname}'.", file=sys.stderr)
+                            return 1
+
+                    print(f"Following redirect to: {redirect_url}")
+                    response.close()
+                    response = session.get(redirect_url, timeout=30, stream=True, allow_redirects=False)
+
                 try:
                     response.raise_for_status()
 

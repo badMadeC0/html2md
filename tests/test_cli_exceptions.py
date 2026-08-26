@@ -34,6 +34,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.is_redirect = False
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
@@ -72,6 +73,7 @@ class TestCliExceptions(unittest.TestCase):
                 mock_resp = MagicMock()
                 mock_resp.text = "<h1>Hello</h1>"
                 mock_resp.status_code = 200
+                mock_resp.is_redirect = False
                 mock_get.return_value = mock_resp
 
                 with patch('markdownify.markdownify', return_value="# Hello"):
