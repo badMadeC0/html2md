@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 import pytest
+import socket
 
 from html2md import cli
 
@@ -34,6 +35,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
+    response.is_redirect = False
     response.raise_for_status.return_value = None
     mock_get.return_value = response
 
@@ -78,4 +80,55 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert ret == 1
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
+    mock_get.assert_not_called()
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_ssrf_protection_direct_ip(mock_get, mock_getaddrinfo, capsys, tmp_path):
+    """Test that direct fetching of local/private IPs is blocked by SSRF protection."""
+    # Ensure DNS resolution just returns the same IP
+    def fake_getaddrinfo(hostname, *args, **kwargs):
+        if hostname == "localhost":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', (hostname, 80))]
+
+    mock_getaddrinfo.side_effect = fake_getaddrinfo
+
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    urls_to_block = [
+        "http://127.0.0.1/",
+        "http://localhost/",  # Will be mocked to resolve to 127.0.0.1
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/admin",
+        "http://192.168.1.100/"
+    ]
+
+
+    for url in urls_to_block:
+        ret = cli.main(["--url", url, "--outdir", str(outdir)])
+        outerr = capsys.readouterr()
+
+        assert ret == 1
+        assert "SSRF protection prevented this request" in outerr.err
+        mock_get.assert_not_called()
+
+
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_ssrf_protection_dns_rebinding(mock_get, mock_getaddrinfo, capsys, tmp_path):
+    """Test that fetching a seemingly public hostname that resolves to a private IP is blocked."""
+    # DNS resolves to internal IP
+    mock_getaddrinfo.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('10.1.2.3', 80))]
+
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    ret = cli.main(["--url", "http://malicious.example.com/", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert ret == 1
+    assert "SSRF protection prevented this request" in outerr.err
+    assert "10.1.2.3" in outerr.err
     mock_get.assert_not_called()
