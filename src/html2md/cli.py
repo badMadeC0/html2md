@@ -33,7 +33,43 @@ def main(argv=None):
                   "Please run: pip install requests markdownify", file=sys.stderr)
             return 1
 
+        class SSRFAdapter(requests.adapters.HTTPAdapter):
+            """Adapter to prevent SSRF by blocking requests to private and local IPs."""
+            def send(self, request, **kwargs):
+                import socket
+                import ipaddress
+                parsed = urlparse(request.url)
+                hostname = parsed.hostname
+                if hostname:
+                    try:
+                        ip = socket.gethostbyname(hostname)
+                        parsed_ip = ipaddress.ip_address(ip)
+                        if (parsed_ip.is_private or parsed_ip.is_loopback or
+                                parsed_ip.is_link_local or parsed_ip.is_unspecified):
+                            raise requests.exceptions.RequestException(
+                                f"Blocked request to disallowed IP address: {ip}"
+                            )
+                        # TOCTOU mitigation: rewrite URL to use resolved IP to prevent DNS rebinding
+                        # This ensures the IP we checked is the actual IP we connect to.
+                        netloc = f"{ip}"
+                        if parsed.port:
+                            netloc = f"{ip}:{parsed.port}"
+
+                        # Note: This simple IP replacement might cause issues with vhosts and SNI
+                        # where the Host header needs to be the original hostname. We update the
+                        # Host header below to preserve it.
+                        request.url = parsed._replace(netloc=netloc).geturl()
+                        if 'Host' not in request.headers:
+                             request.headers['Host'] = hostname
+
+                    except socket.gaierror:
+                        pass
+                return super().send(request, **kwargs)
+
         session = requests.Session()
+        ssrf_adapter = SSRFAdapter()
+        session.mount('http://', ssrf_adapter)
+        session.mount('https://', ssrf_adapter)
         session.headers.update({
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
