@@ -1,0 +1,77 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest black
+        shell: bash
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-pre.txt
+        shell: bash
+
+      - name: Attempt self-heal repairs
+        run: python scripts/self-heal.py | tee selfheal-repair.txt
+        shell: bash
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: python scripts/healthcheck.py | tee selfheal-post.txt
+        shell: bash
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b self-heal-fixes-${{ github.run_id }}
+          git add -A
+          git commit -m "Self-heal auto-fix" || exit 0
+          git push origin self-heal-fixes-${{ github.run_id }}
+          gh pr create --title "Self-heal auto-fix" --body "Automated fixes from self-heal workflow." --label "self-heal" --head self-heal-fixes-${{ github.run_id }}
+        shell: bash
