@@ -8,3 +8,10 @@
 4. **Fast type checks**: Using `type(rec) is dict` instead of `isinstance(rec, dict)` and `type(value) is str` instead of `isinstance(value, str)` skips subclass checks and is slightly faster in very tight loops.
 
 **Action:** When optimizing data-processing hot loops in Python, first eliminate string allocations (`strip`, `lstrip`), pre-compute list comprehenson iterables to avoid unpacking in the loop, and use `type() is X` for exact type checking instead of `isinstance` if subclassing isn't a concern.
+## 2024-06-25 - Python Fast Path Optimizations for CSV/JSON Export Loop
+
+**Learning:** Optimizing a hot loop parsing JSON to CSV in Python yielded performance throughput increase through method lookup caching:
+
+1. **Cache method lookups in hot loops**: Caching a method lookup like `dict_get = dict.get` outside the loop, and using it as `dict_get(rec, name, "")` inside the loop, avoids repeated `LOAD_ATTR` operations and speeds up the loop noticeably.
+
+**Action:** When optimizing data-processing hot loops in Python, cache method lookups outside the loop.
