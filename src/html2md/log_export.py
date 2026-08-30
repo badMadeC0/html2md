@@ -77,6 +77,10 @@ def main(argv=None):
         # Pre-extract names to avoid tuple unpacking in loop comprehension
         input_names = [name for name, _ in mapping]
 
+        # ⚡ Bolt: Cache method lookups to avoid expensive attribute access in tight loop
+        # Caching dict.get reduces lookup overhead per row
+        dict_get = dict.get
+
         for line in fi:
             # json.loads ignores whitespace; skip manual strip/empty checks
             try:
@@ -88,8 +92,9 @@ def main(argv=None):
             if not isinstance(rec, dict):
                 continue
 
+            # ⚡ Bolt: Use cached dict_get to bypass attribute lookup overhead
             writerow([
-                sanitize(rec.get(name, ""))
+                sanitize(dict_get(rec, name, ""))
                 for name in input_names
             ])
 
