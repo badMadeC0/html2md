@@ -79,3 +79,36 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+def test_content_type_validation_rejects_binary(mock_get, capsys, tmp_path):
+    """Unsupported Content-Type prevents reading binary files."""
+    response = MagicMock()
+    response.headers = {'Content-Type': 'application/octet-stream'}
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    ret = cli.main(["--url", "http://example.com/binary.bin", "--outdir", str(tmp_path)])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Unsupported Content-Type" in outerr.err
+
+@patch("requests.Session.get")
+def test_content_type_validation_allows_text(mock_get, capsys, tmp_path):
+    """Supported Content-Type allows processing."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+    response = MagicMock()
+    response.headers = {'Content-Type': 'text/html'}
+    response.text = "<h1>dummy</h1>"
+    response.encoding = "utf-8"
+    response.iter_content.return_value = [b"<h1>dummy</h1>"]
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    ret = cli.main(["--url", "http://example.com/dummy", "--outdir", str(outdir)])
+
+    outerr = capsys.readouterr()
+    assert ret == 0
+    assert "Success!" in outerr.out
