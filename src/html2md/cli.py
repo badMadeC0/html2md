@@ -90,6 +90,12 @@ def main(argv=None):
                 try:
                     response.raise_for_status()
 
+                    # Security Enhancement: Prevent parsing arbitrary binary files
+                    content_type = response.headers.get('Content-Type', '')
+                    if content_type and not content_type.lower().startswith(('text/', 'application/xhtml+xml', 'application/xml')):
+                        print(f"Error: Unsupported Content-Type '{content_type}'. Expected text or HTML.", file=sys.stderr)
+                        return 1
+
                     max_size = 10 * 1024 * 1024
                     try:
                         if int(response.headers.get('Content-Length', 0)) > max_size:
