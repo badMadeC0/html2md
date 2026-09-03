@@ -1,9 +1,18 @@
 """Security tests for the Flask app."""
 import pytest
-from html2md.app import app
+
+try:
+    from html2md.app import app
+    HAS_FLASK = True
+except ImportError:
+    HAS_FLASK = False
+
+pytestmark = pytest.mark.skipif(not HAS_FLASK, reason="flask is not installed")
 
 @pytest.fixture
 def client():
+    if not HAS_FLASK:
+        pytest.skip("flask is not installed")
     app.config['TESTING'] = True
     with app.test_client() as client:
         yield client
