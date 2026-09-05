@@ -70,12 +70,14 @@ def main(argv=None):
         w.writerow(fieldnames)
 
         # Hoist lookups out of hot loop for faster access (LOAD_FAST vs LOAD_GLOBAL/LOAD_ATTR)
-        sanitize = _sanitize_value
         writerow = w.writerow
         loads = json.loads
 
-        # Pre-extract names to avoid tuple unpacking in loop comprehension
-        input_names = [name for name, _ in mapping]
+        # Fast local bindings for inline sanitization
+        dangerous = _DANGEROUS_PREFIXES
+
+        # Pre-extract names as a tuple for slightly faster iteration
+        input_names = tuple(name for name, _ in mapping)
 
         for line in fi:
             # json.loads ignores whitespace; skip manual strip/empty checks
@@ -84,14 +86,25 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            # Strict/fast dict check
-            if not isinstance(rec, dict):
+            # Strict exact exact dict check (faster than isinstance)
+            if type(rec) is not dict:
                 continue
 
-            writerow([
-                sanitize(rec.get(name, ""))
-                for name in input_names
-            ])
+            # Inlining _sanitize_value and _sanitize_formula to avoid function call overhead in hot loop
+            row = []
+            for name in input_names:
+                val = rec.get(name, "")
+                if type(val) is str:
+                    # Fast path checks before expensive lstrip()
+                    if val and val[0] != "'" and (val[0] in dangerous or val.lstrip().startswith(dangerous)):
+                        row.append(f"'{val}")
+                    else:
+                        row.append(val)
+                elif val is None:
+                    row.append("")
+                else:
+                    row.append(val)
+            writerow(row)
 
     return 0
 
