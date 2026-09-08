@@ -81,7 +81,10 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            safe_url = target_url
+            if parsed.password:
+                safe_url = target_url.replace(f":{parsed.password}@", ":***@")
+            print(f"Processing URL: {safe_url}")
 
             try:
                 print("Fetching content...")
