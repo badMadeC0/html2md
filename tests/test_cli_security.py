@@ -24,6 +24,21 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
 
 
 @patch("requests.Session.get")
+def test_url_password_masking(mock_get, capsys, tmp_path):
+    """Passwords in URLs must be masked when printed."""
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://user:supersecret@example.com"])
+    outerr = capsys.readouterr()
+
+    assert "Processing URL: http://user:***@example.com" in outerr.out
+    assert "supersecret" not in outerr.out
+    assert "supersecret" not in outerr.err
+
+@patch("requests.Session.get")
 def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
