@@ -4,8 +4,28 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import socket
+import ipaddress
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+
+def is_internal_url(url: str) -> bool:
+    """Check if a URL resolves to an internal/private IP address."""
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+
+    try:
+        ip_obj = ipaddress.ip_address(hostname.strip('[]'))
+    except ValueError:
+        try:
+            ip = socket.gethostbyname(hostname)
+            ip_obj = ipaddress.ip_address(ip)
+        except Exception:
+            return False
+
+    return ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_unspecified
 
 def main(argv=None):
     """Run the CLI."""
@@ -79,6 +99,11 @@ def main(argv=None):
             if parsed.scheme not in ('http', 'https'):
                 print(f"Error: Unsupported URL scheme '{parsed.scheme}'. "
                       "Only http and https are allowed.", file=sys.stderr)
+                return 1
+
+            # SSRF Protection: Prevent fetching from internal/private IP addresses
+            if is_internal_url(target_url):
+                print(f"Error: URL resolves to a private or internal IP address, which is not allowed for security reasons.", file=sys.stderr)
                 return 1
 
             print(f"Processing URL: {target_url}")

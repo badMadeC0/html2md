@@ -24,7 +24,8 @@ def test_process_url_unsupported_scheme(mock_get, capsys, tmp_path, url, scheme)
 
 
 @patch("requests.Session.get")
-def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
+@patch("html2md.cli.is_internal_url", return_value=False)
+def test_traversal_like_paths_stay_within_outdir(mock_is_internal, mock_get, capsys, tmp_path):
     """Traversal-like URL paths must never write outside of --outdir."""
     outdir = tmp_path / "output"
     outdir.mkdir()
@@ -79,3 +80,29 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+@patch("requests.Session.get")
+@patch("html2md.cli.socket.gethostbyname")
+def test_ssrf_protection_blocks_internal_ips(mock_gethostbyname, mock_get, capsys, tmp_path):
+    """Ensure that the CLI rejects URLs pointing to internal/private IP addresses to prevent SSRF."""
+
+    # Setup the mock so example.com resolves to an internal IP.
+    # While the actual `is_internal_url` handles parsing and resolution, this is enough to test it.
+    mock_gethostbyname.return_value = "127.0.0.1"
+
+    urls = [
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/admin",
+        "http://0.0.0.0",
+        "http://example.internal"  # Will be resolved to 127.0.0.1 by mock
+    ]
+
+    for url in urls:
+        ret = cli.main(["--url", url, "--outdir", str(tmp_path)])
+        outerr = capsys.readouterr()
+
+        assert ret == 1
+        assert "Error: URL resolves to a private or internal IP address" in outerr.err
+        mock_get.assert_not_called()
