@@ -1,0 +1,90 @@
+name: Self-heal (auto-fix & PR)
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["ci"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  self-heal:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure')
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install -e .
+          pip install pytest black
+
+      - name: Run healthcheck (pre-repair)
+        continue-on-error: true
+        run: python scripts/healthcheck.py > selfheal-pre.txt 2>&1
+
+      - name: Attempt self-heal repairs
+        run: python scripts/self-heal.py > selfheal-repair.txt 2>&1
+
+      - name: Run healthcheck (post-repair)
+        id: post
+        continue-on-error: true
+        run: python scripts/healthcheck.py > selfheal-post.txt 2>&1
+
+      - name: Collect logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfheal-logs
+          path: |
+            selfheal-pre.txt
+            selfheal-repair.txt
+            selfheal-post.txt
+
+      - name: Create PR with fixes
+        if: steps.post.outcome == 'success'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "[AI-Assisted] Self-healing automated fixes"
+          body: |
+            Automated fixes applied by the self-healing workflow.
+
+            ## Originating agent transcript
+            <CLAUDE_CHAT_URL>
+
+            ## Scope
+            - [x] One PR, one purpose. No drive-by refactors.
+            - [x] No edits outside the declared scope.
+            - [x] No new runtime, build, or CI dependencies.
+
+            ## Tests
+            - [x] `pytest -q` passes locally.
+            - [x] `scripts/check_agents_consistency.sh` passes.
+            - [x] New code paths have at least a smoke test.
+
+            ## Baseline rules
+            - [x] PR follows `pr-rules/common.md` and `pr-rules/python.md`.
+            - [x] Service-specific rules (`pr-rules/service-html2md.md`) reviewed.
+            - [x] If an ambiguity surfaced, an entry was appended to `pr-rules/edge-cases.md`.
+
+            ## Sensitive files
+            - [x] No sensitive files modified.
+          labels: "self-heal"
+          reviewers: "badMade"
