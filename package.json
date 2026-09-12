@@ -1,0 +1,11 @@
+{
+  "name": "html2md-cli",
+  "scripts": {
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "self:heal": "node scripts/self-heal.mjs",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  }
+}
