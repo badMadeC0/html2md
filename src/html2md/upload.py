@@ -46,6 +46,9 @@ def main(argv=None):
     except anthropic.APIError as exc:
         print(f"API error: {exc}", file=sys.stderr)
         return 1
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        print(f"Unexpected error: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 
