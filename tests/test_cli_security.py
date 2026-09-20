@@ -34,6 +34,7 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
 
     response = MagicMock()
     response.text = "<h1>dummy</h1>"
+    response.headers = {'Content-Type': 'text/html'}
     response.raise_for_status.return_value = None
     mock_get.return_value = response
 
@@ -79,3 +80,32 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
     mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "content_type",
+    [
+        "image/png",
+        "video/mp4",
+        "audio/mpeg",
+        "application/pdf",
+        "application/zip",
+        "application/octet-stream",
+        "font/woff2",
+        "IMAGE/JPEG",  # Test case insensitivity
+    ],
+)
+@patch("requests.Session.get")
+def test_reject_binary_content_types(mock_get, capsys, content_type):
+    """Ensure that unsupported binary Content-Types are rejected."""
+    response = MagicMock()
+    response.headers = {"Content-Type": content_type}
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    ret = cli.main(["--url", "http://example.com/file"])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Unsupported Content-Type" in outerr.err
+    assert "Cannot convert binary data to Markdown" in outerr.err

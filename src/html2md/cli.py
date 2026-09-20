@@ -100,6 +100,11 @@ def main(argv=None):
                         # The streaming loop below still enforces max_size.
                         pass
 
+                    content_type = response.headers.get('Content-Type', '').lower()
+                    if content_type and any(content_type.startswith(t) for t in ('image/', 'video/', 'audio/', 'application/pdf', 'application/zip', 'application/octet-stream', 'font/')):
+                        print(f"Error: Unsupported Content-Type '{content_type}'. Cannot convert binary data to Markdown.", file=sys.stderr)
+                        return 1
+
                     chunks = []
                     total = 0
                     for chunk in response.iter_content(chunk_size=8192):
