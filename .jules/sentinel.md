@@ -5,5 +5,5 @@
 
 ## 2024-09-20 - Prevented Server-Side Request Forgery (SSRF) via Input URLs
 **Vulnerability:** The CLI directly fetched external URLs using `requests.get` without validating the resolved IP address. This allowed an attacker to input URLs like `http://localhost/` or `http://169.254.169.254/` (cloud provider metadata) to scan internal services or access sensitive infrastructure behind the firewall.
-**Learning:** Naively passing user-provided URLs to HTTP clients is a major risk. A hostname can be deceptive and resolve to internal addresses.
-**Prevention:** Resolve the URL's hostname to an IP address before fetching, and explicitly block private, loopback, link-local, and multicast IP ranges using `ipaddress` to prevent SSRF attacks.
+**Learning:** Naively passing user-provided URLs to HTTP clients is a major risk. A hostname can be deceptive and resolve to internal addresses. Also, `socket.gethostbyname` does not support IPv6.
+**Prevention:** Resolve the URL's hostname to an IP address (using `socket.getaddrinfo` to support both IPv4 and IPv6) before fetching, and explicitly block private, loopback, link-local, and multicast IP ranges using `ipaddress` to prevent SSRF attacks.
