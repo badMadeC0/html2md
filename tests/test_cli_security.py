@@ -1,6 +1,7 @@
 """Security-focused tests for CLI URL and output path handling."""
 
 from unittest.mock import MagicMock, patch
+import socket
 import pytest
 
 from html2md import cli
@@ -78,4 +79,34 @@ def test_outdir_creation_failure_returns_error_before_fetch(mock_get, capsys, tm
     assert ret == 1
     assert "Error creating output directory" in outerr.err
     assert "Permission denied" in outerr.err
+    mock_get.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "url, mock_ip",
+    [
+        ("http://localhost/", "127.0.0.1"),
+        ("http://169.254.169.254/latest/meta-data/", "169.254.169.254"),
+        ("http://internal-api.local/", "10.0.0.5"),
+        ("https://private.domain.com/", "192.168.1.100"),
+        ("http://[::1]/", "::1"),
+        ("http://service.local/", "172.16.0.5"),
+        ("http://multicast.local/", "224.0.0.1"),
+    ],
+)
+@patch("socket.getaddrinfo")
+@patch("requests.Session.get")
+def test_process_url_ssrf_protection(mock_get, mock_getaddrinfo, capsys, url, mock_ip):
+    """Ensure that SSRF attempts to internal IPs are blocked before the request."""
+    # Create the tuple structure returned by getaddrinfo
+    # (family, type, proto, canonname, sockaddr)
+    mock_getaddrinfo.return_value = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', (mock_ip, 0))
+    ]
+
+    ret = cli.main(["--url", url])
+
+    outerr = capsys.readouterr()
+    assert ret == 1
+    assert "Error: SSRF attempt detected. Internal IP" in outerr.err
     mock_get.assert_not_called()
