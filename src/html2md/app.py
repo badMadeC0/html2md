@@ -11,6 +11,15 @@ DEFAULT_PORT = 10000
 app = Flask(__name__)
 
 
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+
 @app.route('/health')
 def health():
     """Return health status of the application."""
@@ -30,7 +39,7 @@ def get_host_port():
         )
         port_value = DEFAULT_PORT
 
-    hostname = os.environ.get('HOST', '0.0.0.0')
+    hostname = os.environ.get('HOST', '127.0.0.1')
     return hostname, port_value
 
 
