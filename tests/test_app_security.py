@@ -1,5 +1,11 @@
 import os
 import pytest
+
+try:
+    import flask
+except ImportError:
+    pytest.skip("flask is not installed", allow_module_level=True)
+
 from html2md.app import app, get_host_port
 
 @pytest.fixture
