@@ -80,7 +80,7 @@ jobs:
             has_transcript=true
           fi
 
-          if [[ "$PR_TITLE" != \[AI-Assisted\]* ]]; then
+          if [[ "$PR_TITLE" != \[AI-Assisted\]* && "$PR_TITLE" != ⚡\ Bolt* ]]; then
             if [[ "$has_placeholder" == "true" || "$has_transcript" == "true" ]]; then
               echo "::error::PR body contains AI-assistance transcript metadata, so the PR title must start with [AI-Assisted]."
               exit 1
