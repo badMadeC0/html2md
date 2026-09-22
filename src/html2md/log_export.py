@@ -14,7 +14,7 @@ def _sanitize_formula(value: str) -> str:
     # Fast path checks before expensive lstrip()
     if not value or value[0] == "'":
         return value
-    if value[0] in _DANGEROUS_PREFIXES or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+    if value[0] in "=+-@" or value.lstrip().startswith(_DANGEROUS_PREFIXES):
         return f"'{value}"
     return value
 
@@ -42,10 +42,14 @@ def _unique_fieldnames(fields: list[str]) -> tuple[list[str], list[tuple[str, st
 
 def _sanitize_value(value: object) -> object:
     """Return CSV-safe value."""
+    if type(value) is str:
+        if not value or value[0] == "'":
+            return value
+        if value[0] in "=+-@" or value.lstrip().startswith(_DANGEROUS_PREFIXES):
+            return f"'{value}"
+        return value
     if value is None:
         return ""
-    if isinstance(value, str):
-        return _sanitize_formula(value)
     return value
 
 
@@ -84,10 +88,11 @@ def main(argv=None):
             except json.JSONDecodeError:
                 continue
 
-            # Strict/fast dict check
-            if not isinstance(rec, dict):
+            # Strict/fast dict check (avoid isinstance overhead)
+            if type(rec) is not dict:
                 continue
 
+            # Fast row generation using list comprehension instead of generator expression
             writerow([
                 sanitize(rec.get(name, ""))
                 for name in input_names
