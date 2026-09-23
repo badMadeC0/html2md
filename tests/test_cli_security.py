@@ -53,6 +53,24 @@ def test_traversal_like_paths_stay_within_outdir(mock_get, capsys, tmp_path):
     assert not (tmp_path / "secret.txt.md").exists()
 
 
+@patch("requests.Session.get")
+def test_cli_logs_sanitized_url_credentials(mock_get, capsys, tmp_path):
+    """Ensure that basic authentication credentials in URLs are not leaked in stdout."""
+    outdir = tmp_path / "output"
+    outdir.mkdir()
+
+    response = MagicMock()
+    response.text = "<h1>dummy</h1>"
+    response.raise_for_status.return_value = None
+    mock_get.return_value = response
+
+    cli.main(["--url", "http://user:super_secret_password@example.com/path", "--outdir", str(outdir)])
+    outerr = capsys.readouterr()
+
+    assert "Processing URL: http://user:***@example.com/path" in outerr.out
+    assert "super_secret_password" not in outerr.out
+    assert "super_secret_password" not in outerr.err
+
 def test_outdir_existing_file_returns_clear_error(capsys, tmp_path):
     """An existing file passed as --outdir returns a clear preflight error."""
     outdir_file = tmp_path / "not-a-directory"
