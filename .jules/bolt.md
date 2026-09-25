@@ -11,3 +11,6 @@
 ## 2024-05-24 - Short-Circuiting `lstrip` on Python String Parsing
 **Learning:** Even if you check the first character of a string, calling `value.lstrip().startswith()` on every string where the first character doesn't trigger an early return is expensive because `lstrip()` creates a new string object. We can check if `value[0].isspace()` before calling `lstrip()`.
 **Action:** Always check `isspace()` on the first character before invoking string manipulation functions like `lstrip()` when validating prefixes.
+## 2024-05-24 - PR Title Prefix for Agent Metadata
+**Learning:** The repository CI has a strict check (`Verify AI-assisted PR metadata`) that requires any PR containing agent transcript URLs in its body to also start its title with `[AI-Assisted]`. This is to explicitly mark PRs created by AI agents.
+**Action:** When creating a PR that includes an AI transcript or metadata in the description, always prefix the PR title with `[AI-Assisted]`.
