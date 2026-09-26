@@ -7,6 +7,14 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
+def _mask_url_password(url: str) -> str:
+    """Mask the password in a URL if present."""
+    parsed = urlparse(url)
+    if parsed.password:
+        safe_netloc = parsed.netloc.replace(f":{parsed.password}@", ":***@")
+        return url.replace(parsed.netloc, safe_netloc)
+    return url
+
 def main(argv=None):
     """Run the CLI."""
     ap = argparse.ArgumentParser(
@@ -81,7 +89,7 @@ def main(argv=None):
                       "Only http and https are allowed.", file=sys.stderr)
                 return 1
 
-            print(f"Processing URL: {target_url}")
+            print(f"Processing URL: {_mask_url_password(target_url)}")
 
             try:
                 print("Fetching content...")
@@ -121,7 +129,7 @@ def main(argv=None):
                 if args.outdir:
                     # Create a safe filename based on the URL
                     filename = "conversion_result.md"
-                    url_path = target_url.split('?')[0].rstrip('/')
+                    url_path = _mask_url_password(target_url).split('?')[0].rstrip('/')
                     if url_path:
                         base = os.path.basename(unquote(url_path))
                         # Sanitize to prevent path traversal
